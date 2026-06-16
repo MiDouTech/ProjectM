@@ -7,6 +7,9 @@ package com.mido.pm.common.tenant;
  */
 public final class TenantContext {
 
+    /** 阶段一单租户固定租户 ID；阶段三多租户激活后由认证上下文按 JWT 写入真实租户。 */
+    public static final long DEFAULT_TENANT_ID = 1L;
+
     private static final ThreadLocal<Long> CURRENT = new ThreadLocal<>();
 
     private TenantContext() {

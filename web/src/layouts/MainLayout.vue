@@ -1,6 +1,6 @@
 <template>
   <div class="mido-layout">
-    <!-- 顶栏 TopBar（design-system §4，48px）-->
+    <!-- 顶栏 TopBar（design-system §4，高度走 --mido-topbar-height）-->
     <header class="mido-topbar">
       <div class="mido-topbar__brand">
         <el-icon class="mido-topbar__logo"><Grid /></el-icon>
@@ -12,7 +12,7 @@
         <el-badge :is-dot="true">
           <el-icon class="mido-topbar__icon"><Bell /></el-icon>
         </el-badge>
-        <el-avatar :size="32" class="mido-topbar__avatar">M</el-avatar>
+        <el-avatar class="mido-topbar__avatar">M</el-avatar>
       </div>
     </header>
 
@@ -114,6 +114,8 @@ const drawerSize = 'var(--mido-drawer-width)'
 }
 
 .mido-topbar__avatar {
+  width: var(--mido-space-6);
+  height: var(--mido-space-6);
   background-color: var(--el-color-primary);
   cursor: pointer;
 }

@@ -18,8 +18,8 @@ public class MidoTenantLineHandler implements TenantLineHandler {
 
     @Override
     public Expression getTenantId() {
-        // 未登录/系统级场景默认 0，避免空指针；正式请求由拦截器写入真实租户。
-        return new LongValue(TenantContext.getOrDefault(0L));
+        // 取请求级 TenantContext；缺省回落固定单租户，避免空指针。
+        return new LongValue(TenantContext.getOrDefault(TenantContext.DEFAULT_TENANT_ID));
     }
 
     @Override
