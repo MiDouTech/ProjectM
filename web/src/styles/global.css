@@ -1,0 +1,50 @@
+/* 全局基础样式：仅用 tokens，禁止裸值。 */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--mido-font-family);
+  font-size: var(--mido-font-size-body);
+  line-height: var(--mido-line-height-body);
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color-page);
+}
+
+/* 页面级标题（§2 H1）*/
+.mido-h1 {
+  font-size: var(--mido-font-size-h1);
+  line-height: var(--mido-line-height-h1);
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--el-text-color-primary);
+  margin: 0;
+}
+
+/* 区块标题（§2 H2）*/
+.mido-h2 {
+  font-size: var(--mido-font-size-h2);
+  line-height: var(--mido-line-height-h2);
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--el-text-color-primary);
+  margin: 0;
+}
+
+/* 辅助说明（§2 Secondary）*/
+.mido-text-secondary {
+  font-size: var(--mido-font-size-secondary);
+  line-height: var(--mido-line-height-secondary);
+  color: var(--el-text-color-secondary);
+}
+
+/* 数字/金额/编号等宽（§2）*/
+.mido-mono {
+  font-family: var(--mido-font-mono);
+}
