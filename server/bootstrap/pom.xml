@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.mido.pm</groupId>
+        <artifactId>mido-pm-server</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>bootstrap</artifactId>
+    <name>bootstrap</name>
+    <description>启动模块：聚合全部业务模块与 Provider，提供可执行入口</description>
+
+    <dependencies>
+        <!-- 内部模块：聚合全部业务域 + Provider -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>provider</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-org</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-project</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-task</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-goal</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-stakeholder</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-verify</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-approval</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-cost</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-collab</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-doc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-report</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-ai</artifactId>
+        </dependency>
+
+        <!-- 基础设施 starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- API 文档 -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+
+        <!-- MySQL 驱动（版本由 Spring Boot BOM 管理） -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ShardingSphere 5.x：阶段一仅引入，不开启分片 -->
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc</artifactId>
+            <exclusions>
+                <!-- 5.5.0 误将未发布到中央仓的 test-util 作为传递依赖，排除之 -->
+                <exclusion>
+                    <groupId>org.apache.shardingsphere</groupId>
+                    <artifactId>shardingsphere-test-util</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>mido-pm</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.mido.pm.Application</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
