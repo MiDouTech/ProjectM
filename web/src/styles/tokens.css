@@ -82,4 +82,6 @@
   --mido-nav-width-collapsed: 64px;
   --mido-drawer-width: 480px;
   --mido-border-width: 1px;
+  --mido-login-card-width: 360px;
+  --mido-admin-nav-width: 180px;
 }

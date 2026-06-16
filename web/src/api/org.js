@@ -1,0 +1,45 @@
+import request from './request'
+
+/** 认证（Step 1-2） */
+export const authApi = {
+  login: (data) => request.post('/auth/login', data),
+}
+
+/** 用户/成员（Step 1-1） */
+export const userApi = {
+  query: (data) => request.post('/users/query', data),
+  get: (id) => request.get(`/users/${id}`),
+  create: (data) => request.post('/users', data),
+  update: (id, data) => request.put(`/users/${id}`, data),
+  remove: (id) => request.delete(`/users/${id}`),
+  assignRoles: (id, roleIds) => request.put(`/users/${id}/roles`, { roleIds }),
+}
+
+/** 角色 + 权限码 + 数据范围（Step 1-1） */
+export const roleApi = {
+  list: () => request.get('/roles'),
+  create: (data) => request.post('/roles', data),
+  update: (id, data) => request.put(`/roles/${id}`, data),
+  remove: (id) => request.delete(`/roles/${id}`),
+  getPerms: (id) => request.get(`/roles/${id}/perms`),
+  savePerms: (id, permCodes) => request.put(`/roles/${id}/perms`, permCodes),
+  getDataScopes: (id) => request.get(`/roles/${id}/data-scopes`),
+  saveDataScopes: (id, settings) => request.put(`/roles/${id}/data-scopes`, settings),
+}
+
+/** 部门树（Step 1-1） */
+export const deptApi = {
+  tree: () => request.get('/depts'),
+  create: (data) => request.post('/depts', data),
+  update: (id, data) => request.put(`/depts/${id}`, data),
+  remove: (id) => request.delete(`/depts/${id}`),
+}
+
+/** 数据范围可选值（design-system / data-model 状态字典） */
+export const DATA_SCOPES = [
+  { value: 'self', label: '本人' },
+  { value: 'dept', label: '本部门' },
+  { value: 'dept_and_sub', label: '本部门及下属' },
+  { value: 'all', label: '全部' },
+  { value: 'custom', label: '自定义' },
+]

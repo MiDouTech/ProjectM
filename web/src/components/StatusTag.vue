@@ -26,6 +26,9 @@ const STATUS_TYPE = {
   逾期: 'danger', 阻塞: 'danger', 失败: 'danger',
   // success：已完成 / 已结案 / 成功 / 已评价
   已完成: 'success', 已结案: 'success', 成功: 'success', 已评价: 'success', 已验收: 'success',
+  // 账号启用/停用（§4 派生，待回写 design-system §1.5 登记）
+  active: 'success', 启用: 'success',
+  disabled: 'info', 停用: 'info',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')

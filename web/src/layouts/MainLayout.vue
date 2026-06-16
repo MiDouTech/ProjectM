@@ -12,7 +12,14 @@
         <el-badge :is-dot="true">
           <el-icon class="mido-topbar__icon"><Bell /></el-icon>
         </el-badge>
-        <el-avatar class="mido-topbar__avatar">M</el-avatar>
+        <el-dropdown @command="onUserCommand">
+          <el-avatar class="mido-topbar__avatar">M</el-avatar>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </header>
 
@@ -26,12 +33,12 @@
           background-color="transparent"
         >
           <el-menu-item
-            v-for="item in navRoutes"
-            :key="item.name"
-            :index="'/' + item.path"
+            v-for="item in navItems"
+            :key="item.path"
+            :index="item.path"
           >
-            <el-icon><component :is="item.meta.icon" /></el-icon>
-            <span>{{ item.meta.title }}</span>
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ item.title }}</span>
           </el-menu-item>
         </el-menu>
       </aside>
@@ -57,16 +64,26 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Plus, Bell, Grid } from '@element-plus/icons-vue'
-import { navRoutes } from '@/router'
+import { navItems } from '@/router'
+import { useUserStore } from '@/store/user'
 
 const route = useRoute()
-const activeMenu = computed(() => route.path)
+const router = useRouter()
+// 高亮顶层导航（嵌套子路由如 /admin/members 也命中 /admin）
+const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'workbench'))
 
 // 全局右抽屉容器，默认关闭；详情页后续注入内容。
 const drawerVisible = ref(false)
 const drawerSize = 'var(--mido-drawer-width)'
+
+function onUserCommand(command) {
+  if (command === 'logout') {
+    useUserStore().clearToken()
+    router.push('/login')
+  }
+}
 </script>
 
 <style scoped>
