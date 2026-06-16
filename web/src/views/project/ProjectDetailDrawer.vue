@@ -1,0 +1,155 @@
+<template>
+  <el-drawer v-model="visible" :size="drawerSize" :with-header="false" @open="onOpen">
+    <div v-loading="loading" class="pd">
+      <!-- 头部（§7-B：标题 + 状态 + 负责人 + 起止时间） -->
+      <header class="pd__head">
+        <div class="pd__title">
+          <CategoryBadge :category="project.category" :show-label="false" />
+          <h2 class="mido-h2">{{ project.name }}</h2>
+          <StatusTag :status="project.status" />
+        </div>
+        <div class="pd__meta mido-text-secondary">
+          <span class="mido-mono">{{ project.code || '—' }}</span>
+          <span>负责人：{{ userName(project.leaderId) }}</span>
+          <span>{{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}</span>
+        </div>
+      </header>
+
+      <div class="pd__body">
+        <!-- 左：信息 / 任务 / 干系人 / 验收 / 文件 -->
+        <section class="pd__main">
+          <el-tabs v-model="tab">
+            <el-tab-pane label="信息" name="info">
+              <ProjectInfoPane :project="project" :members="members" :user-name="userName"
+                @updated="reloadProject" @members-changed="loadMembers" />
+            </el-tab-pane>
+            <el-tab-pane label="任务" name="task">
+              <el-empty description="任务列表/看板在 Step 7-3（任务模块前端）接入" />
+            </el-tab-pane>
+            <el-tab-pane label="干系人" name="stakeholder">
+              <el-empty description="干系人矩阵（权力利益四象限）在 Step 7-3 接入" />
+            </el-tab-pane>
+            <el-tab-pane label="验收" name="verify">
+              <el-empty description="NPSS 两段式价值验收在后续验收模块前端接入" />
+            </el-tab-pane>
+            <el-tab-pane label="文件" name="doc">
+              <el-empty description="项目文件在文档模块前端接入" />
+            </el-tab-pane>
+          </el-tabs>
+        </section>
+
+        <!-- 右：评论 / 活动 / 流转 / 状态审批 -->
+        <aside class="pd__side">
+          <el-tabs v-model="sideTab">
+            <el-tab-pane label="流转" name="transition">
+              <ProjectTransitionPane :project="project" @transitioned="reloadProject" />
+            </el-tab-pane>
+            <el-tab-pane label="状态审批" name="approval">
+              <ProjectApprovalPane :project="project" @submitted="reloadProject" />
+            </el-tab-pane>
+            <el-tab-pane label="评论" name="comment">
+              <el-empty description="评论在协作模块前端接入" />
+            </el-tab-pane>
+            <el-tab-pane label="活动" name="activity">
+              <el-empty description="活动日志在协作模块前端接入" />
+            </el-tab-pane>
+          </el-tabs>
+        </aside>
+      </div>
+    </div>
+  </el-drawer>
+</template>
+
+<script setup>
+import { computed, ref } from 'vue'
+import StatusTag from '@/components/StatusTag.vue'
+import CategoryBadge from '@/components/CategoryBadge.vue'
+import { projectApi } from '@/api/project'
+import ProjectInfoPane from './panes/ProjectInfoPane.vue'
+import ProjectTransitionPane from './panes/ProjectTransitionPane.vue'
+import ProjectApprovalPane from './panes/ProjectApprovalPane.vue'
+
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+  projectId: { type: [Number, String], default: null },
+  userMap: { type: Object, default: () => ({}) },
+})
+const emit = defineEmits(['update:modelValue', 'changed'])
+
+// 详情抽屉比常规抽屉宽（双栏：主 + 活动栏），用两倍 drawer 宽度
+const drawerSize = 'calc(var(--mido-drawer-width) * 2)'
+
+const loading = ref(false)
+const project = ref({})
+const members = ref([])
+const tab = ref('info')
+const sideTab = ref('transition')
+
+const visible = computed({
+  get: () => props.modelValue,
+  set: (v) => emit('update:modelValue', v),
+})
+
+const userName = (id) => props.userMap[id] || (id ? `用户#${id}` : '—')
+
+async function onOpen() {
+  tab.value = 'info'
+  sideTab.value = 'transition'
+  await reloadProject()
+  await loadMembers()
+}
+async function reloadProject() {
+  if (!props.projectId) return
+  loading.value = true
+  try {
+    project.value = await projectApi.get(props.projectId)
+  } finally {
+    loading.value = false
+  }
+  emit('changed')
+}
+async function loadMembers() {
+  if (!props.projectId) return
+  members.value = await projectApi.members(props.projectId)
+}
+</script>
+
+<style scoped>
+.pd {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.pd__head {
+  padding-bottom: var(--mido-space-3);
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-light);
+}
+.pd__title {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.pd__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mido-space-4);
+  margin-top: var(--mido-space-2);
+}
+.pd__body {
+  display: flex;
+  gap: var(--mido-space-4);
+  flex: 1;
+  min-height: 0;
+  margin-top: var(--mido-space-3);
+}
+.pd__main {
+  flex: 1;
+  min-width: 0;
+}
+.pd__side {
+  width: var(--mido-drawer-width);
+  flex: none;
+  border-left: var(--mido-border-width) solid var(--el-border-color-light);
+  padding-left: var(--mido-space-4);
+}
+</style>

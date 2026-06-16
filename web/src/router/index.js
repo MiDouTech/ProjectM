@@ -21,9 +21,9 @@ const routes = [
     redirect: '/workbench',
     children: [
       { path: 'workbench', component: () => import('@/views/Workbench.vue') },
-      { path: 'project', component: () => import('@/views/Project.vue') },
+      { path: 'project', component: () => import('@/views/project/ProjectListView.vue') },
       { path: 'goal', component: () => import('@/views/Goal.vue') },
-      { path: 'approval', component: () => import('@/views/Approval.vue') },
+      { path: 'approval', component: () => import('@/views/approval/ApprovalView.vue') },
       { path: 'report', component: () => import('@/views/Report.vue') },
       { path: 'doc', component: () => import('@/views/Doc.vue') },
       {
