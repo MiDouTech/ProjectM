@@ -1,5 +1,7 @@
 package com.mido.pm.common.datascope;
 
+import java.util.function.Supplier;
+
 /**
  * 数据范围 opt-in 上下文（ThreadLocal）。
  * 服务在需要数据范围的查询前声明 {@link #set}，拦截器据此 + 当前用户范围改写 SQL，查询后 {@link #clear}。
@@ -32,5 +34,21 @@ public final class DataScopeContext {
 
     public static void clear() {
         CURRENT.remove();
+    }
+
+    /**
+     * 在指定数据范围内执行查询的可复用封装：自动 set + finally clear，模块无需各自写 try/finally，
+     * 杜绝忘记清理导致的 ThreadLocal 串号。
+     *
+     * @param action 受数据范围约束的查询动作
+     * @return 查询结果
+     */
+    public static <T> T scoped(String resource, String deptColumn, String userColumn, Supplier<T> action) {
+        set(resource, deptColumn, userColumn);
+        try {
+            return action.get();
+        } finally {
+            clear();
+        }
     }
 }

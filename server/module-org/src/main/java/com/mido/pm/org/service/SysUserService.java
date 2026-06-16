@@ -56,13 +56,9 @@ public class SysUserService {
                 .orderByDesc(SysUser::getId);
 
         // 声明数据范围：列表按当前用户角色的 user 资源范围注入 dept_id/create_by 条件。
-        Page<SysUser> result;
-        try {
-            DataScopeContext.set(RESOURCE, "dept_id", "create_by");
-            result = userMapper.selectPage(page, wrapper);
-        } finally {
-            DataScopeContext.clear();
-        }
+        // scoped 封装 set+clear，模块无需各自写 try/finally。
+        Page<SysUser> result = DataScopeContext.scoped(RESOURCE, "dept_id", "create_by",
+                () -> userMapper.selectPage(page, wrapper));
 
         List<UserVO> list = result.getRecords().stream().map(this::toVO).toList();
         return PageResult.of(list, result.getTotal(), pageNo, size);
