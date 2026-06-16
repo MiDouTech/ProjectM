@@ -14,8 +14,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
-/** 审批流定义管理。 */
+/** 审批流定义管理（兼作 ApprovalFlowDesigner 可视化设计器的后端接口）。 */
 @RestController
 @RequestMapping("/api/v1/approval-flows")
 public class ApprovalFlowController {
@@ -24,6 +25,19 @@ public class ApprovalFlowController {
 
     public ApprovalFlowController(ApprovalFlowService flowService) {
         this.flowService = flowService;
+    }
+
+    /**
+     * 设计器元数据占位：返回可用节点模式/可插拔 guard/条件字段，供前端 ApprovalFlowDesigner 渲染。
+     * 设计器 UI 放 P1；设计器的读/存流程定义复用本控制器 GET /{id} 与 POST。
+     */
+    @GetMapping("/designer-meta")
+    public R<Map<String, Object>> designerMeta() {
+        return R.ok(Map.of(
+                "modes", List.of("or", "and"),
+                "guards", List.of("JOB_LEVEL"),
+                "conditionFields", List.of("amount", "category", "jobLevel"),
+                "conditionOps", List.of("==", "!=", ">", ">=", "<", "<=")));
     }
 
     @PostMapping

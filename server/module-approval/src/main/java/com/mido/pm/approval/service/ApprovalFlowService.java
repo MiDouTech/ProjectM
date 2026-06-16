@@ -59,6 +59,16 @@ public class ApprovalFlowService {
         return toVO(flow);
     }
 
+    /** 按流程标识(name)解析审批流 ID；供业务（如立项审批）绑定默认流。 */
+    public Long resolveFlowId(String name) {
+        ApprovalFlow flow = flowMapper.selectOne(
+                Wrappers.<ApprovalFlow>lambdaQuery().eq(ApprovalFlow::getName, name).last("limit 1"));
+        if (flow == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "未找到审批流: " + name);
+        }
+        return flow.getId();
+    }
+
     private FlowVO toVO(ApprovalFlow f) {
         return new FlowVO(f.getId(), f.getName(), f.getBizType(), f.getMode(), f.getDefinition());
     }
