@@ -156,6 +156,7 @@ public class TaskService {
                 .eq(q.assigneeId() != null, PmTask::getAssigneeId, q.assigneeId())
                 .eq(q.status() != null && !q.status().isBlank(), PmTask::getStatus, q.status());
         if (Boolean.TRUE.equals(q.overdue())) {
+            // “今天”取统一服务器时区（启动时 TimeZone.setDefault，默认 Asia/Shanghai），跨环境一致。
             w.lt(PmTask::getDueDate, LocalDate.now())
                     .notIn(PmTask::getStatus, TaskStatus.DONE.getCode(), TaskStatus.ACCEPTED.getCode());
         }
