@@ -24,7 +24,9 @@
                 @updated="reloadProject" @members-changed="loadMembers" />
             </el-tab-pane>
             <el-tab-pane label="任务" name="task">
-              <el-empty description="任务列表/看板在 Step 7-3（任务模块前端）接入" />
+              <el-empty description="在任务工作区管理本项目的看板与任务列表">
+                <el-button type="primary" :icon="Operation" @click="goTasks">打开任务工作区</el-button>
+              </el-empty>
             </el-tab-pane>
             <el-tab-pane label="干系人" name="stakeholder">
               <el-empty description="干系人矩阵（权力利益四象限）在 Step 7-3 接入" />
@@ -62,6 +64,8 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Operation } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi } from '@/api/project'
@@ -90,7 +94,13 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
+const router = useRouter()
 const userName = (id) => props.userMap[id] || (id ? `用户#${id}` : '—')
+
+function goTasks() {
+  visible.value = false
+  router.push(`/project/${props.projectId}/tasks`)
+}
 
 async function onOpen() {
   tab.value = 'info'

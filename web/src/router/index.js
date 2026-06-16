@@ -22,6 +22,7 @@ const routes = [
     children: [
       { path: 'workbench', component: () => import('@/views/Workbench.vue') },
       { path: 'project', component: () => import('@/views/project/ProjectListView.vue') },
+      { path: 'project/:projectId/tasks', component: () => import('@/views/task/TaskWorkspaceView.vue') },
       { path: 'goal', component: () => import('@/views/Goal.vue') },
       { path: 'approval', component: () => import('@/views/approval/ApprovalView.vue') },
       { path: 'report', component: () => import('@/views/Report.vue') },
