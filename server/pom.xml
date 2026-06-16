@@ -168,6 +168,15 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- 所有模块统一具备测试能力（JUnit5 + Mockito + AssertJ），版本由 Spring Boot BOM 管理 -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <pluginManagement>
             <plugins>

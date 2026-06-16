@@ -23,7 +23,15 @@ public class LocalSsoProvider implements SsoProvider {
     public LocalSsoProvider(
             @Value("${mido.jwt.secret:mido-pm-default-secret-key-please-change-in-prod}") String secret,
             @Value("${mido.jwt.ttl-millis:86400000}") long ttlMillis) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        // HS256 要求密钥至少 256bit(32 字节)。提前显式校验，给出清晰提示，
+        // 避免 jjwt 在签发时抛出晦涩的 WeakKeyException。
+        if (secretBytes.length < 32) {
+            throw new IllegalStateException(
+                    "mido.jwt.secret 长度不足：HS256 需至少 32 字节(256bit)，当前 "
+                            + secretBytes.length + " 字节。请将 MIDO_JWT_SECRET 设为不少于 32 个字符。");
+        }
+        this.key = Keys.hmacShaKeyFor(secretBytes);
         this.ttlMillis = ttlMillis;
     }
 

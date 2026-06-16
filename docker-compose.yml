@@ -75,7 +75,9 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # 优先打官方存活探针(免鉴权)；curl 不在镜像时回落 mc(随镜像内置, local 为 mc 内置别名)。
+      # 二者覆盖 ubi-minimal 基础镜像可能的差异，避免容器长期 unhealthy。
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || mc ready local"]
       interval: 15s
       timeout: 10s
       retries: 10
