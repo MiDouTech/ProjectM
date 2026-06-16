@@ -31,7 +31,7 @@ class NotificationLinkTest {
     private PmNotificationMapper notificationMapper;
 
     private NotificationListener listener() {
-        return new NotificationListener(new InAppMessageProvider(notificationMapper));
+        return new NotificationListener(List.of(new InAppMessageProvider(notificationMapper)));
     }
 
     @Test

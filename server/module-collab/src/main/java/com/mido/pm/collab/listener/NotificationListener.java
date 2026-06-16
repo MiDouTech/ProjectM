@@ -11,16 +11,17 @@ import java.util.Map;
 
 /**
  * 通知监听器（事件驱动）：订阅领域事件 → 解析收件人 → 经 {@link MessageProvider} 发通知。
- * 业务层不直接调通知；通道(inapp/wecom)由 MessageProvider 实现决定。
+ * 业务层不直接调通知。注入全部 MessageProvider 并扇出：P2 新增 WecomMessageProvider 即自动多通道，
+ * 监听器零改动（接口抽象、加企微只加实现）。
  * AFTER_COMMIT：业务事务提交后才发通知，避免业务回滚却已通知。
  */
 @Component
 public class NotificationListener {
 
-    private final MessageProvider messageProvider;
+    private final List<MessageProvider> messageProviders;
 
-    public NotificationListener(MessageProvider messageProvider) {
-        this.messageProvider = messageProvider;
+    public NotificationListener(List<MessageProvider> messageProviders) {
+        this.messageProviders = messageProviders;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -32,7 +33,7 @@ public class NotificationListener {
             case "task.assigned" -> {
                 Long assignee = asLong(payload.get("assigneeId"));
                 if (assignee != null) {
-                    messageProvider.send(assignee, "任务指派", "你被指派了任务 #" + payload.get("taskId"));
+                    notify(assignee, "任务指派", "你被指派了任务 #" + payload.get("taskId"));
                 }
             }
             case "comment.created" -> {
@@ -40,7 +41,7 @@ public class NotificationListener {
                     for (Object m : mentions) {
                         Long uid = asLong(m);
                         if (uid != null) {
-                            messageProvider.send(uid, "评论提醒", "有人在评论中 @了你");
+                            notify(uid, "评论提醒", "有人在评论中 @了你");
                         }
                     }
                 }
@@ -56,7 +57,14 @@ public class NotificationListener {
     private void notifyApplicant(Map<?, ?> payload, String title, String content) {
         Long applicant = asLong(payload.get("applicantId"));
         if (applicant != null) {
-            messageProvider.send(applicant, title, content);
+            notify(applicant, title, content);
+        }
+    }
+
+    /** 扇出到全部已激活通道（inapp 现行；wecom P2 加实现即自动生效）。 */
+    private void notify(Long userId, String title, String content) {
+        for (MessageProvider provider : messageProviders) {
+            provider.send(userId, title, content);
         }
     }
 
