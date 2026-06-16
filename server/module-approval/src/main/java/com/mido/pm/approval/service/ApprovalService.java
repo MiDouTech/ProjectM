@@ -135,7 +135,8 @@ public class ApprovalService {
             instanceMapper.updateById(instance);
             eventPublisher.publish(ApprovalEvents.REJECTED, payload(
                     "instanceId", instanceId, "node", current.key(),
-                    "approverId", approverId, "comment", dto.comment()));
+                    "approverId", approverId, "comment", dto.comment(),
+                    "applicantId", instance.getApplicantId()));
             return;
         }
 
@@ -160,7 +161,8 @@ public class ApprovalService {
             instance.setStatus(ApprovalInstance.STATUS_APPROVED);
             instanceMapper.updateById(instance);
             eventPublisher.publish(ApprovalEvents.APPROVED, payload(
-                    "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId()));
+                    "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                    "applicantId", instance.getApplicantId()));
         }
     }
 
