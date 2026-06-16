@@ -29,7 +29,9 @@
               </el-empty>
             </el-tab-pane>
             <el-tab-pane label="干系人" name="stakeholder">
-              <el-empty description="干系人矩阵（权力利益四象限）在 Step 7-3 接入" />
+              <el-empty description="在干系人页登记、绘制权力利益矩阵、校验 NPSS 权重">
+                <el-button type="primary" :icon="User" @click="goStakeholders">打开干系人页</el-button>
+              </el-empty>
             </el-tab-pane>
             <el-tab-pane label="验收" name="verify">
               <el-empty description="NPSS 两段式价值验收在后续验收模块前端接入" />
@@ -65,7 +67,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Operation } from '@element-plus/icons-vue'
+import { Operation, User } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi } from '@/api/project'
@@ -100,6 +102,10 @@ const userName = (id) => props.userMap[id] || (id ? `用户#${id}` : '—')
 function goTasks() {
   visible.value = false
   router.push(`/project/${props.projectId}/tasks`)
+}
+function goStakeholders() {
+  visible.value = false
+  router.push(`/project/${props.projectId}/stakeholders`)
 }
 
 async function onOpen() {
