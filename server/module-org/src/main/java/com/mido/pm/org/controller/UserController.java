@@ -9,6 +9,7 @@ import com.mido.pm.org.dto.UserUpdateDTO;
 import com.mido.pm.org.dto.UserVO;
 import com.mido.pm.org.service.SysUserService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +31,7 @@ public class UserController {
     }
 
     /** 复杂查询用 POST /query（api-conventions §3）。 */
+    @PreAuthorize("hasAuthority('org:user:query')")
     @PostMapping("/query")
     public R<PageResult<UserVO>> query(@RequestBody UserQueryDTO query) {
         return R.ok(userService.page(query));
@@ -40,6 +42,7 @@ public class UserController {
         return R.ok(userService.get(id));
     }
 
+    @PreAuthorize("hasAuthority('org:user:create')")
     @PostMapping
     public R<Long> create(@Valid @RequestBody UserCreateDTO dto) {
         return R.ok(userService.create(dto));

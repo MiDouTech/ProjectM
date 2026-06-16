@@ -15,6 +15,7 @@ import com.mido.pm.org.entity.SysUser;
 import com.mido.pm.org.entity.SysUserRole;
 import com.mido.pm.org.mapper.SysUserMapper;
 import com.mido.pm.org.mapper.SysUserRoleMapper;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +35,13 @@ public class SysUserService {
 
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public SysUserService(SysUserMapper userMapper, SysUserRoleMapper userRoleMapper) {
+    public SysUserService(SysUserMapper userMapper, SysUserRoleMapper userRoleMapper,
+                          PasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public PageResult<UserVO> page(UserQueryDTO query) {
@@ -77,8 +81,7 @@ public class SysUserService {
         SysUser user = new SysUser();
         user.setUsername(dto.username());
         user.setName(dto.name());
-        // TODO Step 1-2 接入 Spring Security PasswordEncoder，此处先存原值。
-        user.setPassword(dto.password());
+        user.setPassword(passwordEncoder.encode(dto.password()));
         user.setDeptId(dto.deptId());
         user.setJobLevel(dto.jobLevel());
         user.setStatus(dto.status());

@@ -7,6 +7,7 @@ import com.mido.pm.org.dto.RoleUpdateDTO;
 import com.mido.pm.org.dto.RoleVO;
 import com.mido.pm.org.service.SysRoleService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,7 @@ public class RoleController {
         return R.ok(roleService.get(id));
     }
 
+    @PreAuthorize("hasAuthority('org:role:create')")
     @PostMapping
     public R<Long> create(@Valid @RequestBody RoleCreateDTO dto) {
         return R.ok(roleService.create(dto));

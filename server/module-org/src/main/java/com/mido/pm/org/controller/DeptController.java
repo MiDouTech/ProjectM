@@ -6,6 +6,7 @@ import com.mido.pm.org.dto.DeptUpdateDTO;
 import com.mido.pm.org.dto.DeptVO;
 import com.mido.pm.org.service.SysDeptService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,6 +34,7 @@ public class DeptController {
         return R.ok(deptService.tree());
     }
 
+    @PreAuthorize("hasAuthority('org:dept:create')")
     @PostMapping
     public R<Long> create(@Valid @RequestBody DeptCreateDTO dto) {
         return R.ok(deptService.create(dto));
