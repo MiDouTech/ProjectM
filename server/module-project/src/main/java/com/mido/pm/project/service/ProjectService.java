@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 项目服务：CRUD + 生命周期状态机流转。任何写操作同事务写 Outbox 事件（CLAUDE.md 规则 3）。
@@ -39,6 +40,14 @@ public class ProjectService {
     private static final long MAX_PAGE_SIZE = 100L;
     /** NPSS 默认延后月数（npss-rule §2：结案+6~12 月，默认 9） */
     private static final int VALUE_REVIEW_MONTHS = 9;
+    /**
+     * 允许手动流转的目标态（用户态）。注册(已注册)由审批通过事件驱动、价值验收/已评价由系统/NPSS 驱动，
+     * 一律不可经公开 API 手动设置——严肃约束：杜绝伪造 approvalPassed 绕过审批直接注册。
+     */
+    private static final Set<String> MANUAL_TARGETS = Set.of(
+            ProjectStatus.IN_PROGRESS.getCode(),
+            ProjectStatus.RESULT_VERIFY.getCode(),
+            ProjectStatus.CLOSED.getCode());
 
     private final PmProjectMapper projectMapper;
     private final DomainEventPublisher eventPublisher;
@@ -115,7 +124,20 @@ public class ProjectService {
     }
 
     /**
-     * 生命周期状态流转：校验合法流转 + guard（职级/审批结果）→ 落库 → 发事件（同事务 Outbox）。
+     * 手动流转（公开 API 入口）：仅允许用户态目标，注册/系统态拒绝，再委托 {@link #transition}。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void transitionManual(Long id, ProjectTransitionDTO dto) {
+        if (!MANUAL_TARGETS.contains(dto.targetStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN,
+                    "状态「" + dto.targetStatus() + "」由审批/系统驱动，不可手动流转");
+        }
+        transition(id, dto);
+    }
+
+    /**
+     * 生命周期状态流转（内部入口）：校验合法流转 + guard（职级/审批结果）→ 落库 → 发事件（同事务 Outbox）。
+     * 由审批监听器、立项提交等可信调用方使用；公开手动流转走 {@link #transitionManual}。
      */
     @Transactional(rollbackFor = Exception.class)
     public void transition(Long id, ProjectTransitionDTO dto) {

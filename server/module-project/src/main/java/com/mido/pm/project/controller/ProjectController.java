@@ -75,10 +75,10 @@ public class ProjectController {
         return R.ok();
     }
 
-    /** 生命周期状态流转（合法性 + 职级/审批结果 guard）。 */
+    /** 手动状态流转（仅用户态：进行中/结果验收/已结案；注册等系统态由审批/系统驱动，不可手动）。 */
     @PostMapping("/{id}/transition")
     public R<Void> transition(@PathVariable Long id, @Valid @RequestBody ProjectTransitionDTO dto) {
-        projectService.transition(id, dto);
+        projectService.transitionManual(id, dto);
         return R.ok();
     }
 

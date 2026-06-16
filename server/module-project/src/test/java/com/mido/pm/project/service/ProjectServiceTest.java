@@ -100,6 +100,14 @@ class ProjectServiceTest {
     }
 
     @Test
+    void manualTransitionToRegisteredRejected() {
+        // 严肃约束：公开手动流转不得设为 已注册（即便伪造 approvalPassed=true）
+        assertThrows(BizException.class,
+                () -> service.transitionManual(1L, new ProjectTransitionDTO("已注册", true)));
+        verifyNoInteractions(projectMapper, eventPublisher);
+    }
+
+    @Test
     void registerSucceedsWithQualifiedLeaderAndEmitsRegistered() {
         PmProject p = project("审批中", "S", 9L);
         when(projectMapper.selectById(1L)).thenReturn(p);

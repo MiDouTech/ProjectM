@@ -44,6 +44,17 @@ class ApprovalEngineTest {
     }
 
     @Test
+    void conditionalRoutingByCategory() {
+        FlowNode common = node("base", List.of(1L), FlowNode.MODE_OR, null);             // 恒启用
+        FlowNode sOnly = node("vp", List.of(2L), FlowNode.MODE_OR,
+                new NodeCondition("category", "==", "S"));                                // 仅 S 类启用
+        FlowDefinition def = new FlowDefinition(List.of(common, sOnly));
+
+        assertEquals(2, ApprovalEngine.activeNodes(def, new ApprovalContext(Map.of("category", "S"))).size());
+        assertEquals(1, ApprovalEngine.activeNodes(def, new ApprovalContext(Map.of("category", "O"))).size());
+    }
+
+    @Test
     void conditionalRoutingSelectsActiveNodes() {
         FlowNode a = node("A", List.of(1L), FlowNode.MODE_OR, null);                       // 恒启用
         FlowNode b = node("B", List.of(2L), FlowNode.MODE_OR,
