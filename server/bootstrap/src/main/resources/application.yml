@@ -25,8 +25,13 @@ spring:
   rabbitmq:
     host: ${MIDO_RABBIT_HOST:localhost}
     port: ${MIDO_RABBIT_PORT:5672}
-    username: ${MIDO_RABBIT_USER:guest}
-    password: ${MIDO_RABBIT_PASSWORD:guest}
+    username: ${MIDO_RABBIT_USER:mido}
+    password: ${MIDO_RABBIT_PASSWORD:mido}
+  # Flyway 数据库迁移：启动时自动执行 db/migration 下脚本
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
 # MyBatis-Plus：下划线转驼峰 + 逻辑删除 + 雪花主键
 mybatis-plus:
@@ -40,11 +45,18 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
-# JWT（本地 SSO 使用），生产请覆盖 secret
+# 业务自定义配置
 mido:
+  # JWT（本地 SSO 使用），生产请覆盖 secret
   jwt:
     secret: ${MIDO_JWT_SECRET:mido-pm-default-secret-key-please-change-in-prod}
     ttl-millis: 86400000
+  # MinIO / S3 兼容对象存储连接（客户端 Bean 随存储模块接入）
+  minio:
+    endpoint: ${MIDO_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MIDO_MINIO_ACCESS_KEY:mido}
+    secret-key: ${MIDO_MINIO_SECRET_KEY:mido12345}
+    bucket: ${MIDO_MINIO_BUCKET:mido-pm}
 
 # Swagger / OpenAPI 3.0
 springdoc:
