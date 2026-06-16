@@ -130,9 +130,11 @@ public class ProjectService {
 
         // 2) guard 钩子
         if (to == ProjectStatus.REGISTERED) {
-            // 审批结果 guard（Step 3 审批流传 true；显式 false 则拒绝）
-            if (Boolean.FALSE.equals(dto.approvalPassed())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "立项审批未通过，不得注册");
+            // 审批结果 guard（严肃约束）：必须经立项审批通过方可注册。
+            // Step 3 审批流在 approval.approved 后传 approvalPassed=true 驱动本流转；
+            // 未通过/未走审批（null/false）一律拒绝，杜绝绕过审批直接注册。
+            if (!Boolean.TRUE.equals(dto.approvalPassed())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "项目须经立项审批通过方可注册");
             }
             // 职级 guard（npss-rule §8）
             JobLevelGuard.assertLeaderQualified(ProjectCategory.fromCode(p.getCategory()), leaderJobLevel(p));

@@ -82,6 +82,15 @@ class ProjectServiceTest {
     }
 
     @Test
+    void registerRejectedWhenApprovalFlagAbsent() {
+        // 严肃约束：未显式审批通过(null)也不得注册
+        when(projectMapper.selectById(1L)).thenReturn(project("审批中", "S", 9L));
+        assertThrows(BizException.class,
+                () -> service.transition(1L, new ProjectTransitionDTO("已注册", null)));
+        verify(projectMapper, never()).updateById(any(PmProject.class));
+    }
+
+    @Test
     void registerRejectedWhenLeaderJobLevelTooLow() {
         when(projectMapper.selectById(1L)).thenReturn(project("审批中", "S", 9L));
         when(identityProvider.loadById(9L)).thenReturn(Optional.of(leaderWithLevel("L2")));
