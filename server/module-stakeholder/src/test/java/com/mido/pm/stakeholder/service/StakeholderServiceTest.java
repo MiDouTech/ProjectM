@@ -55,6 +55,21 @@ class StakeholderServiceTest {
     }
 
     @Test
+    void externalStakeholderWithoutUserIdAllowed() {
+        // 外部干系人 user_id 可空，用 external_name 标识
+        service.create(new StakeholderCreateDTO(9L, null, "外部供应商", "business", "external", 3, 4, null));
+        verify(mapper).insert(any(PmStakeholder.class));
+        verify(eventPublisher).publish(eq("stakeholder.registered"), any());
+    }
+
+    @Test
+    void createWithoutAnyIdentityRejected() {
+        assertThrows(BizException.class, () ->
+                service.create(new StakeholderCreateDTO(9L, null, null, "team", "internal", 2, 2, null)));
+        verify(mapper, never()).insert(any(PmStakeholder.class));
+    }
+
+    @Test
     void saveWeightsRejectsWhenBeneficiaryBelow50() {
         when(mapper.selectList(any())).thenReturn(List.of(
                 sh(1L, "sponsor", "20"), sh(2L, "business", "20"), sh(3L, "team", "60")));

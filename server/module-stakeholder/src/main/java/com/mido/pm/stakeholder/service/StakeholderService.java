@@ -49,6 +49,7 @@ public class StakeholderService {
         if (StakeholderRole.fromCode(dto.role()) == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法干系人角色: " + dto.role());
         }
+        requireIdentity(dto.userId(), dto.externalName());
         PmStakeholder s = new PmStakeholder();
         s.setProjectId(dto.projectId());
         s.setUserId(dto.userId());
@@ -81,6 +82,8 @@ public class StakeholderService {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法干系人角色: " + dto.role());
         }
         PmStakeholder s = requireExists(id);
+        // 内部干系人由既有 user_id 标识，外部干系人由 external_name 标识，二者至少其一
+        requireIdentity(s.getUserId(), dto.externalName());
         s.setRole(dto.role());
         s.setCategory(dto.category());
         s.setExternalName(dto.externalName());
@@ -154,6 +157,13 @@ public class StakeholderService {
             return "随时告知";
         }
         return "监督";
+    }
+
+    /** 干系人身份校验：内部用 user_id、外部用 external_name，二者至少其一（外部 user_id 可空）。 */
+    private void requireIdentity(Long userId, String externalName) {
+        if (userId == null && (externalName == null || externalName.isBlank())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "请指定干系人：内部填用户、外部填姓名(external_name)");
+        }
     }
 
     private PmStakeholder requireExists(Long id) {
