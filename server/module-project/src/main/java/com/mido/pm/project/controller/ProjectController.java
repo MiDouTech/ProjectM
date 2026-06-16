@@ -2,7 +2,9 @@ package com.mido.pm.project.controller;
 
 import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.api.R;
+import com.mido.pm.project.dto.CreateFromTemplateDTO;
 import com.mido.pm.project.dto.ProjectCreateDTO;
+import com.mido.pm.project.dto.ProjectFromTemplateVO;
 import com.mido.pm.project.dto.ProjectMemberCreateDTO;
 import com.mido.pm.project.dto.ProjectMemberVO;
 import com.mido.pm.project.dto.ProjectQueryDTO;
@@ -11,6 +13,7 @@ import com.mido.pm.project.dto.ProjectUpdateDTO;
 import com.mido.pm.project.dto.ProjectVO;
 import com.mido.pm.project.service.ProjectMemberService;
 import com.mido.pm.project.service.ProjectService;
+import com.mido.pm.project.service.ProjectTemplateService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,15 +33,24 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final ProjectMemberService memberService;
+    private final ProjectTemplateService templateService;
 
-    public ProjectController(ProjectService projectService, ProjectMemberService memberService) {
+    public ProjectController(ProjectService projectService, ProjectMemberService memberService,
+                             ProjectTemplateService templateService) {
         this.projectService = projectService;
         this.memberService = memberService;
+        this.templateService = templateService;
     }
 
     @PostMapping
     public R<Long> create(@Valid @RequestBody ProjectCreateDTO dto) {
         return R.ok(projectService.create(dto));
+    }
+
+    /** 按模板创建项目：自动带出类型/子类/模板，解析骨架（任务/干系人/审批延后落地）。 */
+    @PostMapping("/from-template")
+    public R<ProjectFromTemplateVO> createFromTemplate(@Valid @RequestBody CreateFromTemplateDTO dto) {
+        return R.ok(templateService.createFromTemplate(dto));
     }
 
     @GetMapping("/{id}")
