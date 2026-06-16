@@ -20,5 +20,9 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>provider</artifactId>
+        </dependency>
     </dependencies>
 </project>
