@@ -80,6 +80,17 @@ class StakeholderServiceTest {
     }
 
     @Test
+    void saveWeightsRejectsWhenSumNot100() {
+        // 受益方=60≥50 但总和=90≠100，应被 §4 硬校验拒绝（与 WeightValidator 单测对齐到服务层）
+        when(mapper.selectList(any())).thenReturn(List.of(
+                sh(1L, "sponsor", "30"), sh(2L, "business", "30"), sh(3L, "team", "30")));
+        SaveWeightsDTO dto = new SaveWeightsDTO(9L,
+                List.of(wi(1L, "30"), wi(2L, "30"), wi(3L, "30")));
+        assertThrows(BizException.class, () -> service.saveWeights(dto));
+        verify(mapper, never()).updateById(any(PmStakeholder.class));
+    }
+
+    @Test
     void saveWeightsValidPersists() {
         when(mapper.selectList(any())).thenReturn(List.of(
                 sh(1L, "sponsor", "30"), sh(2L, "business", "30"), sh(3L, "team", "40")));
