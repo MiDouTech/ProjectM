@@ -1,0 +1,186 @@
+package com.mido.pm.verify.service;
+
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.exception.BizException;
+import com.mido.pm.common.exception.ErrorCode;
+import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.project.domain.ProjectStatus;
+import com.mido.pm.project.dto.ProjectTransitionDTO;
+import com.mido.pm.project.service.ProjectService;
+import com.mido.pm.provider.message.MessageProvider;
+import com.mido.pm.stakeholder.dto.StakeholderVO;
+import com.mido.pm.stakeholder.service.StakeholderService;
+import com.mido.pm.verify.domain.NpssCalculator;
+import com.mido.pm.verify.domain.NpssCalculator.ScoreWeight;
+import com.mido.pm.verify.domain.ResultLevel;
+import com.mido.pm.verify.dto.NpssReviewVO;
+import com.mido.pm.verify.dto.NpssScoreVO;
+import com.mido.pm.verify.dto.ScoreSubmitDTO;
+import com.mido.pm.verify.entity.PmNpssReview;
+import com.mido.pm.verify.entity.PmNpssScore;
+import com.mido.pm.verify.event.NpssEvents;
+import com.mido.pm.verify.mapper.PmNpssReviewMapper;
+import com.mido.pm.verify.mapper.PmNpssScoreMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * NPSS 价值验收编排（npss-rule §2/§3）：发起轮次（定时 Job 调用）、干系人评分（幂等）、汇总分级。
+ * 写操作发 npss.review.started / npss.scored / npss.review.completed。
+ */
+@Service
+public class NpssReviewService {
+
+    /** 轮次状态 */
+    public static final String STATUS_PENDING = "pending";
+    public static final String STATUS_DONE = "done";
+
+    private final PmNpssReviewMapper reviewMapper;
+    private final PmNpssScoreMapper scoreMapper;
+    private final ProjectService projectService;
+    private final StakeholderService stakeholderService;
+    private final MessageProvider messageProvider;
+    private final DomainEventPublisher eventPublisher;
+
+    public NpssReviewService(PmNpssReviewMapper reviewMapper, PmNpssScoreMapper scoreMapper,
+                             ProjectService projectService, StakeholderService stakeholderService,
+                             MessageProvider messageProvider, DomainEventPublisher eventPublisher) {
+        this.reviewMapper = reviewMapper;
+        this.scoreMapper = scoreMapper;
+        this.projectService = projectService;
+        this.stakeholderService = stakeholderService;
+        this.messageProvider = messageProvider;
+        this.eventPublisher = eventPublisher;
+    }
+
+    /**
+     * 发起价值验收（npss-rule §2）：项目 已结案→价值验收中 → 建 review(pending) → 为每个干系人建评分待办
+     * → 经 MessageProvider 通知 → 发 npss.review.started。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Long startReview(Long projectId) {
+        // 状态机：已结案 → 价值验收中（非法流转将由项目状态机拒绝）
+        projectService.transition(projectId,
+                new ProjectTransitionDTO(ProjectStatus.VALUE_VERIFY.getCode(), null));
+
+        PmNpssReview review = new PmNpssReview();
+        review.setProjectId(projectId);
+        review.setRound("1");
+        review.setStatus(STATUS_PENDING);
+        reviewMapper.insert(review);
+
+        List<StakeholderVO> stakeholders = stakeholderService.list(projectId);
+        for (StakeholderVO s : stakeholders) {
+            PmNpssScore todo = new PmNpssScore();
+            todo.setReviewId(review.getId());
+            todo.setStakeholderId(s.id());
+            todo.setWeight(s.npssWeight());
+            scoreMapper.insert(todo); // score 留空=待打分
+            if (s.userId() != null) {
+                messageProvider.send(s.userId(), "价值验收待打分",
+                        "项目价值验收已发起，请为项目交付价值打分（0-10）。");
+            }
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reviewId", review.getId());
+        payload.put("projectId", projectId);
+        payload.put("stakeholderCount", stakeholders.size());
+        eventPublisher.publish(NpssEvents.REVIEW_STARTED, payload);
+        return review.getId();
+    }
+
+    /**
+     * 干系人提交评分。幂等（防重复打分）：同一 (review, stakeholder) 已打分则原样返回，不重复写入/发事件。
+     * 全部干系人打分完成后自动汇总。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public NpssScoreVO submitScore(Long reviewId, ScoreSubmitDTO dto) {
+        PmNpssReview review = requireReview(reviewId);
+        if (!STATUS_PENDING.equals(review.getStatus())) {
+            throw new BizException(ErrorCode.CONFLICT, "该轮次评分已结束");
+        }
+        PmNpssScore row = scoreMapper.selectOne(Wrappers.<PmNpssScore>lambdaQuery()
+                .eq(PmNpssScore::getReviewId, reviewId)
+                .eq(PmNpssScore::getStakeholderId, dto.stakeholderId()));
+        if (row == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "该干系人不在本轮评分名单");
+        }
+        if (row.getScore() != null) {
+            return toVO(row); // 幂等：已打分，原样返回
+        }
+        row.setScore(dto.score());
+        row.setComment(dto.comment());
+        scoreMapper.updateById(row);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reviewId", reviewId);
+        payload.put("stakeholderId", dto.stakeholderId());
+        payload.put("score", dto.score());
+        eventPublisher.publish(NpssEvents.SCORED, payload);
+
+        if (allScored(reviewId)) {
+            summarize(review);
+        }
+        return toVO(row);
+    }
+
+    /** 汇总分级（npss-rule §3）：算加权满意度 → 分级 → 写 review → 发 npss.review.completed。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void summarize(PmNpssReview review) {
+        List<ScoreWeight> scores = scoreMapper.selectList(Wrappers.<PmNpssScore>lambdaQuery()
+                        .eq(PmNpssScore::getReviewId, review.getId()))
+                .stream()
+                .filter(s -> s.getScore() != null)
+                .map(s -> new ScoreWeight(s.getScore(), s.getWeight()))
+                .toList();
+        java.math.BigDecimal weighted = NpssCalculator.weightedSatisfaction(scores);
+        ResultLevel level = NpssCalculator.level(weighted);
+
+        review.setWeightedScore(weighted);
+        review.setResultLevel(level.getCode());
+        review.setStatus(STATUS_DONE);
+        review.setReviewedAt(LocalDateTime.now());
+        reviewMapper.updateById(review);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reviewId", review.getId());
+        payload.put("projectId", review.getProjectId());
+        payload.put("weightedScore", weighted);
+        payload.put("resultLevel", level.getCode());
+        eventPublisher.publish(NpssEvents.REVIEW_COMPLETED, payload);
+    }
+
+    public NpssReviewVO get(Long reviewId) {
+        PmNpssReview r = requireReview(reviewId);
+        List<NpssScoreVO> scores = scoreMapper.selectList(Wrappers.<PmNpssScore>lambdaQuery()
+                        .eq(PmNpssScore::getReviewId, reviewId))
+                .stream().map(this::toVO).toList();
+        return new NpssReviewVO(r.getId(), r.getProjectId(), r.getRound(), r.getStatus(),
+                r.getWeightedScore(), r.getResultLevel(), r.getReviewedAt(), scores);
+    }
+
+    private boolean allScored(Long reviewId) {
+        return scoreMapper.selectCount(Wrappers.<PmNpssScore>lambdaQuery()
+                .eq(PmNpssScore::getReviewId, reviewId)
+                .isNull(PmNpssScore::getScore)) == 0;
+    }
+
+    private PmNpssReview requireReview(Long id) {
+        PmNpssReview r = reviewMapper.selectById(id);
+        if (r == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "评分轮次不存在");
+        }
+        return r;
+    }
+
+    private NpssScoreVO toVO(PmNpssScore s) {
+        return new NpssScoreVO(s.getId(), s.getReviewId(), s.getStakeholderId(),
+                s.getScore(), s.getWeight(), s.getComment());
+    }
+}

@@ -126,6 +126,15 @@ public class ProjectService {
         return toVO(requireExists(id));
     }
 
+    /** 到期待价值验收的项目：已结案 且 value_review_due_date<=today（NPSS 定时 Job 用，npss-rule §2）。 */
+    public List<ProjectVO> dueForValueReview() {
+        return projectMapper.selectList(Wrappers.<PmProject>lambdaQuery()
+                        .eq(PmProject::getStatus, ProjectStatus.CLOSED.getCode())
+                        .isNotNull(PmProject::getValueReviewDueDate)
+                        .le(PmProject::getValueReviewDueDate, java.time.LocalDate.now()))
+                .stream().map(this::toVO).toList();
+    }
+
     public PageResult<ProjectVO> page(ProjectQueryDTO query) {
         long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);
