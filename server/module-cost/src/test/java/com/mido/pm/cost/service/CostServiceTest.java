@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -87,5 +88,23 @@ class CostServiceTest {
 
         verify(costMapper).insert(any(PmCost.class));
         verify(eventPublisher, never()).publish(any(), any());
+    }
+
+    @Test
+    void returnedCostCanBeResubmitted() {
+        // 被退回非终态：可再次提报，发起新审批实例并发 cost.submitted
+        PmCost returned = new PmCost();
+        returned.setId(50L);
+        returned.setProjectId(100L);
+        returned.setStatus("被退回");
+        returned.setBudgetAmount(new BigDecimal("500"));
+        when(costMapper.selectById(50L)).thenReturn(returned);
+        when(approvalFlowService.resolveFlowId("COST_DEFAULT")).thenReturn(6L);
+        when(approvalService.submit(any())).thenReturn(900L);
+
+        Long instanceId = service.submit(50L);
+
+        assertEquals(900L, instanceId);
+        verify(eventPublisher).publish(eq("cost.submitted"), any());
     }
 }
