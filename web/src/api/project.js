@@ -15,6 +15,8 @@ export const projectApi = {
   removeMember: (id, memberId) => request.delete(`/projects/${id}/members/${memberId}`),
   // 提交立项审批：返回审批实例 ID
   submitApproval: (id, form) => request.post(`/projects/${id}/submit-approval`, form),
+  // 活动日志（分页倒序）：params { page, size }
+  activities: (id, params) => request.get(`/projects/${id}/activities`, { params }),
 }
 
 /** 项目模板（内置 5 套 + 自定义，Step 2-1） */

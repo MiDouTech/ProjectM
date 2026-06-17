@@ -77,7 +77,7 @@
               <CommentThread v-if="task.id" entity-type="task" :entity-id="task.id" :users="users" />
             </el-tab-pane>
             <el-tab-pane label="活动" name="activity">
-              <el-empty description="活动日志随协作模块前端接入" />
+              <ActivityTimeline entity-type="task" :entity-id="taskId" :user-name="userName" />
             </el-tab-pane>
           </el-tabs>
         </aside>
@@ -108,6 +108,7 @@ import { ElMessage } from 'element-plus'
 import { Flag, Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CommentThread from '@/components/CommentThread.vue'
+import ActivityTimeline from '@/components/ActivityTimeline.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { userName as nameOf } from '@/utils/display'
 

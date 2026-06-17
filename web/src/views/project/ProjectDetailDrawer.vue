@@ -55,7 +55,7 @@
               <el-empty description="评论在协作模块前端接入" />
             </el-tab-pane>
             <el-tab-pane label="活动" name="activity">
-              <el-empty description="活动日志在协作模块前端接入" />
+              <ActivityTimeline entity-type="project" :entity-id="projectId" :user-name="userName" />
             </el-tab-pane>
           </el-tabs>
         </aside>
@@ -71,6 +71,7 @@ import { Operation, User } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi } from '@/api/project'
+import ActivityTimeline from '@/components/ActivityTimeline.vue'
 import ProjectInfoPane from './panes/ProjectInfoPane.vue'
 import ProjectTransitionPane from './panes/ProjectTransitionPane.vue'
 import ProjectApprovalPane from './panes/ProjectApprovalPane.vue'

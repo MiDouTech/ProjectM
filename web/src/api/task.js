@@ -12,6 +12,8 @@ export const taskApi = {
   // 看板拖拽改状态亦走此（后端校验工作流合法流转，非法返回 409）
   transition: (id, targetStatus) => request.post(`/tasks/${id}/transition`, { targetStatus }),
   kanban: (projectId) => request.get('/tasks/kanban', { params: { projectId } }),
+  // 活动日志（分页倒序）：params { page, size }
+  activities: (id, params) => request.get(`/tasks/${id}/activities`, { params }),
 }
 
 /** 任务默认工作流状态（data-model 状态字典；看板列序） */
