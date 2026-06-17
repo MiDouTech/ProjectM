@@ -4,6 +4,8 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
@@ -24,11 +26,14 @@ import com.mido.pm.provider.identity.IdentityProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -52,12 +57,14 @@ public class ProjectService {
     private final PmProjectMapper projectMapper;
     private final DomainEventPublisher eventPublisher;
     private final IdentityProvider identityProvider;
+    private final AuditLogService auditLogService;
 
     public ProjectService(PmProjectMapper projectMapper, DomainEventPublisher eventPublisher,
-                          IdentityProvider identityProvider) {
+                          IdentityProvider identityProvider, AuditLogService auditLogService) {
         this.projectMapper = projectMapper;
         this.eventPublisher = eventPublisher;
         this.identityProvider = identityProvider;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -82,6 +89,7 @@ public class ProjectService {
 
         eventPublisher.publish(ProjectEvents.CREATED, basePayload(p.getId())
                 .add("name", p.getName()).add("category", p.getCategory()).build());
+        auditLogService.record(AuditActions.TARGET_PROJECT, p.getId(), AuditActions.CREATED, null);
         return p.getId();
     }
 
@@ -107,6 +115,16 @@ public class ProjectService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, ProjectUpdateDTO dto) {
         PmProject p = requireExists(id);
+        // 编辑前后字段差异 → 活动流（一次写一条，含 changes 列表）
+        List<Map<String, Object>> changes = new ArrayList<>();
+        addChange(changes, "name", p.getName(), dto.name());
+        addChange(changes, "subCategory", p.getSubCategory(), dto.subCategory());
+        addChange(changes, "leaderId", p.getLeaderId(), dto.leaderId());
+        addBudgetChange(changes, p.getBudget(), dto.budget());
+        addChange(changes, "description", p.getDescription(), dto.description());
+        addChange(changes, "startDate", p.getStartDate(), dto.startDate());
+        addChange(changes, "endDate", p.getEndDate(), dto.endDate());
+
         p.setName(dto.name());
         p.setSubCategory(dto.subCategory());
         p.setLeaderId(dto.leaderId());
@@ -115,6 +133,11 @@ public class ProjectService {
         p.setStartDate(dto.startDate());
         p.setEndDate(dto.endDate());
         projectMapper.updateById(p);
+
+        if (!changes.isEmpty()) {
+            auditLogService.record(AuditActions.TARGET_PROJECT, id, AuditActions.UPDATED,
+                    Map.of("changes", changes));
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -175,6 +198,8 @@ public class ProjectService {
         eventPublisher.publish(ProjectEvents.STATUS_CHANGED, basePayload(id)
                 .add("from", from == null ? null : from.getCode())
                 .add("to", to.getCode()).build());
+        auditLogService.record(AuditActions.TARGET_PROJECT, id, AuditActions.STATUS_CHANGED,
+                statusDetail(from == null ? null : from.getCode(), to.getCode()));
         if (to == ProjectStatus.REGISTERED) {
             eventPublisher.publish(ProjectEvents.REGISTERED, basePayload(id).build());
         } else if (to == ProjectStatus.CLOSED) {
@@ -189,6 +214,35 @@ public class ProjectService {
         }
         return identityProvider.loadById(p.getLeaderId())
                 .map(up -> up.getJobLevel()).orElse(null);
+    }
+
+    /** 记一个字段变更（值不等才记；from/to 允许 null，故不用 Map.of）。 */
+    private void addChange(List<Map<String, Object>> changes, String field, Object oldVal, Object newVal) {
+        if (Objects.equals(oldVal, newVal)) {
+            return;
+        }
+        Map<String, Object> change = new LinkedHashMap<>();
+        change.put("field", field);
+        change.put("from", oldVal);
+        change.put("to", newVal);
+        changes.add(change);
+    }
+
+    /** 预算按数值比较（忽略 BigDecimal 标度差异）。 */
+    private void addBudgetChange(List<Map<String, Object>> changes, BigDecimal oldVal, BigDecimal newVal) {
+        boolean changed = (oldVal == null) != (newVal == null)
+                || (oldVal != null && oldVal.compareTo(newVal) != 0);
+        if (changed) {
+            addChange(changes, "budget", oldVal, newVal);
+        }
+    }
+
+    /** 状态变更明细 {from,to}（from 允许 null）。 */
+    private Map<String, Object> statusDetail(String from, String to) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("from", from);
+        detail.put("to", to);
+        return detail;
     }
 
     private PmProject requireExists(Long id) {

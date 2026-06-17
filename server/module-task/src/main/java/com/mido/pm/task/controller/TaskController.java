@@ -2,6 +2,9 @@ package com.mido.pm.task.controller;
 
 import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.api.R;
+import com.mido.pm.common.audit.ActivityVO;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.task.dto.KanbanColumnVO;
 import com.mido.pm.task.dto.TaskAssignDTO;
 import com.mido.pm.task.dto.TaskCreateDTO;
@@ -29,9 +32,11 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final AuditLogService auditLogService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, AuditLogService auditLogService) {
         this.taskService = taskService;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
@@ -84,5 +89,13 @@ public class TaskController {
     @GetMapping("/kanban")
     public R<List<KanbanColumnVO>> kanban(@RequestParam Long projectId) {
         return R.ok(taskService.kanban(projectId));
+    }
+
+    /** 活动日志（谁在何时改了什么 X→Y）：分页倒序，page 从 1、size 默认 20 上限 100。 */
+    @GetMapping("/{id}/activities")
+    public R<PageResult<ActivityVO>> activities(@PathVariable Long id,
+                                                @RequestParam(defaultValue = "1") Long page,
+                                                @RequestParam(defaultValue = "20") Long size) {
+        return R.ok(auditLogService.query(AuditActions.TARGET_TASK, id, page, size));
     }
 }

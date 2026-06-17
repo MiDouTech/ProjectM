@@ -2,6 +2,9 @@ package com.mido.pm.project.controller;
 
 import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.api.R;
+import com.mido.pm.common.audit.ActivityVO;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.project.dto.CreateFromTemplateDTO;
 import com.mido.pm.project.dto.ProjectCreateDTO;
 import com.mido.pm.project.dto.ProjectFromTemplateVO;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -34,12 +38,14 @@ public class ProjectController {
     private final ProjectService projectService;
     private final ProjectMemberService memberService;
     private final ProjectTemplateService templateService;
+    private final AuditLogService auditLogService;
 
     public ProjectController(ProjectService projectService, ProjectMemberService memberService,
-                             ProjectTemplateService templateService) {
+                             ProjectTemplateService templateService, AuditLogService auditLogService) {
         this.projectService = projectService;
         this.memberService = memberService;
         this.templateService = templateService;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
@@ -61,6 +67,14 @@ public class ProjectController {
     @PostMapping("/query")
     public R<PageResult<ProjectVO>> query(@RequestBody ProjectQueryDTO query) {
         return R.ok(projectService.page(query));
+    }
+
+    /** 活动日志（谁在何时改了什么 X→Y）：分页倒序，page 从 1、size 默认 20 上限 100。 */
+    @GetMapping("/{id}/activities")
+    public R<PageResult<ActivityVO>> activities(@PathVariable Long id,
+                                                @RequestParam(defaultValue = "1") Long page,
+                                                @RequestParam(defaultValue = "20") Long size) {
+        return R.ok(auditLogService.query(AuditActions.TARGET_PROJECT, id, page, size));
     }
 
     @PutMapping("/{id}")

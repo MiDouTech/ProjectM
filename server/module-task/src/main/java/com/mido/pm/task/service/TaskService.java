@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
@@ -22,9 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 任务服务（P0）：CRUD、子任务、指派、状态流转（默认工作流）、看板分组、列表筛选。
@@ -37,10 +41,13 @@ public class TaskService {
 
     private final PmTaskMapper taskMapper;
     private final DomainEventPublisher eventPublisher;
+    private final AuditLogService auditLogService;
 
-    public TaskService(PmTaskMapper taskMapper, DomainEventPublisher eventPublisher) {
+    public TaskService(PmTaskMapper taskMapper, DomainEventPublisher eventPublisher,
+                       AuditLogService auditLogService) {
         this.taskMapper = taskMapper;
         this.eventPublisher = eventPublisher;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -65,6 +72,7 @@ public class TaskService {
             eventPublisher.publish(TaskEvents.ASSIGNED, payload(
                     "taskId", task.getId(), "assigneeId", task.getAssigneeId()));
         }
+        auditLogService.record(AuditActions.TARGET_TASK, task.getId(), AuditActions.CREATED, null);
         return task.getId();
     }
 
@@ -91,6 +99,18 @@ public class TaskService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, TaskUpdateDTO dto) {
         PmTask task = requireExists(id);
+        // 编辑前后字段差异 → 活动流（一次写一条，含 changes 列表）
+        List<Map<String, Object>> changes = new ArrayList<>();
+        addChange(changes, "title", task.getTitle(), dto.title());
+        addChange(changes, "priority", task.getPriority(), dto.priority());
+        addChange(changes, "stage", task.getStage(), dto.stage());
+        addChange(changes, "startDate", task.getStartDate(), dto.startDate());
+        addChange(changes, "dueDate", task.getDueDate(), dto.dueDate());
+        if (dto.isMilestone() != null) {
+            addChange(changes, "isMilestone", task.getIsMilestone(), dto.isMilestone());
+        }
+        addChange(changes, "description", task.getDescription(), dto.description());
+
         task.setTitle(dto.title());
         task.setPriority(dto.priority());
         task.setStage(dto.stage());
@@ -101,6 +121,11 @@ public class TaskService {
         }
         task.setDescription(dto.description());
         taskMapper.updateById(task);
+
+        if (!changes.isEmpty()) {
+            auditLogService.record(AuditActions.TARGET_TASK, id, AuditActions.UPDATED,
+                    Map.of("changes", changes));
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -113,9 +138,12 @@ public class TaskService {
     @Transactional(rollbackFor = Exception.class)
     public void assign(Long id, Long assigneeId) {
         PmTask task = requireExists(id);
+        Long oldAssignee = task.getAssigneeId();
         task.setAssigneeId(assigneeId);
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.ASSIGNED, payload("taskId", id, "assigneeId", assigneeId));
+        auditLogService.record(AuditActions.TARGET_TASK, id, AuditActions.ASSIGNED,
+                fromTo(oldAssignee, assigneeId));
     }
 
     /** 状态流转（看板拖拽亦走此）：校验默认工作流合法流转，发 task.status.changed。 */
@@ -132,6 +160,8 @@ public class TaskService {
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.STATUS_CHANGED, payload(
                 "taskId", id, "from", from == null ? null : from.getCode(), "to", to.getCode()));
+        auditLogService.record(AuditActions.TARGET_TASK, id, AuditActions.STATUS_CHANGED,
+                fromTo(from == null ? null : from.getCode(), to.getCode()));
     }
 
     /** 看板：按工作流状态顺序分组返回某项目任务。 */
@@ -180,6 +210,26 @@ public class TaskService {
             case "createTime" -> w.orderBy(true, asc, PmTask::getCreateTime);
             default -> w.orderByDesc(PmTask::getId);
         }
+    }
+
+    /** 记一个字段变更（值不等才记；from/to 允许 null，故不用 Map.of）。 */
+    private void addChange(List<Map<String, Object>> changes, String field, Object oldVal, Object newVal) {
+        if (Objects.equals(oldVal, newVal)) {
+            return;
+        }
+        Map<String, Object> change = new LinkedHashMap<>();
+        change.put("field", field);
+        change.put("from", oldVal);
+        change.put("to", newVal);
+        changes.add(change);
+    }
+
+    /** 构造 {from,to} 明细（值允许 null）。 */
+    private Map<String, Object> fromTo(Object from, Object to) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("from", from);
+        detail.put("to", to);
+        return detail;
     }
 
     private PmTask requireExists(Long id) {

@@ -1,18 +1,23 @@
 package com.mido.pm.task.service;
 
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.task.dto.KanbanColumnVO;
 import com.mido.pm.task.dto.TaskCreateDTO;
+import com.mido.pm.task.dto.TaskUpdateDTO;
 import com.mido.pm.task.entity.PmTask;
 import com.mido.pm.task.mapper.PmTaskMapper;
+import com.mido.pm.common.audit.AuditActions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,6 +35,7 @@ class TaskServiceTest {
 
     @Mock private PmTaskMapper taskMapper;
     @Mock private DomainEventPublisher eventPublisher;
+    @Mock private AuditLogService auditLogService;
     @InjectMocks private TaskService service;
 
     private PmTask task(String status) {
@@ -76,6 +82,48 @@ class TaskServiceTest {
         when(taskMapper.selectById(1L)).thenReturn(task("未开始"));
         service.assign(1L, 100L);
         verify(eventPublisher).publish(eq("task.assigned"), any());
+    }
+
+    @Test
+    void changeStatusRecordsActivity() {
+        when(taskMapper.selectById(1L)).thenReturn(task("未开始"));
+        service.changeStatus(1L, "进行中");
+        verify(auditLogService).record(eq("task"), eq(1L), eq(AuditActions.STATUS_CHANGED), any());
+    }
+
+    @Test
+    void assignRecordsActivityWithFromTo() {
+        when(taskMapper.selectById(1L)).thenReturn(task("未开始"));
+        service.assign(1L, 100L);
+        verify(auditLogService).record(eq("task"), eq(1L), eq(AuditActions.ASSIGNED), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateRecordsOnlyChangedFields() {
+        PmTask t = task("未开始");
+        t.setTitle("旧标题");
+        t.setPriority(1);
+        when(taskMapper.selectById(1L)).thenReturn(t);
+
+        // 仅改标题，优先级不变
+        service.update(1L, new TaskUpdateDTO("新标题", 1, null, null, null, null, null));
+
+        ArgumentCaptor<Object> detail = ArgumentCaptor.forClass(Object.class);
+        verify(auditLogService).record(eq("task"), eq(1L), eq(AuditActions.UPDATED), detail.capture());
+        List<Map<String, Object>> changes = (List<Map<String, Object>>) ((Map<String, Object>) detail.getValue()).get("changes");
+        assertEquals(1, changes.size());
+        assertEquals("title", changes.get(0).get("field"));
+        assertEquals("新标题", changes.get(0).get("to"));
+    }
+
+    @Test
+    void updateWithoutChangeRecordsNothing() {
+        PmTask t = task("未开始");
+        t.setTitle("标题");
+        when(taskMapper.selectById(1L)).thenReturn(t);
+        service.update(1L, new TaskUpdateDTO("标题", null, null, null, null, null, null));
+        verify(auditLogService, never()).record(any(), any(), any(), any());
     }
 
     @Test
