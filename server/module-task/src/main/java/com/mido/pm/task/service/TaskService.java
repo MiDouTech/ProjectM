@@ -17,7 +17,9 @@ import com.mido.pm.task.dto.TaskQueryDTO;
 import com.mido.pm.task.dto.TaskUpdateDTO;
 import com.mido.pm.task.dto.TaskVO;
 import com.mido.pm.task.entity.PmTask;
+import com.mido.pm.task.entity.PmTaskDependency;
 import com.mido.pm.task.event.TaskEvents;
+import com.mido.pm.task.mapper.PmTaskDependencyMapper;
 import com.mido.pm.task.mapper.PmTaskMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,14 +42,52 @@ public class TaskService {
     private static final long MAX_PAGE_SIZE = 100L;
 
     private final PmTaskMapper taskMapper;
+    private final PmTaskDependencyMapper dependencyMapper;
     private final DomainEventPublisher eventPublisher;
     private final AuditLogService auditLogService;
 
-    public TaskService(PmTaskMapper taskMapper, DomainEventPublisher eventPublisher,
-                       AuditLogService auditLogService) {
+    public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
+                       DomainEventPublisher eventPublisher, AuditLogService auditLogService) {
         this.taskMapper = taskMapper;
+        this.dependencyMapper = dependencyMapper;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
+    }
+
+    /**
+     * 改期依赖约束（FS）：本任务开始不得早于任一前置的完成日；任一后继的开始不得早于本任务完成日。
+     * 仅在相关日期均存在时校验；冲突抛 409。
+     */
+    private void validateSchedule(Long taskId, LocalDate start, LocalDate due) {
+        if (start == null && due == null) {
+            return;
+        }
+        if (start != null) {
+            List<Long> predIds = dependencyMapper.selectList(Wrappers.<PmTaskDependency>lambdaQuery()
+                            .eq(PmTaskDependency::getSuccessorId, taskId))
+                    .stream().map(PmTaskDependency::getPredecessorId).toList();
+            for (PmTask pred : loadTasks(predIds)) {
+                if (pred.getDueDate() != null && start.isBefore(pred.getDueDate())) {
+                    throw new BizException(ErrorCode.CONFLICT,
+                            "开始日不能早于前置任务「" + pred.getTitle() + "」完成日 " + pred.getDueDate());
+                }
+            }
+        }
+        if (due != null) {
+            List<Long> succIds = dependencyMapper.selectList(Wrappers.<PmTaskDependency>lambdaQuery()
+                            .eq(PmTaskDependency::getPredecessorId, taskId))
+                    .stream().map(PmTaskDependency::getSuccessorId).toList();
+            for (PmTask succ : loadTasks(succIds)) {
+                if (succ.getStartDate() != null && succ.getStartDate().isBefore(due)) {
+                    throw new BizException(ErrorCode.CONFLICT,
+                            "完成日晚于后继任务「" + succ.getTitle() + "」开始日 " + succ.getStartDate());
+                }
+            }
+        }
+    }
+
+    private List<PmTask> loadTasks(List<Long> ids) {
+        return ids.isEmpty() ? List.of() : taskMapper.selectBatchIds(ids);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -99,6 +139,8 @@ public class TaskService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, TaskUpdateDTO dto) {
         PmTask task = requireExists(id);
+        // 改期（含甘特拖拽）须满足 FS 依赖约束：后置不能早于前置完成
+        validateSchedule(id, dto.startDate(), dto.dueDate());
         // 编辑前后字段差异 → 活动流（一次写一条，含 changes 列表）
         List<Map<String, Object>> changes = new ArrayList<>();
         addChange(changes, "title", task.getTitle(), dto.title());

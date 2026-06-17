@@ -7,7 +7,10 @@ import com.mido.pm.task.dto.KanbanColumnVO;
 import com.mido.pm.task.dto.TaskCreateDTO;
 import com.mido.pm.task.dto.TaskUpdateDTO;
 import com.mido.pm.task.entity.PmTask;
+import com.mido.pm.task.entity.PmTaskDependency;
+import com.mido.pm.task.mapper.PmTaskDependencyMapper;
 import com.mido.pm.task.mapper.PmTaskMapper;
+import java.time.LocalDate;
 import com.mido.pm.common.audit.AuditActions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.when;
 class TaskServiceTest {
 
     @Mock private PmTaskMapper taskMapper;
+    @Mock private PmTaskDependencyMapper dependencyMapper;
     @Mock private DomainEventPublisher eventPublisher;
     @Mock private AuditLogService auditLogService;
     @InjectMocks private TaskService service;
@@ -116,6 +120,26 @@ class TaskServiceTest {
         assertEquals(1, changes.size());
         assertEquals("title", changes.get(0).get("field"));
         assertEquals("新标题", changes.get(0).get("to"));
+    }
+
+    @Test
+    void updateRejectsStartBeforePredecessorFinish() {
+        // 后置任务(2) 的前置是 1，前置完成日 01-10；把后置开始拖到 01-05 → 违反 FS，拒绝且不落库
+        PmTask t = task("未开始");
+        t.setTitle("后置");
+        when(taskMapper.selectById(2L)).thenReturn(t);
+        PmTaskDependency edge = new PmTaskDependency();
+        edge.setPredecessorId(1L);
+        edge.setSuccessorId(2L);
+        when(dependencyMapper.selectList(any())).thenReturn(List.of(edge));
+        PmTask pred = task("进行中");
+        pred.setTitle("前置");
+        pred.setDueDate(LocalDate.of(2026, 1, 10));
+        when(taskMapper.selectBatchIds(any())).thenReturn(List.of(pred));
+
+        assertThrows(BizException.class, () -> service.update(2L, new TaskUpdateDTO(
+                "后置", null, null, LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 8), null, null)));
+        verify(taskMapper, never()).updateById(any(PmTask.class));
     }
 
     @Test
