@@ -88,6 +88,17 @@ public class GoalService {
     public void delete(Long id) {
         requireGoal(id);
         goalMapper.deleteById(id);
+        // 弱关联：删目标只删其对齐链，绝不级联删对齐的 project/task
+        alignmentMapper.delete(Wrappers.<PmGoalAlignment>lambdaQuery()
+                .eq(PmGoalAlignment::getGoalId, id));
+    }
+
+    /** 对齐对方(project/task)被删时，仅清理对齐链（不动 goal）。由 GoalAlignmentCleanupListener 调用。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void removeAlignmentsByTarget(String targetType, Long targetId) {
+        alignmentMapper.delete(Wrappers.<PmGoalAlignment>lambdaQuery()
+                .eq(PmGoalAlignment::getTargetType, targetType)
+                .eq(PmGoalAlignment::getTargetId, targetId));
     }
 
     /** 目标列表（可按 period/owner 过滤）；前端按 parentId 组装目标树。 */
