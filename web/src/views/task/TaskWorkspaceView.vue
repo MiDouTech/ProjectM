@@ -31,10 +31,28 @@
         </template>
       </KanbanBoard>
 
-      <!-- 列表（可展开子任务） -->
-      <el-table v-else :data="tree" row-key="id" :tree-props="{ children: 'children' }"
-        default-expand-all @row-click="(r) => openDetail(r.id)">
-        <el-table-column label="标题" min-width="240">
+      <!-- 列表（可展开子任务 + 多选批量操作） -->
+      <div v-else>
+        <div v-if="selectedIds.length" class="tw__batch">
+          <span class="mido-text-secondary">已选 {{ selectedIds.length }} 项</span>
+          <el-dropdown :disabled="batching" @command="batchSetStatus">
+            <el-button :loading="batching">批量改状态<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-for="s in TASK_STATUSES" :key="s" :command="s">{{ s }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-select v-model="batchAssignee" filterable clearable placeholder="批量改负责人"
+            class="tw__batch-sel" :disabled="batching" @change="batchSetAssignee">
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+          <el-button type="danger" plain :loading="batching" @click="batchRemove">批量删除</el-button>
+        </div>
+        <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }"
+          default-expand-all @row-click="(r) => openDetail(r.id)" @selection-change="onSelectionChange">
+          <el-table-column type="selection" width="48" />
+          <el-table-column label="标题" min-width="240">
           <template #default="{ row }">
             <span class="tc__title">
               <el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}
@@ -56,8 +74,9 @@
             <StatusTag v-if="isOverdue(row)" status="逾期" />
           </template>
         </el-table-column>
-        <template #empty><el-empty description="暂无任务，点击右上角新建任务" /></template>
-      </el-table>
+          <template #empty><el-empty description="暂无任务，点击右上角新建任务" /></template>
+        </el-table>
+      </div>
     </el-card>
 
     <!-- 新建任务 -->
@@ -91,8 +110,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { ArrowLeft, Plus, Flag } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, Plus, Flag, ArrowDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import KanbanBoard from '@/components/KanbanBoard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -179,6 +198,40 @@ async function onDrag({ task, toStatus }) {
   }
 }
 
+// ===== 批量操作（列表多选）=====
+const selectedIds = ref([])
+const batchAssignee = ref(null)
+const batching = ref(false)
+
+function onSelectionChange(rows) {
+  selectedIds.value = rows.map((r) => r.id)
+}
+async function runBatch(fn, successMsg) {
+  batching.value = true
+  try {
+    await fn()
+    ElMessage.success(successMsg)
+    selectedIds.value = []
+    await load()
+  } finally {
+    batching.value = false
+  }
+}
+function batchSetStatus(status) {
+  // 非法流转由后端逐条校验，整批回滚并 toast（request 拦截器统一提示）
+  runBatch(() => taskApi.batchTransition(selectedIds.value, status), '已批量改状态')
+}
+function batchSetAssignee(assigneeId) {
+  if (assigneeId == null) return
+  const ids = selectedIds.value
+  runBatch(() => taskApi.batchAssign(ids, assigneeId), '已批量改负责人')
+    .finally(() => { batchAssignee.value = null })
+}
+async function batchRemove() {
+  await ElMessageBox.confirm(`确认删除选中的 ${selectedIds.value.length} 个任务？`, '提示', { type: 'warning' })
+  runBatch(() => taskApi.batchDelete(selectedIds.value), '已批量删除')
+}
+
 function openDetail(id) {
   detailId.value = id
   detailOpen.value = true
@@ -247,5 +300,14 @@ onMounted(async () => {
 }
 .full {
   width: 100%;
+}
+.tw__batch {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-3);
+}
+.tw__batch-sel {
+  width: var(--mido-admin-nav-width);
 }
 </style>

@@ -66,7 +66,7 @@
             </el-tab-pane>
 
             <el-tab-pane label="附件" name="attach">
-              <el-empty description="附件上传随文档/存储模块前端接入" />
+              <AttachmentPanel entity-type="task" :entity-id="taskId" :user-name="userName" />
             </el-tab-pane>
           </el-tabs>
         </section>
@@ -109,6 +109,7 @@ import { Flag, Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CommentThread from '@/components/CommentThread.vue'
 import ActivityTimeline from '@/components/ActivityTimeline.vue'
+import AttachmentPanel from '@/components/AttachmentPanel.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { userName as nameOf } from '@/utils/display'
 

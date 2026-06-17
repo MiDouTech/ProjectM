@@ -14,6 +14,10 @@ export const taskApi = {
   kanban: (projectId) => request.get('/tasks/kanban', { params: { projectId } }),
   // 活动日志（分页倒序）：params { page, size }
   activities: (id, params) => request.get(`/tasks/${id}/activities`, { params }),
+  // 批量操作：每条后端各自发领域事件；批量改状态逐条校验工作流，任一非法整批回滚
+  batchTransition: (ids, targetStatus) => request.post('/tasks/batch/transition', { ids, targetStatus }),
+  batchAssign: (ids, assigneeId) => request.post('/tasks/batch/assignee', { ids, assigneeId }),
+  batchDelete: (ids) => request.post('/tasks/batch/delete', { ids }),
 }
 
 /** 任务默认工作流状态（data-model 状态字典；看板列序） */
