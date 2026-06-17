@@ -6,6 +6,10 @@ import request from './request'
  */
 export const attachmentApi = {
   list: (entityType, entityId) => request.get('/attachments', { params: { entityType, entityId } }),
+  // 项目文件：汇总项目级文档 + 项目下任务/费用附件
+  listByProject: (projectId) => request.get('/attachments/by-project', { params: { projectId } }),
+  // 上传登记（预签名直传）：返回 { attachmentId, uploadUrl, expireSeconds }
+  register: (data) => request.post('/attachments/register', data),
   upload: (entityType, entityId, file) => {
     const fd = new FormData()
     fd.append('entityType', entityType)

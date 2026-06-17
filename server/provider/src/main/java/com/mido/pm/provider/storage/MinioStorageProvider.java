@@ -64,6 +64,21 @@ public class MinioStorageProvider implements StorageProvider {
     }
 
     @Override
+    public String presignedPutUrl(String key, Duration expiry) {
+        ensureBucket(); // 客户端 PUT 前确保桶存在
+        try {
+            return client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                    .method(Method.PUT)
+                    .bucket(bucket)
+                    .object(key)
+                    .expiry((int) expiry.getSeconds(), TimeUnit.SECONDS)
+                    .build());
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "预签名上传URL生成失败: " + e.getMessage());
+        }
+    }
+
+    @Override
     public void remove(String key) {
         try {
             client.removeObject(RemoveObjectArgs.builder()

@@ -28,6 +28,16 @@ public interface StorageProvider {
      */
     String presignedGetUrl(String key, Duration expiry);
 
+    /**
+     * 生成限时预签名上传 URL（HTTP PUT）。客户端据此直传对象，服务端不代理大文件流量；
+     * key 由服务端生成（不让客户端指定），不外泄密钥与桶凭证。
+     *
+     * @param key    存储键（服务端生成）
+     * @param expiry 有效期
+     * @return 可直接 PUT 上传的临时 URL
+     */
+    String presignedPutUrl(String key, Duration expiry);
+
     /** 删除对象（物理删除存储侧对象）。 */
     void remove(String key);
 }

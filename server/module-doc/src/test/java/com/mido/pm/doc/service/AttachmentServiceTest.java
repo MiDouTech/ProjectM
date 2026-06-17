@@ -2,9 +2,14 @@ package com.mido.pm.doc.service;
 
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.cost.dto.CostVO;
+import com.mido.pm.cost.service.CostService;
+import com.mido.pm.doc.dto.AttachmentRegisterDTO;
+import com.mido.pm.doc.dto.UploadTicketVO;
 import com.mido.pm.doc.entity.PmAttachment;
 import com.mido.pm.doc.mapper.PmAttachmentMapper;
 import com.mido.pm.provider.storage.StorageProvider;
+import com.mido.pm.task.service.TaskService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,9 +17,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -30,6 +37,8 @@ class AttachmentServiceTest {
     @Mock private PmAttachmentMapper attachmentMapper;
     @Mock private StorageProvider storageProvider;
     @Mock private DomainEventPublisher eventPublisher;
+    @Mock private TaskService taskService;
+    @Mock private CostService costService;
     @InjectMocks private AttachmentService service;
 
     private PmAttachment attachment(String ossKey) {
@@ -41,6 +50,47 @@ class AttachmentServiceTest {
         a.setOssKey(ossKey);
         a.setSize(1024L);
         return a;
+    }
+
+    private PmAttachment att(long id, String type) {
+        PmAttachment a = new PmAttachment();
+        a.setId(id);
+        a.setEntityType(type);
+        a.setEntityId(id);
+        a.setName("f" + id);
+        a.setSize(1L);
+        return a;
+    }
+
+    @Test
+    void registerCreatesRowAndReturnsPresignedPutUrl() {
+        when(storageProvider.presignedPutUrl(any(), eq(Duration.ofMinutes(10))))
+                .thenReturn("http://minio/put-url");
+
+        UploadTicketVO ticket = service.register(
+                new AttachmentRegisterDTO("project", 7L, "需求.pdf", 2048L, "application/pdf"));
+
+        assertEquals("http://minio/put-url", ticket.uploadUrl());
+        verify(attachmentMapper).insert(any(PmAttachment.class));
+        verify(eventPublisher).publish(eq("attachment.uploaded"), any());
+        // UploadTicketVO 无 ossKey 字段（结构上不外泄）
+    }
+
+    @Test
+    void listByProjectAggregatesProjectTaskCostSortedDesc() {
+        when(taskService.taskIdsByProject(7L)).thenReturn(List.of(10L, 11L));
+        when(costService.listByProject(7L)).thenReturn(List.of(
+                new CostVO(20L, 7L, "餐费", "餐费", null, null, null, null, "未发生", null, null)));
+        // 三次 selectList：项目级 / 任务 / 费用
+        when(attachmentMapper.selectList(any())).thenReturn(
+                List.of(att(1, "project")), List.of(att(5, "task")), List.of(att(3, "cost")));
+
+        List<?> result = service.listByProject(7L);
+
+        assertEquals(3, result.size());
+        assertEquals(5L, ((com.mido.pm.doc.dto.AttachmentVO) result.get(0)).id());
+        assertEquals(3L, ((com.mido.pm.doc.dto.AttachmentVO) result.get(1)).id());
+        assertEquals(1L, ((com.mido.pm.doc.dto.AttachmentVO) result.get(2)).id());
     }
 
     @Test

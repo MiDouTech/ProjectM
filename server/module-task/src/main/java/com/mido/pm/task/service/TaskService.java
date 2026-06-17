@@ -136,6 +136,13 @@ public class TaskService {
         return PageResult.of(list, result.getTotal(), pageNo, size);
     }
 
+    /** 项目下全部任务 id（供跨域聚合，如项目文件汇总任务附件）。 */
+    public List<Long> taskIdsByProject(Long projectId) {
+        return taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
+                        .eq(PmTask::getProjectId, projectId))
+                .stream().map(PmTask::getId).toList();
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, TaskUpdateDTO dto) {
         PmTask task = requireExists(id);
