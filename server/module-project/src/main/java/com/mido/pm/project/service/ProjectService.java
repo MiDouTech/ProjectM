@@ -79,7 +79,7 @@ public class ProjectService {
      * 我参与的项目（工作台卡）：我负责(leader) ∪ 我是成员，去重、按 id 倒序，上限 {@value #MINE_LIMIT}。
      */
     public List<ProjectVO> myProjects() {
-        Long me = currentUserId();
+        Long me = UserContext.currentUserId();
         List<Long> memberPids = memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
                         .select(PmProjectMember::getProjectId)
                         .eq(PmProjectMember::getUserId, me))
@@ -95,9 +95,6 @@ public class ProjectService {
         return projectMapper.selectList(wrapper).stream().map(this::toVO).toList();
     }
 
-    private Long currentUserId() {
-        return UserContext.get() == null ? null : UserContext.get().getUserId();
-    }
 
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectCreateDTO dto) {
@@ -286,7 +283,7 @@ public class ProjectService {
     }
 
     private PayloadBuilder basePayload(Long projectId) {
-        Long operatorId = UserContext.get() == null ? null : UserContext.get().getUserId();
+        Long operatorId = UserContext.currentUserId();
         return new PayloadBuilder()
                 .add("projectId", projectId)
                 .add("operatorId", operatorId)

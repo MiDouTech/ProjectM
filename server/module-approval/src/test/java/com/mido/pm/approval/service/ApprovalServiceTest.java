@@ -162,6 +162,20 @@ class ApprovalServiceTest {
         assertEquals("n1", result.get(0).node());
     }
 
+    @Test
+    void myPendingDedupesMultipleTasksOnSameInstance() {
+        login(100);
+        // 同一用户在同一实例的两条未处理待办（多节点）→ 去重为一条，避免前端 key 冲突
+        when(taskMapper.selectList(any())).thenReturn(List.of(pendingTask(10L), pendingTask(10L)));
+        when(instanceMapper.selectBatchIds(any())).thenReturn(List.of(
+                instanceWithStatus(10L, ApprovalInstance.STATUS_PENDING)));
+
+        var result = service.myPending();
+
+        assertEquals(1, result.size());
+        assertEquals(10L, result.get(0).instanceId());
+    }
+
     private ApprovalTask pendingTask(long instanceId) {
         ApprovalTask t = new ApprovalTask();
         t.setInstanceId(instanceId);

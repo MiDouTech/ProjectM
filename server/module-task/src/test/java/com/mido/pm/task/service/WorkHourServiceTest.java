@@ -2,13 +2,17 @@ package com.mido.pm.task.service;
 
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.security.CurrentUser;
+import com.mido.pm.common.security.UserContext;
 import com.mido.pm.task.dto.PersonWorkHourSummaryVO;
 import com.mido.pm.task.dto.WorkHourCreateDTO;
 import com.mido.pm.task.dto.WorkHourSummaryVO;
+import com.mido.pm.task.dto.WorkHourUpdateDTO;
 import com.mido.pm.task.entity.PmTask;
 import com.mido.pm.task.entity.PmWorkHour;
 import com.mido.pm.task.mapper.PmTaskMapper;
 import com.mido.pm.task.mapper.PmWorkHourMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -125,6 +129,42 @@ class WorkHourServiceTest {
         service.log(new WorkHourCreateDTO(1L, "actual", "研发", LocalDate.now(), new BigDecimal("3"), "联调"));
         verify(workHourMapper).insert(any(PmWorkHour.class));
         verify(eventPublisher).publish(eq("workhour.logged"), any());
+    }
+
+    @Test
+    void updateRejectedForNonOwner() {
+        login(99L);                                   // 当前用户 99
+        PmWorkHour owned = wh(7L, "actual", "2");      // 记录归属用户 7
+        owned.setId(50L);
+        when(workHourMapper.selectById(50L)).thenReturn(owned);
+
+        assertThrows(BizException.class, () -> service.update(50L,
+                new WorkHourUpdateDTO("研发", LocalDate.now(), new BigDecimal("3"), null)));
+        verify(workHourMapper, never()).updateById(any(PmWorkHour.class));
+    }
+
+    @Test
+    void updateAllowedForOwner() {
+        login(7L);                                     // 当前用户 7 == 记录归属
+        PmWorkHour owned = wh(7L, "actual", "2");
+        owned.setId(50L);
+        when(workHourMapper.selectById(50L)).thenReturn(owned);
+
+        service.update(50L, new WorkHourUpdateDTO("测试", LocalDate.now(), new BigDecimal("5"), "改"));
+
+        verify(workHourMapper).updateById(owned);
+        verify(eventPublisher).publish(eq("workhour.logged"), any());
+    }
+
+    @AfterEach
+    void tearDown() {
+        UserContext.clear();
+    }
+
+    private void login(long uid) {
+        CurrentUser u = new CurrentUser();
+        u.setUserId(uid);
+        UserContext.set(u);
     }
 
     private PmTask taskOf(Long id) {

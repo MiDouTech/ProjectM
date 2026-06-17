@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,9 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ApprovalService {
+
+    /** 工作台「待我审批」卡返回上限 */
+    private static final int MINE_LIMIT = 50;
 
     private final ApprovalFlowMapper flowMapper;
     private final ApprovalInstanceMapper instanceMapper;
@@ -183,12 +187,18 @@ public class ApprovalService {
         List<Long> instanceIds = tasks.stream().map(ApprovalTask::getInstanceId).distinct().toList();
         Map<Long, ApprovalInstance> instById = instanceMapper.selectBatchIds(instanceIds).stream()
                 .collect(Collectors.toMap(ApprovalInstance::getId, i -> i));
+        // 一个实例至多一条（同一用户在同一实例多节点待办去重，避免前端 key 冲突）；上限 MINE_LIMIT
+        Set<Long> seenInstances = new HashSet<>();
         List<PendingApprovalVO> result = new ArrayList<>();
         for (ApprovalTask t : tasks) {
             ApprovalInstance inst = instById.get(t.getInstanceId());
-            if (inst != null && ApprovalInstance.STATUS_PENDING.equals(inst.getStatus())) {
+            if (inst != null && ApprovalInstance.STATUS_PENDING.equals(inst.getStatus())
+                    && seenInstances.add(inst.getId())) {
                 result.add(new PendingApprovalVO(inst.getId(), inst.getBizType(), inst.getBizId(),
                         t.getNode(), inst.getApplicantId(), inst.getCreateTime()));
+                if (result.size() >= MINE_LIMIT) {
+                    break;
+                }
             }
         }
         return result;

@@ -19,6 +19,12 @@ public final class UserContext {
         return CURRENT.get();
     }
 
+    /** 当前登录用户 id；无登录态返回 null。 */
+    public static Long currentUserId() {
+        CurrentUser user = CURRENT.get();
+        return user == null ? null : user.getUserId();
+    }
+
     public static void clear() {
         CURRENT.remove();
     }

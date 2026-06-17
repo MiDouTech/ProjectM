@@ -5,6 +5,7 @@ import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.security.UserContext;
+import com.mido.pm.task.domain.WorkHourCalc;
 import com.mido.pm.task.dto.PersonWorkHourSummaryVO;
 import com.mido.pm.task.dto.WorkHourCreateDTO;
 import com.mido.pm.task.dto.WorkHourSummaryVO;
@@ -20,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,13 +64,13 @@ public class WorkHourService {
 
         PmWorkHour w = new PmWorkHour();
         w.setTaskId(dto.taskId());
-        w.setUserId(currentUserId());
+        w.setUserId(UserContext.currentUserId());
         w.setKind(dto.kind());
         w.setCategory(dto.category());
         w.setWorkDate(dto.workDate());
         w.setHours(dto.hours());
         w.setRemark(dto.remark());
-        w.setCreateBy(currentUserId());
+        w.setCreateBy(UserContext.currentUserId());
         workHourMapper.insert(w);
 
         publishLogged(w, "logged");
@@ -82,6 +83,10 @@ public class WorkHourService {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法工时类别: " + dto.category());
         }
         PmWorkHour w = requireExists(id);
+        Long me = UserContext.currentUserId();
+        if (w.getUserId() != null && !w.getUserId().equals(me)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "只能修改本人登记的工时");
+        }
         w.setCategory(dto.category());
         w.setWorkDate(dto.workDate());
         w.setHours(dto.hours());
@@ -135,9 +140,12 @@ public class WorkHourService {
             }
         }
         return byUser.entrySet().stream()
-                .map(e -> new PersonWorkHourSummaryVO(e.getKey(), e.getValue()[0], e.getValue()[1],
-                        com.mido.pm.task.domain.WorkHourCalc.progressPercent(e.getValue()[0], e.getValue()[1]),
-                        com.mido.pm.task.domain.WorkHourCalc.remaining(e.getValue()[0], e.getValue()[1])))
+                .map(e -> {
+                    BigDecimal est = e.getValue()[0];
+                    BigDecimal actual = e.getValue()[1];
+                    return new PersonWorkHourSummaryVO(e.getKey(), est, actual,
+                            WorkHourCalc.progressPercent(est, actual), WorkHourCalc.remaining(est, actual));
+                })
                 .sorted((a, b) -> b.actualHours().compareTo(a.actualHours()))
                 .toList();
     }
@@ -155,22 +163,21 @@ public class WorkHourService {
                 .map(w -> nz(w.getHours())).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /** 本任务 + 全部后代子任务 id（按 parent_id 逐层向下，防自环）。 */
+    /** 本任务 + 全部后代子任务 id（按 parent_id 逐层向下，HashSet 去重防自环）。 */
     private List<Long> taskAndDescendantIds(Long rootId) {
-        List<Long> all = new ArrayList<>();
-        all.add(rootId);
+        Set<Long> seen = new LinkedHashSet<>();
+        seen.add(rootId);
         List<Long> frontier = List.of(rootId);
         while (!frontier.isEmpty()) {
             List<Long> children = taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
                             .in(PmTask::getParentId, frontier))
-                    .stream().map(PmTask::getId).filter(id -> !all.contains(id)).toList();
+                    .stream().map(PmTask::getId).filter(seen::add).toList();
             if (children.isEmpty()) {
                 break;
             }
-            all.addAll(children);
             frontier = children;
         }
-        return all;
+        return List.copyOf(seen);
     }
 
     private List<Long> projectTaskIds(Long projectId) {
@@ -204,10 +211,6 @@ public class WorkHourService {
             throw new BizException(ErrorCode.NOT_FOUND, "工时记录不存在");
         }
         return w;
-    }
-
-    private Long currentUserId() {
-        return UserContext.get() == null ? null : UserContext.get().getUserId();
     }
 
     private static BigDecimal nz(BigDecimal v) {

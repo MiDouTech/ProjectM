@@ -17,7 +17,8 @@
       </div>
       <div class="wh__stat wh__stat--progress">
         <span class="wh__stat-label mido-text-secondary">进度</span>
-        <el-progress :percentage="progressBar" :format="() => `${fmtHours(summary.progress)}%`" />
+        <el-progress :percentage="progressBar" :status="overrun ? 'exception' : undefined"
+          :format="() => `${fmtHours(summary.progress)}%`" />
       </div>
     </div>
 
@@ -29,7 +30,7 @@
         </el-radio-group>
       </el-form-item>
       <el-form-item label="类别" prop="category">
-        <el-select v-model="form.category" placeholder="类别" class="wh__cat">
+        <el-select v-model="form.category" placeholder="类别">
           <el-option v-for="c in WORKHOUR_CATEGORIES" :key="c" :label="c" :value="c" />
         </el-select>
       </el-form-item>
@@ -37,10 +38,10 @@
         <el-date-picker v-model="form.workDate" type="date" value-format="YYYY-MM-DD" placeholder="日期" />
       </el-form-item>
       <el-form-item label="工时" prop="hours">
-        <el-input-number v-model="form.hours" :min="0.5" :step="0.5" :precision="2" :controls="false" class="wh__hours" />
+        <el-input-number v-model="form.hours" :min="0.5" :step="0.5" :precision="2" :controls="false" />
       </el-form-item>
       <el-form-item label="备注">
-        <el-input v-model="form.remark" placeholder="可选" class="wh__remark" />
+        <el-input v-model="form.remark" placeholder="可选" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :loading="saving" @click="submit">{{ editingId ? '保存' : '登记' }}</el-button>
@@ -100,8 +101,9 @@ const rules = {
 const kindLabel = (k) => WORKHOUR_KINDS.find((x) => x.value === k)?.label || k
 const uName = (id) => (props.userName ? props.userName(id) : (id ? `用户#${id}` : '—'))
 const fmtHours = (v) => Number(v || 0).toFixed(2).replace(/\.00$/, '')
-// 进度条数值需 0-100 整数；展示文案保留后端 1 位百分比
-const progressBar = computed(() => Math.min(100, Math.round(Number(summary.value.progress || 0))))
+// 进度条填充取 0-100（不四舍五入避免 99.5→满格）；文案保留后端 1 位百分比；超 100% 标记超工
+const progressBar = computed(() => Math.min(100, Math.max(0, Number(summary.value.progress || 0))))
+const overrun = computed(() => Number(summary.value.progress || 0) > 100)
 
 async function load() {
   if (!props.taskId) return
@@ -176,21 +178,11 @@ watch(() => props.taskId, () => { resetForm(); load() }, { immediate: true })
 }
 .wh__stat--progress {
   flex: 1;
-  min-width: var(--mido-nav-width);
 }
 .wh__stat-label {
   font-size: var(--mido-font-size-caption);
 }
 .wh__form {
   margin-bottom: var(--mido-space-3);
-}
-.wh__cat {
-  width: var(--mido-admin-nav-width);
-}
-.wh__hours {
-  width: calc(var(--mido-admin-nav-width) * 0.8);
-}
-.wh__remark {
-  width: var(--mido-nav-width);
 }
 </style>

@@ -90,4 +90,13 @@ class WorkbenchViewServiceTest {
         when(viewMapper.selectOne(any())).thenReturn(existing);
         assertEquals(List.of("a", "b", "c"), service.getMyLayout().cards());
     }
+
+    @Test
+    void getReturnsNullCardsWhenConfigCorrupted() {
+        // 损坏/遗留 JSON 不应被当作"已保存空布局"，应回退默认（cards=null）
+        PmView existing = new PmView();
+        existing.setConfig("{\"not\":\"an array\"}");
+        when(viewMapper.selectOne(any())).thenReturn(existing);
+        assertEquals(null, service.getMyLayout().cards());
+    }
 }

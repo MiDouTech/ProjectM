@@ -49,7 +49,7 @@ public class WorkbenchViewService {
         if (existing == null) {
             PmView view = new PmView();
             view.setScope(SCOPE_WORKBENCH);
-            view.setOwnerId(currentUserId());
+            view.setOwnerId(UserContext.currentUserId());
             view.setType(TYPE_CARDS);
             view.setConfig(config);
             viewMapper.insert(view);
@@ -60,21 +60,24 @@ public class WorkbenchViewService {
     }
 
     private PmView findMine() {
+        // orderByDesc(id) 保证多行（极端并发下重复 upsert）时读取确定取最新一行
         return viewMapper.selectOne(Wrappers.<PmView>lambdaQuery()
                 .eq(PmView::getScope, SCOPE_WORKBENCH)
-                .eq(PmView::getOwnerId, currentUserId())
+                .eq(PmView::getOwnerId, UserContext.currentUserId())
+                .orderByDesc(PmView::getId)
                 .last("limit 1"));
     }
 
+    /** 解析卡片列表；空配置或损坏 JSON 返回 null（视为未保存 → 前端用默认布局，不当作已存空布局）。 */
     private List<String> readCards(String json) {
         if (json == null || json.isBlank()) {
-            return List.of();
+            return null;
         }
         try {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {
             });
         } catch (Exception e) {
-            return List.of();
+            return null;
         }
     }
 
@@ -86,7 +89,4 @@ public class WorkbenchViewService {
         }
     }
 
-    private Long currentUserId() {
-        return UserContext.get() == null ? null : UserContext.get().getUserId();
-    }
 }

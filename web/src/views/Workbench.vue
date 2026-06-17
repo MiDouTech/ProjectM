@@ -48,6 +48,7 @@
 import { computed, onMounted, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import WorkbenchCard from './workbench/WorkbenchCard.vue'
 import { workbenchApi } from '@/api/workbench'
 
@@ -67,18 +68,36 @@ const grouped = computed(() => {
 
 // 已启用卡片（有序，持久化到 pm_view）；默认全部
 const enabled = ref(CATALOG.map((c) => c.id))
+// 用户在加载完成前就改动过 → 不让慢到的初始加载覆盖其改动
+let userEdited = false
 
 // 从后端布局加载；未保存过(cards=null)用默认；过滤已下线卡片 id
 onMounted(async () => {
-  const layout = await workbenchApi.getLayout()
-  const saved = layout?.cards
-  // null=未保存过(用默认)；数组(含空)=用户已保存的布局，按目录过滤下线卡片
-  if (Array.isArray(saved)) {
-    enabled.value = saved.filter((id) => catalogMap[id])
+  try {
+    const layout = await workbenchApi.getLayout()
+    const saved = layout?.cards
+    // null=未保存过(用默认)；数组(含空)=用户已保存的布局，按目录过滤下线卡片
+    if (Array.isArray(saved) && !userEdited) {
+      enabled.value = saved.filter((id) => catalogMap[id])
+    }
+  } catch {
+    // 加载失败时保留默认布局（请求层已提示），不抛未处理异常
   }
 })
-function persist() {
-  workbenchApi.saveLayout(enabled.value)
+async function persist() {
+  userEdited = true
+  try {
+    await workbenchApi.saveLayout(enabled.value)
+  } catch {
+    // 保存失败：回读后端布局，避免本地与后端长期不一致
+    ElMessage.error('布局保存失败，已恢复上次保存的布局')
+    try {
+      const layout = await workbenchApi.getLayout()
+      enabled.value = Array.isArray(layout?.cards)
+        ? layout.cards.filter((id) => catalogMap[id])
+        : CATALOG.map((c) => c.id)
+    } catch { /* 回读也失败则维持当前界面 */ }
+  }
 }
 
 const addDialog = ref(false)
