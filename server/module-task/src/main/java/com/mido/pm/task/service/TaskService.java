@@ -130,8 +130,43 @@ public class TaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        requireExists(id);
-        taskMapper.deleteById(id);
+        PmTask task = requireExists(id);
+        taskMapper.deleteById(id); // 逻辑删除（@TableLogic）
+        eventPublisher.publish(TaskEvents.DELETED, payload(
+                "taskId", id, "projectId", task.getProjectId()));
+    }
+
+    /** 批量改状态：逐条复用 changeStatus（各自校验工作流合法性 + 发事件 + 记活动）；任一非法整批回滚。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchChangeStatus(List<Long> ids, String targetStatus) {
+        requireNonEmpty(ids);
+        for (Long id : ids) {
+            changeStatus(id, targetStatus);
+        }
+    }
+
+    /** 批量改负责人：逐条复用 assign（各自发 task.assigned + 记活动）。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAssign(List<Long> ids, Long assigneeId) {
+        requireNonEmpty(ids);
+        for (Long id : ids) {
+            assign(id, assigneeId);
+        }
+    }
+
+    /** 批量删除（逻辑删）：逐条复用 delete（各自发 task.deleted）。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchDelete(List<Long> ids) {
+        requireNonEmpty(ids);
+        for (Long id : ids) {
+            delete(id);
+        }
+    }
+
+    private void requireNonEmpty(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "请至少选择一条任务");
+        }
     }
 
     /** 指派/改派，发 task.assigned。 */

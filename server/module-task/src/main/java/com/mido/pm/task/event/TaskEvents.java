@@ -6,6 +6,7 @@ public final class TaskEvents {
     public static final String CREATED = "task.created";
     public static final String ASSIGNED = "task.assigned";
     public static final String STATUS_CHANGED = "task.status.changed";
+    public static final String DELETED = "task.deleted";
 
     private TaskEvents() {
     }

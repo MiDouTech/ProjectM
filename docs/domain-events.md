@@ -18,6 +18,7 @@
 | `task.created` | 建任务 | 消息(通知负责人) |
 | `task.assigned` | 指派/改派 | 消息 |
 | `task.status.changed` | 状态流转(含看板拖拽) | 报表、AI(风险) |
+| `task.deleted` | 删除任务(逻辑删，含批量) | 报表、活动流 |
 | `task.overdue` | 定时扫描逾期 | 消息(催办)、AI(风险) |
 | `task.milestone.reached` | 里程碑任务完成 | 报表、消息 |
 

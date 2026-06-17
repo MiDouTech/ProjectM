@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -124,6 +125,42 @@ class TaskServiceTest {
         when(taskMapper.selectById(1L)).thenReturn(t);
         service.update(1L, new TaskUpdateDTO("标题", null, null, null, null, null, null));
         verify(auditLogService, never()).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void batchChangeStatusAllLegalAppliesEach() {
+        when(taskMapper.selectById(1L)).thenReturn(task("未开始"));
+        when(taskMapper.selectById(2L)).thenReturn(task("未开始"));
+
+        service.batchChangeStatus(List.of(1L, 2L), "进行中");
+
+        verify(taskMapper, times(2)).updateById(any(PmTask.class));
+        verify(eventPublisher, times(2)).publish(eq("task.status.changed"), any());
+    }
+
+    @Test
+    void batchChangeStatusRejectsIllegalTransitionNoPersist() {
+        when(taskMapper.selectById(1L)).thenReturn(task("未开始"));
+        // 未开始→已验收 非法：整批拒绝，不落库不发事件
+        assertThrows(BizException.class, () -> service.batchChangeStatus(List.of(1L, 2L), "已验收"));
+        verify(taskMapper, never()).updateById(any(PmTask.class));
+        verify(eventPublisher, never()).publish(any(), any());
+    }
+
+    @Test
+    void batchRejectsEmptySelection() {
+        assertThrows(BizException.class, () -> service.batchChangeStatus(List.of(), "进行中"));
+        verify(taskMapper, never()).updateById(any(PmTask.class));
+    }
+
+    @Test
+    void batchDeleteEmitsDeletedPerItem() {
+        when(taskMapper.selectById(1L)).thenReturn(task("未开始"));
+        when(taskMapper.selectById(2L)).thenReturn(task("进行中"));
+        service.batchDelete(List.of(1L, 2L));
+        verify(taskMapper).deleteById(1L);
+        verify(taskMapper).deleteById(2L);
+        verify(eventPublisher, times(2)).publish(eq("task.deleted"), any());
     }
 
     @Test
