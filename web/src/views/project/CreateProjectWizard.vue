@@ -19,7 +19,7 @@
           <CategoryBadge :category="t.category" />
           <div class="tpl__name">{{ t.name }}</div>
           <div class="mido-text-secondary tpl__desc">{{ t.description || '内置模板' }}</div>
-          <el-tag v-if="t.isBuiltin" size="small" type="info" disable-transitions>内置</el-tag>
+          <span v-if="t.isBuiltin" class="tpl__builtin mido-text-secondary">内置</span>
         </div>
       </div>
     </div>
@@ -194,6 +194,13 @@ async function submit() {
 }
 .tpl__name {
   font-weight: var(--mido-font-weight-bold);
+}
+/* 中性装饰标签（非状态），不写死 el-tag type */
+.tpl__builtin {
+  align-self: flex-start;
+  padding: 0 var(--mido-space-2);
+  border: var(--mido-border-width) solid var(--el-border-color);
+  border-radius: var(--mido-radius-sm);
 }
 .tpl__desc {
   flex: 1;

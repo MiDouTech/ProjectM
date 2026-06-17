@@ -24,9 +24,9 @@
             </el-table-column>
             <el-table-column label="角色" width="120">
               <template #default="{ row }">
-                <el-tag :type="isBeneficiaryRole(row.role) ? 'primary' : 'info'" disable-transitions>
+                <span class="sv__role" :class="{ 'sv__role--ben': isBeneficiaryRole(row.role) }">
                   {{ ROLE_LABEL[row.role] || row.role }}
-                </el-tag>
+                </span>
               </template>
             </el-table-column>
             <el-table-column label="权力" width="70">
@@ -281,6 +281,14 @@ onMounted(async () => {
 }
 .sv__w {
   width: 100%;
+}
+/* 角色为分类语义（非状态），用 token 着色的文本区分受益方/其他，不写死 el-tag type */
+.sv__role {
+  color: var(--el-text-color-regular);
+}
+.sv__role--ben {
+  color: var(--el-color-primary);
+  font-weight: var(--mido-font-weight-bold);
 }
 .sv__check {
   margin-top: var(--mido-space-4);
