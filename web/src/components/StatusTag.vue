@@ -29,6 +29,8 @@ const STATUS_TYPE = {
   // 账号启用/停用（§4 派生，待回写 design-system §1.5 登记）
   active: 'success', 启用: 'success',
   disabled: 'info', 停用: 'info',
+  // 费用状态（pm_cost.status，待回写 design-system §1.5 登记）
+  未发生: 'info', 已发生: 'success', 被退回: 'danger',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')

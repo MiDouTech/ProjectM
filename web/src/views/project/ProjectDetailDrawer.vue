@@ -36,6 +36,9 @@
             <el-tab-pane label="验收" name="verify">
               <el-empty description="NPSS 两段式价值验收在后续验收模块前端接入" />
             </el-tab-pane>
+            <el-tab-pane label="费用管理" name="cost">
+              <CostPanel :project-id="projectId" />
+            </el-tab-pane>
             <el-tab-pane label="文件" name="doc">
               <el-empty description="项目文件在文档模块前端接入" />
             </el-tab-pane>
@@ -72,6 +75,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi } from '@/api/project'
 import ActivityTimeline from '@/components/ActivityTimeline.vue'
+import CostPanel from '@/components/CostPanel.vue'
 import ProjectInfoPane from './panes/ProjectInfoPane.vue'
 import ProjectTransitionPane from './panes/ProjectTransitionPane.vue'
 import ProjectApprovalPane from './panes/ProjectApprovalPane.vue'
