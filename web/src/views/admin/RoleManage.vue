@@ -45,7 +45,10 @@
     <!-- 数据范围 -->
     <el-drawer v-model="scopesDrawer" title="数据范围" size="var(--mido-drawer-width)">
       <div v-for="(item, idx) in scopes" :key="idx" class="ds-row">
-        <el-input v-model="item.resource" placeholder="资源(如 user/project)" />
+        <el-select v-model="item.resource" filterable allow-create default-first-option
+          placeholder="资源" class="ds-row__resource">
+          <el-option v-for="r in DATA_SCOPE_RESOURCES" :key="r.value" :label="r.label" :value="r.value" />
+        </el-select>
         <el-select v-model="item.scope" placeholder="数据范围" class="ds-row__scope">
           <el-option v-for="s in DATA_SCOPES" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
@@ -64,7 +67,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { roleApi, DATA_SCOPES } from '@/api/org'
+import { roleApi, DATA_SCOPES, DATA_SCOPE_RESOURCES } from '@/api/org'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -174,6 +177,9 @@ onMounted(load)
   align-items: center;
   gap: var(--mido-space-2);
   margin-bottom: var(--mido-space-2);
+}
+.ds-row__resource {
+  flex: 1;
 }
 .ds-row__scope {
   width: var(--mido-admin-nav-width);

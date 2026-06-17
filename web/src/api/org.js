@@ -50,3 +50,10 @@ export const DATA_SCOPES = [
   { value: 'all', label: '全部' },
   { value: 'custom', label: '自定义' },
 ]
+
+/** 数据范围可配资源（与后端 ScopeResource / SysUserService.RESOURCE 一致；允许自定义扩展） */
+export const DATA_SCOPE_RESOURCES = [
+  { value: 'user', label: '用户' },
+  { value: 'project', label: '项目' },
+  { value: 'task', label: '任务' },
+]
