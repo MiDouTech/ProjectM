@@ -20,5 +20,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <!-- 对象存储能力（StorageProvider/MinIO） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>provider</artifactId>
+        </dependency>
     </dependencies>
 </project>
