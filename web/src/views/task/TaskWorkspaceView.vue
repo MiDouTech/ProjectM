@@ -38,6 +38,8 @@
 
       <!-- 视图设计器结果（分组/排序/筛选后的任务） -->
       <div v-else-if="view === 'view'">
+        <el-alert v-if="groupedTotal >= 500" type="warning" :closable="false" show-icon
+          title="结果较多，仅显示前 500 条，请收窄筛选条件" class="tw__cap" />
         <el-collapse v-if="grouped.groups.length">
           <el-collapse-item v-for="(g, i) in grouped.groups" :key="i" :name="i"
             :title="`${groupTitle(g.groupKey)}（${g.tasks.length}）`">
@@ -241,6 +243,8 @@ async function onSelectView(id) {
   grouped.value = res
   view.value = 'view'
 }
+const groupedTotal = computed(() =>
+  grouped.value.groups.reduce((n, g) => n + (g.tasks?.length || 0), 0))
 function groupTitle(key) {
   if (key === null || key === undefined || key === '') return '全部'
   if (grouped.value.groupBy === 'assigneeId') return userName(key)

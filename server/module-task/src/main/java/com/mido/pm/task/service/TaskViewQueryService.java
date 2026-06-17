@@ -26,6 +26,9 @@ import java.util.Map;
 @Service
 public class TaskViewQueryService {
 
+    /** 视图查询结果硬上限（大项目防全表；超限提示收窄筛选） */
+    private static final int MAX_RESULT = 500;
+
     private final PmTaskMapper taskMapper;
     private final ViewService viewService;
 
@@ -41,6 +44,8 @@ public class TaskViewQueryService {
         }
         QueryWrapper<PmTask> qw = ViewQueryTranslator.build(config);
         qw.eq("project_id", req.projectId());
+        // 大项目防全表：硬上限，避免一次拉过多任务拖垮前端树渲染（超限需收窄筛选）
+        qw.last("limit " + MAX_RESULT);
         List<TaskVO> tasks = taskMapper.selectList(qw).stream().map(this::toVO).toList();
 
         String groupBy = config == null ? null : config.groupBy();
