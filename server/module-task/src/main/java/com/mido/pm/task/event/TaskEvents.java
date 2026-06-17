@@ -7,6 +7,8 @@ public final class TaskEvents {
     public static final String ASSIGNED = "task.assigned";
     public static final String STATUS_CHANGED = "task.status.changed";
     public static final String DELETED = "task.deleted";
+    /** 登记/修改工时（预估/实际） */
+    public static final String WORKHOUR_LOGGED = "workhour.logged";
 
     private TaskEvents() {
     }

@@ -21,6 +21,7 @@
 | `task.deleted` | 删除任务(逻辑删，含批量) | 报表、活动流 |
 | `task.overdue` | 定时扫描逾期 | 消息(催办)、AI(风险) |
 | `task.milestone.reached` | 里程碑任务完成 | 报表、消息 |
+| `workhour.logged` | 登记/修改工时(预估/实际) | 报表(工时统计) |
 
 ## 3. 立项/审批域 approval.*
 | 事件 | 触发 | 订阅方 |
