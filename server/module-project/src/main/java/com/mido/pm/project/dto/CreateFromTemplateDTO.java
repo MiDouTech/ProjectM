@@ -10,7 +10,7 @@ import java.time.LocalDate;
 public record CreateFromTemplateDTO(
         @NotNull(message = "模板不能为空") Long templateId,
         @NotBlank(message = "项目名称不能为空") String name,
-        Long leaderId,
+        @NotNull(message = "负责人不能为空") Long leaderId,
         BigDecimal budget,
         String subCategory,
         LocalDate startDate,

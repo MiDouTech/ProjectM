@@ -41,7 +41,7 @@
           </el-select>
           <el-input v-else v-model="form.subCategory" placeholder="可选（覆盖模板默认）" />
         </el-form-item>
-        <el-form-item label="负责人">
+        <el-form-item label="负责人" prop="leaderId">
           <el-select v-model="form.leaderId" filterable clearable placeholder="选择负责人" class="full">
             <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
           </el-select>
@@ -108,6 +108,7 @@ const dateRange = ref(null)
 const rules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
   category: [{ required: true, message: '请选择项目类型', trigger: 'change' }],
+  leaderId: [{ required: true, message: '请选择负责人', trigger: 'change' }],
 }
 
 const pickedTpl = computed(() => templates.value.find((t) => t.id === picked.value))
