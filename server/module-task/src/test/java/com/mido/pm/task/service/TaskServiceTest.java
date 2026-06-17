@@ -41,6 +41,7 @@ class TaskServiceTest {
     @Mock private PmTaskDependencyMapper dependencyMapper;
     @Mock private DomainEventPublisher eventPublisher;
     @Mock private AuditLogService auditLogService;
+    @Mock private com.mido.pm.project.service.ProjectService projectService;
     @InjectMocks private TaskService service;
 
     private PmTask task(String status) {
@@ -57,6 +58,20 @@ class TaskServiceTest {
         verify(taskMapper).insert(any(PmTask.class));
         verify(eventPublisher).publish(eq("task.created"), any());
         verify(eventPublisher, never()).publish(eq("task.assigned"), any());
+    }
+
+    @Test
+    void createSetsDeptFromProject() {
+        // 任务归属部门 = 所属项目部门（数据范围用）
+        when(projectService.get(9L)).thenReturn(new com.mido.pm.project.dto.ProjectVO(
+                9L, null, null, null, "O", null, null, null, "进行中",
+                null, null, null, null, null, null, null, 55L));
+        ArgumentCaptor<PmTask> captor = ArgumentCaptor.forClass(PmTask.class);
+
+        service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null));
+
+        verify(taskMapper).insert(captor.capture());
+        assertEquals(55L, captor.getValue().getDeptId());
     }
 
     @Test

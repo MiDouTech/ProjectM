@@ -18,6 +18,8 @@ public class PmTask extends BaseEntity {
     private String title;
     private String description;
     private Long assigneeId;
+    /** 归属部门（=所属项目部门）：数据范围按部门过滤（V9） */
+    private Long deptId;
     private String status;
     private Integer priority;
     private String stage;
@@ -40,6 +42,8 @@ public class PmTask extends BaseEntity {
     public void setDescription(String description) { this.description = description; }
     public Long getAssigneeId() { return assigneeId; }
     public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Integer getPriority() { return priority; }

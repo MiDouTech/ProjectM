@@ -126,6 +126,20 @@ class ProjectServiceTest {
     }
 
     @Test
+    void createSetsDeptFromLeader() {
+        // 归属部门 = leader 所属部门（数据范围用）
+        com.mido.pm.provider.identity.UserPrincipal leader = new com.mido.pm.provider.identity.UserPrincipal();
+        leader.setDeptId(88L);
+        when(identityProvider.loadById(1L)).thenReturn(java.util.Optional.of(leader));
+
+        ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
+        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null));
+
+        verify(projectMapper).insert(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(88L, captor.getValue().getDeptId());
+    }
+
+    @Test
     void transitionRecordsStatusChanged() {
         when(projectMapper.selectById(1L)).thenReturn(project("草稿", "S", 1L));
         service.transition(1L, new ProjectTransitionDTO("审批中", null));

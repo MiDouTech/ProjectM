@@ -19,6 +19,9 @@ import com.mido.pm.task.dto.TaskVO;
 import com.mido.pm.task.entity.PmTask;
 import com.mido.pm.task.entity.PmTaskDependency;
 import com.mido.pm.task.event.TaskEvents;
+import com.mido.pm.common.datascope.DataScopeContext;
+import com.mido.pm.common.datascope.ScopeResource;
+import com.mido.pm.project.service.ProjectService;
 import com.mido.pm.task.mapper.PmTaskDependencyMapper;
 import com.mido.pm.task.mapper.PmTaskMapper;
 import org.springframework.stereotype.Service;
@@ -45,9 +48,12 @@ public class TaskService {
     private final PmTaskDependencyMapper dependencyMapper;
     private final DomainEventPublisher eventPublisher;
     private final AuditLogService auditLogService;
+    private final ProjectService projectService;
 
     public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
-                       DomainEventPublisher eventPublisher, AuditLogService auditLogService) {
+                       DomainEventPublisher eventPublisher, AuditLogService auditLogService,
+                       ProjectService projectService) {
+        this.projectService = projectService;
         this.taskMapper = taskMapper;
         this.dependencyMapper = dependencyMapper;
         this.eventPublisher = eventPublisher;
@@ -94,6 +100,8 @@ public class TaskService {
     public Long create(TaskCreateDTO dto) {
         PmTask task = new PmTask();
         task.setProjectId(dto.projectId());
+        var project = projectService.get(dto.projectId());
+        task.setDeptId(project == null ? null : project.deptId()); // 归属部门=所属项目部门（数据范围用）
         task.setParentId(dto.parentId() == null ? 0L : dto.parentId());
         task.setTitle(dto.title());
         task.setDescription(dto.description());
@@ -131,7 +139,9 @@ public class TaskService {
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);
         Page<PmTask> page = new Page<>(pageNo, size);
         LambdaQueryWrapper<PmTask> wrapper = buildQuery(query);
-        Page<PmTask> result = taskMapper.selectPage(page, wrapper);
+        // 数据范围：按部门/本人(assignee_id) 约束可见任务（org 拦截器复用）
+        Page<PmTask> result = DataScopeContext.scoped(ScopeResource.TASK, "dept_id", "assignee_id",
+                () -> taskMapper.selectPage(page, wrapper));
         List<TaskVO> list = result.getRecords().stream().map(this::toVO).toList();
         return PageResult.of(list, result.getTotal(), pageNo, size);
     }

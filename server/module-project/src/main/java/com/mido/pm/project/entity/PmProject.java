@@ -22,6 +22,8 @@ public class PmProject extends BaseEntity {
     private String subCategory;
     private Long templateId;
     private Long leaderId;
+    /** 归属部门（=leader 部门）：数据范围按部门过滤（V9） */
+    private Long deptId;
     private String status;
     private Long workflowId;
     private LocalDate startDate;
@@ -47,6 +49,8 @@ public class PmProject extends BaseEntity {
     public void setTemplateId(Long templateId) { this.templateId = templateId; }
     public Long getLeaderId() { return leaderId; }
     public void setLeaderId(Long leaderId) { this.leaderId = leaderId; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Long getWorkflowId() { return workflowId; }

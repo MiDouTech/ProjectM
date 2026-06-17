@@ -27,6 +27,7 @@ CREATE TABLE pm_project (
   category VARCHAR(8) NOT NULL,            -- S/I/O
   sub_category VARCHAR(16),                -- 常规运营/定向整改/专项督办
   template_id BIGINT, leader_id BIGINT,
+  dept_id BIGINT,                          -- V9 追加：归属部门(=leader 部门)，数据范围按部门过滤
   status VARCHAR(32), workflow_id BIGINT,
   start_date DATE, end_date DATE,
   budget DECIMAL(14,2), actual_cost DECIMAL(14,2),
@@ -49,7 +50,8 @@ CREATE TABLE pm_project_template (
 CREATE TABLE pm_task (
   id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, project_id BIGINT NOT NULL,
   parent_id BIGINT DEFAULT 0, title VARCHAR(256) NOT NULL, description TEXT,
-  assignee_id BIGINT, status VARCHAR(32), priority TINYINT, stage VARCHAR(32),
+  assignee_id BIGINT, dept_id BIGINT,  -- dept_id V9 追加：=所属项目部门，数据范围按部门过滤
+  status VARCHAR(32), priority TINYINT, stage VARCHAR(32),
   start_date DATE, due_date DATE, is_milestone TINYINT DEFAULT 0, recur_rule JSON,
   est_hours DECIMAL(8,2), actual_hours DECIMAL(8,2),
   custom_fields JSON, ai_source VARCHAR(32) DEFAULT 'human',

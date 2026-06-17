@@ -24,7 +24,10 @@ import com.mido.pm.project.entity.PmProjectMember;
 import com.mido.pm.project.event.ProjectEvents;
 import com.mido.pm.project.mapper.PmProjectMapper;
 import com.mido.pm.project.mapper.PmProjectMemberMapper;
+import com.mido.pm.common.datascope.DataScopeContext;
+import com.mido.pm.common.datascope.ScopeResource;
 import com.mido.pm.provider.identity.IdentityProvider;
+import com.mido.pm.provider.identity.UserPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,6 +110,7 @@ public class ProjectService {
         p.setCategory(dto.category());
         p.setSubCategory(dto.subCategory());
         p.setLeaderId(dto.leaderId());
+        p.setDeptId(leaderDept(dto.leaderId())); // 归属部门=leader 部门（数据范围用）
         p.setBudget(dto.budget());
         p.setTemplateId(dto.templateId());
         p.setDescription(dto.description());
@@ -145,7 +149,9 @@ public class ProjectService {
                 .eq(query.leaderId() != null, PmProject::getLeaderId, query.leaderId())
                 .like(StrUtil.isNotBlank(query.keyword()), PmProject::getName, query.keyword())
                 .orderByDesc(PmProject::getId);
-        Page<PmProject> result = projectMapper.selectPage(page, wrapper);
+        // 数据范围：按部门/本人(leader_id) 约束可见项目（org 拦截器复用）
+        Page<PmProject> result = DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
+                () -> projectMapper.selectPage(page, wrapper));
         List<ProjectVO> list = result.getRecords().stream().map(this::toVO).toList();
         return PageResult.of(list, result.getTotal(), pageNo, size);
     }
@@ -166,6 +172,7 @@ public class ProjectService {
         p.setName(dto.name());
         p.setSubCategory(dto.subCategory());
         p.setLeaderId(dto.leaderId());
+        p.setDeptId(leaderDept(dto.leaderId())); // leader 变更时同步归属部门
         p.setBudget(dto.budget());
         p.setDescription(dto.description());
         p.setStartDate(dto.startDate());
@@ -246,6 +253,12 @@ public class ProjectService {
         }
     }
 
+    /** leader 所属部门（数据范围归属用）；leader 为空或查不到则 null。 */
+    private Long leaderDept(Long leaderId) {
+        return leaderId == null ? null
+                : identityProvider.loadById(leaderId).map(UserPrincipal::getDeptId).orElse(null);
+    }
+
     private String leaderJobLevel(PmProject p) {
         if (p.getLeaderId() == null) {
             return null;
@@ -303,7 +316,7 @@ public class ProjectService {
         return new ProjectVO(p.getId(), p.getCode(), p.getName(), p.getDescription(),
                 p.getCategory(), p.getSubCategory(), p.getTemplateId(), p.getLeaderId(),
                 p.getStatus(), p.getBudget(), p.getActualCost(), p.getStartDate(), p.getEndDate(),
-                p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime());
+                p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime(), p.getDeptId());
     }
 
     /** 事件载荷构造（保序，允许 null 值）。 */

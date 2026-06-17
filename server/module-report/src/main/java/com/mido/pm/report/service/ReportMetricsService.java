@@ -1,5 +1,7 @@
 package com.mido.pm.report.service;
 
+import com.mido.pm.common.datascope.DataScopeContext;
+import com.mido.pm.common.datascope.ScopeResource;
 import com.mido.pm.report.domain.HealthCalculator;
 import com.mido.pm.report.domain.HealthLevel;
 import com.mido.pm.report.domain.MetricsCalculator;
@@ -31,11 +33,11 @@ public class ReportMetricsService {
     }
 
     public MetricsOverviewVO overview() {
-        Map<String, Object> t = reportMapper.taskCounts();
+        Map<String, Object> t = scopedTask(reportMapper::taskCounts);
         long total = lng(t, "total");
         long completed = lng(t, "completed");
         long overdue = lng(t, "overdue");
-        List<CategoryCount> dist = reportMapper.categoryDistribution().stream()
+        List<CategoryCount> dist = scopedProject(reportMapper::categoryDistribution).stream()
                 .map(m -> new CategoryCount(str(m, "category"), lng(m, "cnt")))
                 .toList();
         return new MetricsOverviewVO(total, completed, overdue,
@@ -43,7 +45,7 @@ public class ReportMetricsService {
     }
 
     public BurndownVO burndown(Long projectId) {
-        List<Map<String, Object>> buckets = reportMapper.dueBuckets(projectId);
+        List<Map<String, Object>> buckets = scopedTask(() -> reportMapper.dueBuckets(projectId));
         long total = buckets.stream().mapToLong(m -> lng(m, "cnt")).sum();
         List<BurndownPoint> points = new ArrayList<>();
         long cumulative = 0;
@@ -55,14 +57,14 @@ public class ReportMetricsService {
     }
 
     public ProjectHealthVO projectHealth(Long projectId) {
-        Map<String, Object> t = reportMapper.taskCountsByProject(projectId);
+        Map<String, Object> t = scopedTask(() -> reportMapper.taskCountsByProject(projectId));
         long total = lng(t, "total");
         long completed = lng(t, "completed");
         long overdue = lng(t, "overdue");
         BigDecimal completionRate = MetricsCalculator.rate(completed, total);
         BigDecimal overdueRate = MetricsCalculator.rate(overdue, total);
 
-        Map<String, Object> b = reportMapper.projectBudget(projectId);
+        Map<String, Object> b = scopedProject(() -> reportMapper.projectBudget(projectId));
         BigDecimal budget = big(b, "budget");
         BigDecimal actual = big(b, "actualCost");
         BigDecimal budgetUsage = (budget == null || budget.signum() == 0) ? null
@@ -71,6 +73,15 @@ public class ReportMetricsService {
         HealthLevel level = HealthCalculator.evaluate(completionRate, overdueRate, budgetUsage);
         return new ProjectHealthVO(projectId, total, completionRate, overdueRate, budgetUsage,
                 level.name().toLowerCase(), level.getLabel());
+    }
+
+    // 数据范围：任务按 (dept_id, assignee_id)、项目按 (dept_id, leader_id)（org 拦截器复用）
+    private <T> T scopedTask(java.util.function.Supplier<T> q) {
+        return DataScopeContext.scoped(ScopeResource.TASK, "dept_id", "assignee_id", q);
+    }
+
+    private <T> T scopedProject(java.util.function.Supplier<T> q) {
+        return DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id", q);
     }
 
     // ===== Map 取值（COUNT→Long，SUM→BigDecimal，统一按 Number 处理） =====

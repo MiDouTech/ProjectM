@@ -25,5 +25,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-view</artifactId>
         </dependency>
+        <!-- 跨域：任务创建时取所属项目部门(归属落库,数据范围用)，经 ProjectService 接口 -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-project</artifactId>
+        </dependency>
     </dependencies>
 </project>
