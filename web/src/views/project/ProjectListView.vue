@@ -109,7 +109,7 @@ import FilterBuilder from '@/components/FilterBuilder.vue'
 import CreateProjectWizard from './CreateProjectWizard.vue'
 import ProjectDetailDrawer from './ProjectDetailDrawer.vue'
 import { projectApi, PROJECT_CATEGORIES } from '@/api/project'
-import { userApi } from '@/api/org'
+import { fetchMembers } from '@/api/org'
 import { applyFilter, applySort } from '@/utils/filter'
 
 const VIEWS = [
@@ -203,8 +203,7 @@ function onCreated(id) {
 }
 
 onMounted(async () => {
-  const res = await userApi.query({ page: 1, size: 200 })
-  users.value = res.list || []
+  users.value = await fetchMembers()
   load()
 })
 </script>

@@ -140,6 +140,7 @@ import PowerInterestMatrix from '@/components/PowerInterestMatrix.vue'
 import { stakeholderApi, STAKEHOLDER_ROLES, ROLE_LABEL, isBeneficiaryRole } from '@/api/stakeholder'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
+import { userName } from '@/utils/display'
 
 const route = useRoute()
 const projectId = Number(route.params.projectId)
@@ -164,7 +165,7 @@ const rules = {
   role: [{ required: true, message: '请选择角色', trigger: 'change' }],
 }
 
-const displayName = (s) => s.externalName || users.value.find((u) => u.id === s.userId)?.name || `用户#${s.userId}`
+const displayName = (s) => s.externalName || userName(users.value, s.userId)
 
 // 权重实时校验（镜像后端 npss-rule §4）
 const round2 = (n) => Math.round(n * 100) / 100
@@ -178,8 +179,12 @@ const weightValid = computed(() => sumOk.value && benOk.value)
 async function load() {
   loading.value = true
   try {
-    rows.value = await stakeholderApi.list(projectId)
-    matrix.value = await stakeholderApi.matrix(projectId)
+    const [list, mtx] = await Promise.all([
+      stakeholderApi.list(projectId),
+      stakeholderApi.matrix(projectId),
+    ])
+    rows.value = list
+    matrix.value = mtx
     Object.keys(weights).forEach((k) => delete weights[k])
     rows.value.forEach((r) => { weights[r.id] = r.npssWeight != null ? Number(r.npssWeight) : 0 })
   } finally {
@@ -254,8 +259,9 @@ watch(showDefault, async (v) => {
 })
 
 onMounted(async () => {
-  project.value = await projectApi.get(projectId)
-  users.value = await fetchMembers()
+  const [proj, members] = await Promise.all([projectApi.get(projectId), fetchMembers()])
+  project.value = proj
+  users.value = members
   load()
 })
 </script>

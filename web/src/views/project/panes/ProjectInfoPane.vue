@@ -87,7 +87,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Plus } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi, O_SUB_CATEGORIES } from '@/api/project'
-import { userApi } from '@/api/org'
+import { fetchMembers } from '@/api/org'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -150,8 +150,7 @@ async function removeMember(row) {
 }
 
 onMounted(async () => {
-  const res = await userApi.query({ page: 1, size: 200 })
-  users.value = res.list || []
+  users.value = await fetchMembers()
 })
 </script>
 

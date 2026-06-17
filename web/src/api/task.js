@@ -17,6 +17,9 @@ export const taskApi = {
 /** 任务默认工作流状态（data-model 状态字典；看板列序） */
 export const TASK_STATUSES = ['未开始', '进行中', '已完成', '已验收']
 
+/** 任务终态：达到后不再计逾期（与后端 overdue 口径一致） */
+export const TASK_TERMINAL = ['已完成', '已验收']
+
 /** 默认工作流合法流转表（前端用于拖拽前的可达性预判，最终以后端校验为准） */
 export const TASK_TRANSITIONS = {
   未开始: ['进行中'],

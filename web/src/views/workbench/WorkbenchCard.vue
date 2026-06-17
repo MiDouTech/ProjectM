@@ -79,26 +79,27 @@ const loading = ref(false)
 const items = ref([])
 const userId = useUserStore().userId
 
+// 各卡片类型的数据加载器（approvals 为入口占位，无列表数据）
+const LOADERS = {
+  projects: () => projectApi.query({ page: 1, size: 50, leaderId: userId }),
+  tasks: () => taskApi.query({ page: 1, size: 50, assigneeId: userId }),
+  notifications: () => notificationApi.list({ page: 1, size: 50, unread: true }),
+}
+
 const count = computed(() => (props.card.type === 'approvals' ? 0 : items.value.length))
 const emptyShown = computed(() =>
-  !loading.value && !items.value.length && !['approvals'].includes(props.card.type))
+  !loading.value && !items.value.length && props.card.type !== 'approvals')
 
 const overdue = (t) => isTaskOverdue(t)
 const fmt = (t) => formatDateTime(t, 5, 16)
 
 async function load() {
+  const loader = LOADERS[props.card.type]
+  if (!loader) return
   loading.value = true
   try {
-    if (props.card.type === 'projects') {
-      const res = await projectApi.query({ page: 1, size: 50, leaderId: userId })
-      items.value = res.list || []
-    } else if (props.card.type === 'tasks') {
-      const res = await taskApi.query({ page: 1, size: 50, assigneeId: userId })
-      items.value = res.list || []
-    } else if (props.card.type === 'notifications') {
-      const res = await notificationApi.list({ page: 1, size: 50, unread: true })
-      items.value = res.list || []
-    }
+    const res = await loader()
+    items.value = res.list || []
   } finally {
     loading.value = false
   }

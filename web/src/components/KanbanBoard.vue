@@ -24,24 +24,25 @@
 <script setup>
 import draggable from 'vuedraggable'
 import StatusTag from '@/components/StatusTag.vue'
-import { TASK_TRANSITIONS } from '@/api/task'
 
-defineProps({
+const props = defineProps({
   // [{ status, tasks: [] }]，由调用方持有并允许 vuedraggable 原地变更
   columns: { type: Array, required: true },
   group: { type: String, default: 'kanban' },
   // 流转请求在途时禁用拖拽，避免基于陈旧状态的二次拖拽误判
   disabled: { type: Boolean, default: false },
+  // 跨列移动合法性（域无关）：调用方注入 (from, to, element) => boolean；不传则放行
+  canMove: { type: Function, default: null },
 })
 const emit = defineEmits(['change', 'open'])
 
-// 仅允许同列重排，或符合工作流合法流转的跨列移动
+// 同列重排恒允许；跨列由调用方注入的 canMove 决定，保持本组件域无关
 function onMove(evt) {
   const from = evt.from?.dataset?.status
   const to = evt.to?.dataset?.status
   if (!to || from === to) return true
-  const cur = evt.draggedContext?.element?.status
-  return (TASK_TRANSITIONS[cur] || []).includes(to)
+  if (!props.canMove) return true
+  return props.canMove(from, to, evt.draggedContext?.element)
 }
 
 function onChange(e, toStatus) {

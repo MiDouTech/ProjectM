@@ -34,7 +34,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { userApi } from '@/api/org'
+import { fetchMembers } from '@/api/org'
 import { PROJECT_CATEGORIES } from '@/api/project'
 
 const props = defineProps({
@@ -83,8 +83,7 @@ const rules = computed(() => {
 })
 
 onMounted(async () => {
-  const res = await userApi.query({ page: 1, size: 200 })
-  users.value = res.list || []
+  users.value = await fetchMembers()
 })
 
 async function validate() {

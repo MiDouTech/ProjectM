@@ -84,7 +84,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi, templateApi, PROJECT_CATEGORIES, O_SUB_CATEGORIES } from '@/api/project'
-import { userApi } from '@/api/org'
+import { fetchMembers } from '@/api/org'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -123,8 +123,7 @@ async function onOpen() {
   loadingTpl.value = true
   try {
     templates.value = await templateApi.list()
-    const res = await userApi.query({ page: 1, size: 200 })
-    users.value = res.list || []
+    users.value = await fetchMembers()
   } finally {
     loadingTpl.value = false
   }

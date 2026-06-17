@@ -151,14 +151,18 @@ async function reload() {
   if (!props.taskId) return
   loading.value = true
   try {
-    task.value = await taskApi.get(props.taskId)
+    const [detail, subs] = await Promise.all([
+      taskApi.get(props.taskId),
+      taskApi.subtasks(props.taskId),
+    ])
+    task.value = detail
     Object.assign(form, {
-      title: task.value.title, assigneeId: task.value.assigneeId, priority: task.value.priority,
-      stage: task.value.stage, startDate: task.value.startDate, dueDate: task.value.dueDate,
-      description: task.value.description,
+      title: detail.title, assigneeId: detail.assigneeId, priority: detail.priority,
+      stage: detail.stage, startDate: detail.startDate, dueDate: detail.dueDate,
+      description: detail.description,
     })
-    milestone.value = task.value.isMilestone === 1
-    subtasks.value = await taskApi.subtasks(props.taskId)
+    milestone.value = detail.isMilestone === 1
+    subtasks.value = subs
   } finally {
     loading.value = false
   }
