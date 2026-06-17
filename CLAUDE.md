@@ -14,7 +14,7 @@
 - 存储：S3 兼容（MinIO/OSS）
 - 工具：Jackson、Hutool、Hibernate Validator、Swagger/OpenAPI 3.0
 - 前端：Vue 3 + Element Plus + Pinia + Vue Router 4 + Vite + Axios
-- 可视化：AntV G2/G6 + vuedraggable
+- 可视化：AntV G2/G6 + vuedraggable；甘特图允许引入轻量级开源专用库（如 frappe-gantt，MIT），其余可视化仍以 AntV 为准
 - 部署：Docker + Docker Compose（阶段一）
 
 ## 3. 事实源文档（生成前必读对应文件）

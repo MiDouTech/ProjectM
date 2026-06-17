@@ -35,6 +35,14 @@ export const WORKHOUR_KINDS = [
 ]
 export const WORKHOUR_CATEGORIES = ['设计', '研发', '文档', '测试', '其他']
 
+/** 任务依赖：增删 + 项目依赖清单 + 关键路径（基于依赖+工期） */
+export const dependencyApi = {
+  listByProject: (projectId) => request.get('/task-dependencies', { params: { projectId } }),
+  criticalPath: (projectId) => request.get('/task-dependencies/critical-path', { params: { projectId } }),
+  add: (data) => request.post('/task-dependencies', data),
+  remove: (id) => request.delete(`/task-dependencies/${id}`),
+}
+
 /** 任务默认工作流状态（data-model 状态字典；看板列序） */
 export const TASK_STATUSES = ['未开始', '进行中', '已完成', '已验收']
 
