@@ -3,6 +3,8 @@ import request from './request'
 /** 任务 CRUD / 子任务 / 指派 / 状态流转(看板拖拽) / 列表 / 看板（Step 4） */
 export const taskApi = {
   query: (data) => request.post('/tasks/query', data),
+  // 按视图查询（viewId 或内联 config）→ 分组/排序/筛选后的任务
+  viewQuery: (data) => request.post('/tasks/view-query', data),
   get: (id) => request.get(`/tasks/${id}`),
   subtasks: (id) => request.get(`/tasks/${id}/subtasks`),
   create: (data) => request.post('/tasks', data),

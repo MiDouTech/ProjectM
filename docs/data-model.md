@@ -124,7 +124,10 @@ CREATE TABLE pm_workflow_transition (id BIGINT PRIMARY KEY, tenant_id BIGINT, wo
 -- ========== 视图配置 ==========
 CREATE TABLE pm_view (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), owner_id BIGINT,
-  type VARCHAR(16), config JSON);
+  type VARCHAR(16), name VARCHAR(64), project_id BIGINT, config JSON);
+-- name/project_id 由 V8 追加（视图设计器命名与项目级绑定）；scope=personal|project|workbench。
+-- config 仅承载查询配置(锁定 schema)：{groupBy, sort:[{field,dir}], expandLevel(1-5),
+--   filters:{logic:and|or, conditions:[{field,op,value}]}, columns:[field]}。详见 ViewConfig。
 
 -- ========== 自定义字段 EAV ==========
 CREATE TABLE pm_field_def (id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), name VARCHAR(64), type VARCHAR(32));

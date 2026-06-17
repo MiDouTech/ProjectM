@@ -20,5 +20,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <!-- 跨域：按 viewId 解析视图配置 / 复用 ViewConfig schema（经 Service 接口，不查 pm_view 表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-view</artifactId>
+        </dependency>
     </dependencies>
 </project>

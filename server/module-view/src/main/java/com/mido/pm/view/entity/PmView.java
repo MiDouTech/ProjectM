@@ -13,9 +13,13 @@ public class PmView extends BaseEntity {
     private String scope;
     /** 归属用户 ID（个人视图） */
     private Long ownerId;
-    /** 视图子类型（可空） */
+    /** 视图渲染类型：kanban/list/table/gantt/calendar；workbench 布局沿用既有用法 */
     private String type;
-    /** 视图配置（JSON 字符串） */
+    /** 视图名（ViewSwitcher 展示；workbench 布局可空） */
+    private String name;
+    /** 项目级视图所属项目（个人视图为空） */
+    private Long projectId;
+    /** 视图配置（JSON 字符串，见 ViewConfig） */
     private String config;
 
     public String getScope() { return scope; }
@@ -24,6 +28,10 @@ public class PmView extends BaseEntity {
     public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public Long getProjectId() { return projectId; }
+    public void setProjectId(Long projectId) { this.projectId = projectId; }
     public String getConfig() { return config; }
     public void setConfig(String config) { this.config = config; }
 }

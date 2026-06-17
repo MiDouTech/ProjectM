@@ -5,7 +5,12 @@
         <el-button :icon="ArrowLeft" link @click="$router.push('/project')">返回项目</el-button>
         <h1 class="mido-h1">{{ project.name || '任务' }}</h1>
         <CategoryBadge v-if="project.category" :category="project.category" :show-label="false" />
-        <ViewSwitcher v-model="view" :views="VIEWS" />
+        <ViewSwitcher v-model="view" :views="VIEWS" @update:model-value="onSwitchType" />
+        <el-select v-model="activeViewId" placeholder="我的视图" clearable class="tw__viewsel"
+          @change="onSelectView">
+          <el-option v-for="v in savedViews" :key="v.id" :label="v.name" :value="v.id" />
+        </el-select>
+        <el-button link type="primary" :icon="Plus" @click="designerOpen = true">新建视图</el-button>
       </div>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建任务</el-button>
     </div>
@@ -30,6 +35,33 @@
           </div>
         </template>
       </KanbanBoard>
+
+      <!-- 视图设计器结果（分组/排序/筛选后的任务） -->
+      <div v-else-if="view === 'view'">
+        <el-collapse v-if="grouped.groups.length">
+          <el-collapse-item v-for="(g, i) in grouped.groups" :key="i" :name="i"
+            :title="`${groupTitle(g.groupKey)}（${g.tasks.length}）`">
+            <el-table :data="g.tasks" @row-click="(r) => openDetail(r.id)">
+              <el-table-column label="标题" min-width="220">
+                <template #default="{ row }">
+                  <span class="tc__title"><el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="110">
+                <template #default="{ row }"><StatusTag :status="row.status" /></template>
+              </el-table-column>
+              <el-table-column label="负责人" width="120">
+                <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
+              </el-table-column>
+              <el-table-column label="优先级" width="90">
+                <template #default="{ row }">{{ priorityLabel(row.priority) }}</template>
+              </el-table-column>
+              <el-table-column label="截止" width="130" prop="dueDate" />
+            </el-table>
+          </el-collapse-item>
+        </el-collapse>
+        <el-empty v-else description="该视图暂无匹配任务" />
+      </div>
 
       <!-- 列表（可展开子任务 + 多选批量操作） -->
       <div v-else>
@@ -104,6 +136,8 @@
 
     <TaskDetailDrawer v-model="detailOpen" :task-id="detailId" :project-id="projectId"
       :users="users" @changed="load" @open="openDetail" />
+
+    <ViewDesigner v-model="designerOpen" :project-id="projectId" @saved="loadViews" />
   </div>
 </template>
 
@@ -117,7 +151,9 @@ import KanbanBoard from '@/components/KanbanBoard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
+import ViewDesigner from '@/components/ViewDesigner.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
+import { viewApi } from '@/api/view'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { isTaskOverdue, userName as nameOf } from '@/utils/display'
@@ -138,6 +174,12 @@ const project = ref({})
 const tasks = ref([])
 const columns = ref(TASK_STATUSES.map((s) => ({ status: s, tasks: [] })))
 const users = ref([])
+
+// 视图设计器：保存的视图 + 当前应用视图 + 分组结果
+const savedViews = ref([])
+const activeViewId = ref(null)
+const designerOpen = ref(false)
+const grouped = ref({ groupBy: null, groups: [] })
 
 const detailOpen = ref(false)
 const detailId = ref(null)
@@ -180,6 +222,30 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadViews() {
+  savedViews.value = await viewApi.list(projectId)
+}
+// 切换内置看板/列表时，清除已选保存视图
+function onSwitchType() {
+  activeViewId.value = null
+}
+// 选中保存视图：按其 viewId 拉分组结果，切到"视图"渲染
+async function onSelectView(id) {
+  if (!id) {
+    if (view.value === 'view') view.value = 'board'
+    return
+  }
+  const res = await taskApi.viewQuery({ projectId, viewId: id })
+  grouped.value = res
+  view.value = 'view'
+}
+function groupTitle(key) {
+  if (key === null || key === undefined || key === '') return '全部'
+  if (grouped.value.groupBy === 'assigneeId') return userName(key)
+  if (grouped.value.groupBy === 'priority') return priorityLabel(key)
+  return String(key)
 }
 
 async function onDrag({ task, toStatus }) {
@@ -262,6 +328,7 @@ onMounted(async () => {
   project.value = proj
   users.value = members
   load()
+  loadViews()
 })
 </script>
 
@@ -276,6 +343,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--mido-space-3);
+}
+.tw__viewsel {
+  width: var(--mido-admin-nav-width);
 }
 .tc {
   display: flex;
