@@ -63,6 +63,22 @@ class WorkHourServiceTest {
     }
 
     @Test
+    void taskSummaryIncludesSubtaskHours() {
+        // 钉死口径：任务汇总 = 本任务 + 全部后代子任务工时
+        // 第一层 frontier=[1] 返回子任务 2；第二层 frontier=[2] 无子任务 → 停
+        when(taskMapper.selectList(any())).thenReturn(List.of(taskOf(2L)), List.of());
+        when(workHourMapper.selectList(any())).thenReturn(List.of(
+                wh(1L, "est", "4"), wh(1L, "actual", "1"),   // 父任务
+                wh(2L, "actual", "3")));                       // 子任务
+
+        WorkHourSummaryVO s = service.taskSummary(1L);
+
+        assertEquals(0, new BigDecimal("4").compareTo(s.estHours()));
+        assertEquals(0, new BigDecimal("4").compareTo(s.actualHours())); // 1 + 3 含子任务
+        assertEquals(new BigDecimal("100.0"), s.progress());
+    }
+
+    @Test
     void taskSummaryProgressZeroWhenNoEstimate() {
         when(workHourMapper.selectList(any())).thenReturn(List.of(wh(1L, "actual", "5")));
 

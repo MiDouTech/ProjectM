@@ -1,6 +1,7 @@
 <template>
   <div class="wh" v-loading="loading">
-    <!-- 汇总（任务级，口径：进度=实际/预估，预估0→0） -->
+    <!-- 汇总（任务级，含子任务；口径：进度=实际/预估，预估0→0） -->
+    <div class="wh__caption mido-text-secondary">汇总含子任务工时；下方记录表仅为当前任务</div>
     <div class="wh__sum">
       <div class="wh__stat">
         <span class="wh__stat-label mido-text-secondary">预估</span>
@@ -155,6 +156,10 @@ watch(() => props.taskId, () => { resetForm(); load() }, { immediate: true })
 </script>
 
 <style scoped>
+.wh__caption {
+  font-size: var(--mido-font-size-caption);
+  margin-bottom: var(--mido-space-2);
+}
 .wh__sum {
   display: flex;
   flex-wrap: wrap;

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,10 +99,10 @@ public class WorkHourService {
                 .stream().map(this::toVO).toList();
     }
 
-    /** 任务级汇总。 */
+    /** 任务级汇总（口径：含本任务及其全部后代子任务的工时）。 */
     public WorkHourSummaryVO taskSummary(Long taskId) {
         return summarize(workHourMapper.selectList(Wrappers.<PmWorkHour>lambdaQuery()
-                .eq(PmWorkHour::getTaskId, taskId)));
+                .in(PmWorkHour::getTaskId, taskAndDescendantIds(taskId))));
     }
 
     /** 项目级汇总（汇总本项目全部任务的工时）。 */
@@ -152,6 +153,24 @@ public class WorkHourService {
     private BigDecimal sumByKind(List<PmWorkHour> rows, String kind) {
         return rows.stream().filter(w -> kind.equals(w.getKind()))
                 .map(w -> nz(w.getHours())).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** 本任务 + 全部后代子任务 id（按 parent_id 逐层向下，防自环）。 */
+    private List<Long> taskAndDescendantIds(Long rootId) {
+        List<Long> all = new ArrayList<>();
+        all.add(rootId);
+        List<Long> frontier = List.of(rootId);
+        while (!frontier.isEmpty()) {
+            List<Long> children = taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
+                            .in(PmTask::getParentId, frontier))
+                    .stream().map(PmTask::getId).filter(id -> !all.contains(id)).toList();
+            if (children.isEmpty()) {
+                break;
+            }
+            all.addAll(children);
+            frontier = children;
+        }
+        return all;
     }
 
     private List<Long> projectTaskIds(Long projectId) {
