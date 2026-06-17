@@ -69,6 +69,12 @@ public class ProjectController {
         return R.ok(projectService.page(query));
     }
 
+    /** 我参与的项目（工作台卡）：我负责 ∪ 我是成员，去重、上限 50。 */
+    @GetMapping("/mine")
+    public R<List<ProjectVO>> mine() {
+        return R.ok(projectService.myProjects());
+    }
+
     /** 活动日志（谁在何时改了什么 X→Y）：分页倒序，page 从 1、size 默认 20 上限 100。 */
     @GetMapping("/{id}/activities")
     public R<PageResult<ActivityVO>> activities(@PathVariable Long id,

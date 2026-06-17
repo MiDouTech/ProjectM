@@ -2,10 +2,13 @@ package com.mido.pm.approval.controller;
 
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
+import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.api.R;
 import jakarta.validation.Valid;
+
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,5 +42,11 @@ public class ApprovalController {
     @GetMapping("/instances/{id}")
     public R<InstanceVO> getInstance(@PathVariable Long id) {
         return R.ok(approvalService.getInstance(id));
+    }
+
+    /** 待我审批（工作台卡）：当前用户未处理且实例仍 pending 的待办列表。 */
+    @GetMapping("/mine")
+    public R<List<PendingApprovalVO>> mine() {
+        return R.ok(approvalService.myPending());
     }
 }

@@ -31,6 +31,7 @@
         <module>module-cost</module>
         <module>module-collab</module>
         <module>module-doc</module>
+        <module>module-view</module>
         <module>module-report</module>
         <module>module-ai</module>
         <module>bootstrap</module>
@@ -110,6 +111,11 @@
             <dependency>
                 <groupId>com.mido.pm</groupId>
                 <artifactId>module-doc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-view</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

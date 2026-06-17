@@ -20,8 +20,10 @@ import com.mido.pm.project.dto.ProjectTransitionDTO;
 import com.mido.pm.project.dto.ProjectUpdateDTO;
 import com.mido.pm.project.dto.ProjectVO;
 import com.mido.pm.project.entity.PmProject;
+import com.mido.pm.project.entity.PmProjectMember;
 import com.mido.pm.project.event.ProjectEvents;
 import com.mido.pm.project.mapper.PmProjectMapper;
+import com.mido.pm.project.mapper.PmProjectMemberMapper;
 import com.mido.pm.provider.identity.IdentityProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,17 +56,47 @@ public class ProjectService {
             ProjectStatus.RESULT_VERIFY.getCode(),
             ProjectStatus.CLOSED.getCode());
 
+    /** 工作台「我参与的项目」上限 */
+    private static final int MINE_LIMIT = 50;
+
     private final PmProjectMapper projectMapper;
+    private final PmProjectMemberMapper memberMapper;
     private final DomainEventPublisher eventPublisher;
     private final IdentityProvider identityProvider;
     private final AuditLogService auditLogService;
 
-    public ProjectService(PmProjectMapper projectMapper, DomainEventPublisher eventPublisher,
+    public ProjectService(PmProjectMapper projectMapper, PmProjectMemberMapper memberMapper,
+                          DomainEventPublisher eventPublisher,
                           IdentityProvider identityProvider, AuditLogService auditLogService) {
         this.projectMapper = projectMapper;
+        this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
         this.identityProvider = identityProvider;
         this.auditLogService = auditLogService;
+    }
+
+    /**
+     * 我参与的项目（工作台卡）：我负责(leader) ∪ 我是成员，去重、按 id 倒序，上限 {@value #MINE_LIMIT}。
+     */
+    public List<ProjectVO> myProjects() {
+        Long me = currentUserId();
+        List<Long> memberPids = memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
+                        .select(PmProjectMember::getProjectId)
+                        .eq(PmProjectMember::getUserId, me))
+                .stream().map(PmProjectMember::getProjectId).distinct().toList();
+        var wrapper = Wrappers.<PmProject>lambdaQuery();
+        wrapper.and(w -> {
+            w.eq(PmProject::getLeaderId, me);
+            if (!memberPids.isEmpty()) {
+                w.or().in(PmProject::getId, memberPids);
+            }
+        });
+        wrapper.orderByDesc(PmProject::getId).last("limit " + MINE_LIMIT);
+        return projectMapper.selectList(wrapper).stream().map(this::toVO).toList();
+    }
+
+    private Long currentUserId() {
+        return UserContext.get() == null ? null : UserContext.get().getUserId();
     }
 
     @Transactional(rollbackFor = Exception.class)

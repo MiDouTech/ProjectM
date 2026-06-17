@@ -9,6 +9,7 @@ import com.mido.pm.project.dto.ProjectTransitionDTO;
 import com.mido.pm.project.dto.ProjectUpdateDTO;
 import com.mido.pm.project.entity.PmProject;
 import com.mido.pm.project.mapper.PmProjectMapper;
+import com.mido.pm.project.mapper.PmProjectMemberMapper;
 import com.mido.pm.provider.identity.IdentityProvider;
 import com.mido.pm.provider.identity.UserPrincipal;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,8 @@ class ProjectServiceTest {
 
     @Mock
     private PmProjectMapper projectMapper;
+    @Mock
+    private PmProjectMemberMapper memberMapper;
     @Mock
     private DomainEventPublisher eventPublisher;
     @Mock

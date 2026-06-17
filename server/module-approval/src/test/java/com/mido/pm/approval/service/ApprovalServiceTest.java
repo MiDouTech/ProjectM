@@ -144,4 +144,38 @@ class ApprovalServiceTest {
 
         assertThrows(BizException.class, () -> service.act(1L, new ActDTO("approve", null)));
     }
+
+    @Test
+    void myPendingReturnsOnlyUnprocessedOnPendingInstances() {
+        login(100);
+        ApprovalTask t1 = pendingTask(10L);   // 实例 pending → 计入
+        ApprovalTask t2 = pendingTask(20L);   // 实例 approved → 排除
+        when(taskMapper.selectList(any())).thenReturn(List.of(t1, t2));
+        when(instanceMapper.selectBatchIds(any())).thenReturn(List.of(
+                instanceWithStatus(10L, ApprovalInstance.STATUS_PENDING),
+                instanceWithStatus(20L, ApprovalInstance.STATUS_APPROVED)));
+
+        var result = service.myPending();
+
+        assertEquals(1, result.size());
+        assertEquals(10L, result.get(0).instanceId());
+        assertEquals("n1", result.get(0).node());
+    }
+
+    private ApprovalTask pendingTask(long instanceId) {
+        ApprovalTask t = new ApprovalTask();
+        t.setInstanceId(instanceId);
+        t.setNode("n1");
+        t.setApproverId(100L);
+        return t;
+    }
+
+    private ApprovalInstance instanceWithStatus(long id, String status) {
+        ApprovalInstance i = new ApprovalInstance();
+        i.setId(id);
+        i.setStatus(status);
+        i.setBizType("project_init");
+        i.setBizId(id);
+        return i;
+    }
 }

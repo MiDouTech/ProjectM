@@ -10,6 +10,7 @@ import com.mido.pm.approval.domain.FlowNode;
 import com.mido.pm.approval.domain.NodeStatus;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
+import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -164,6 +166,32 @@ public class ApprovalService {
                     "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                     "applicantId", instance.getApplicantId()));
         }
+    }
+
+    /**
+     * 待我审批（工作台卡）：当前用户名下未处理(action 为空)的待办，且其实例仍 pending；按待办新→旧。
+     */
+    public List<PendingApprovalVO> myPending() {
+        Long me = currentUserId();
+        List<ApprovalTask> tasks = taskMapper.selectList(Wrappers.<ApprovalTask>lambdaQuery()
+                .eq(ApprovalTask::getApproverId, me)
+                .isNull(ApprovalTask::getAction)
+                .orderByDesc(ApprovalTask::getId));
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+        List<Long> instanceIds = tasks.stream().map(ApprovalTask::getInstanceId).distinct().toList();
+        Map<Long, ApprovalInstance> instById = instanceMapper.selectBatchIds(instanceIds).stream()
+                .collect(Collectors.toMap(ApprovalInstance::getId, i -> i));
+        List<PendingApprovalVO> result = new ArrayList<>();
+        for (ApprovalTask t : tasks) {
+            ApprovalInstance inst = instById.get(t.getInstanceId());
+            if (inst != null && ApprovalInstance.STATUS_PENDING.equals(inst.getStatus())) {
+                result.add(new PendingApprovalVO(inst.getId(), inst.getBizType(), inst.getBizId(),
+                        t.getNode(), inst.getApplicantId(), inst.getCreateTime()));
+            }
+        }
+        return result;
     }
 
     public InstanceVO getInstance(Long id) {

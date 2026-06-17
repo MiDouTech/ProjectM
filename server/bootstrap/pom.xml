@@ -67,6 +67,10 @@
         </dependency>
         <dependency>
             <groupId>com.mido.pm</groupId>
+            <artifactId>module-view</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
             <artifactId>module-report</artifactId>
         </dependency>
         <dependency>
