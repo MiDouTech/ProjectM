@@ -23,10 +23,11 @@ export const useUserStore = defineStore('user', {
   }),
   getters: {
     isLogin: (state) => !!state.token,
-    // 当前登录用户 ID（从 JWT subject 解析）
+    // 当前登录用户 ID（从 JWT subject 解析）。雪花 ID 为 19 位，
+    // 禁止 Number() 转换（会丢精度），保持字符串透传给后端。
     userId: (state) => {
       const claims = state.token ? decodeJwt(state.token) : null
-      return claims?.sub ? Number(claims.sub) : null
+      return claims?.sub ? String(claims.sub) : null
     },
   },
   actions: {
