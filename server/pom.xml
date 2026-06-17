@@ -46,6 +46,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <jjwt.version>0.12.6</jjwt.version>
         <shardingsphere.version>5.5.0</shardingsphere.version>
+        <minio.version>8.5.12</minio.version>
     </properties>
 
     <dependencyManagement>
@@ -164,6 +165,12 @@
                 <groupId>org.apache.shardingsphere</groupId>
                 <artifactId>shardingsphere-jdbc</artifactId>
                 <version>${shardingsphere.version}</version>
+            </dependency>
+            <dependency>
+                <!-- MinIO / S3 兼容对象存储客户端（StorageProvider 实现用） -->
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
