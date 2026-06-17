@@ -64,6 +64,13 @@ public class NpssReviewService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Long startReview(Long projectId) {
+        // 重入幂等（npss-rule §2 延后触发）：已有进行中轮次则不重复发起（防定时 Job 重复扫描建重复 review）
+        List<PmNpssReview> pending = reviewMapper.selectList(Wrappers.<PmNpssReview>lambdaQuery()
+                .eq(PmNpssReview::getProjectId, projectId)
+                .eq(PmNpssReview::getStatus, STATUS_PENDING));
+        if (!pending.isEmpty()) {
+            return pending.get(0).getId();
+        }
         // 状态机：已结案 → 价值验收中（非法流转将由项目状态机拒绝）
         projectService.transition(projectId,
                 new ProjectTransitionDTO(ProjectStatus.VALUE_VERIFY.getCode(), null));

@@ -56,6 +56,19 @@ class NpssReviewServiceTest {
     }
 
     @Test
+    void startReviewReentrantWhenPendingExists() {
+        // 已有进行中轮次 → 重复扫描不重复建 review、不再流转项目
+        PmNpssReview existing = pendingReview();
+        when(reviewMapper.selectList(any())).thenReturn(java.util.List.of(existing));
+
+        Long id = service.startReview(100L);
+
+        org.junit.jupiter.api.Assertions.assertEquals(1L, id);
+        verify(projectService, never()).transition(any(), any());
+        verify(reviewMapper, never()).insert(any(PmNpssReview.class));
+    }
+
+    @Test
     void duplicateSubmitIsIdempotent() {
         when(reviewMapper.selectById(1L)).thenReturn(pendingReview());
         when(scoreMapper.selectOne(any())).thenReturn(scoreRow(8)); // 已打分
