@@ -27,6 +27,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { commentApi } from '@/api/collab'
+import { userName as nameOf, formatDateTime } from '@/utils/display'
 
 const props = defineProps({
   entityType: { type: String, required: true },
@@ -40,8 +41,8 @@ const comments = ref([])
 const content = ref('')
 const mention = ref([])
 
-const userName = (id) => props.users.find((u) => u.id === id)?.name || (id ? `用户#${id}` : '—')
-const fmt = (t) => (t ? String(t).replace('T', ' ').slice(0, 16) : '')
+const userName = (id) => nameOf(props.users, id)
+const fmt = (t) => formatDateTime(t)
 
 async function load() {
   if (!props.entityId) return

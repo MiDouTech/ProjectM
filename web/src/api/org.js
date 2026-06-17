@@ -15,6 +15,13 @@ export const userApi = {
   assignRoles: (id, roleIds) => request.put(`/users/${id}/roles`, { roleIds }),
 }
 
+/**
+ * 加载成员列表用于选人/名称解析（统一入口，集中 size 上限，避免各页散落魔法值与重复实现）。
+ * 返回成员数组。
+ */
+export const fetchMembers = () =>
+  userApi.query({ page: 1, size: 500 }).then((res) => res.list || [])
+
 /** 角色 + 权限码 + 数据范围（Step 1-1） */
 export const roleApi = {
   list: () => request.get('/roles'),

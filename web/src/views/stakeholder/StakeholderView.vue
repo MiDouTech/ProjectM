@@ -139,7 +139,7 @@ import CategoryBadge from '@/components/CategoryBadge.vue'
 import PowerInterestMatrix from '@/components/PowerInterestMatrix.vue'
 import { stakeholderApi, STAKEHOLDER_ROLES, ROLE_LABEL, isBeneficiaryRole } from '@/api/stakeholder'
 import { projectApi } from '@/api/project'
-import { userApi } from '@/api/org'
+import { fetchMembers } from '@/api/org'
 
 const route = useRoute()
 const projectId = Number(route.params.projectId)
@@ -255,8 +255,7 @@ watch(showDefault, async (v) => {
 
 onMounted(async () => {
   project.value = await projectApi.get(projectId)
-  const res = await userApi.query({ page: 1, size: 200 })
-  users.value = res.list || []
+  users.value = await fetchMembers()
   load()
 })
 </script>

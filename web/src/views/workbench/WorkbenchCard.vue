@@ -28,7 +28,7 @@
       <template v-else-if="card.type === 'tasks'">
         <div v-for="t in items" :key="t.id" class="wc__row" @click="$router.push(`/project/${t.projectId}/tasks`)">
           <span class="wc__row-main">{{ t.title }}</span>
-          <span v-if="overdue(t)" class="wc__overdue">逾期</span>
+          <StatusTag v-if="overdue(t)" status="逾期" />
           <StatusTag :status="t.status" />
         </div>
       </template>
@@ -68,6 +68,7 @@ import { useUserStore } from '@/store/user'
 import { projectApi } from '@/api/project'
 import { taskApi } from '@/api/task'
 import { notificationApi } from '@/api/collab'
+import { isTaskOverdue, formatDateTime } from '@/utils/display'
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -82,9 +83,8 @@ const count = computed(() => (props.card.type === 'approvals' ? 0 : items.value.
 const emptyShown = computed(() =>
   !loading.value && !items.value.length && !['approvals'].includes(props.card.type))
 
-const today = new Date().toISOString().slice(0, 10)
-const overdue = (t) => t.dueDate && t.dueDate < today && t.status !== '已完成' && t.status !== '已验收'
-const fmt = (t) => (t ? String(t).replace('T', ' ').slice(5, 16) : '')
+const overdue = (t) => isTaskOverdue(t)
+const fmt = (t) => formatDateTime(t, 5, 16)
 
 async function load() {
   loading.value = true
@@ -154,9 +154,5 @@ onMounted(load)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.wc__overdue {
-  color: var(--el-color-danger);
-  font-size: var(--mido-font-size-caption);
 }
 </style>

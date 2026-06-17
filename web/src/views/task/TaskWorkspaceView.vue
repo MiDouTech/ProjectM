@@ -12,7 +12,8 @@
 
     <el-card shadow="never" v-loading="loading">
       <!-- 看板 -->
-      <KanbanBoard v-if="view === 'board'" :columns="columns" @change="onDrag" @open="(t) => openDetail(t.id)">
+      <KanbanBoard v-if="view === 'board'" :columns="columns" :disabled="transitioning"
+        @change="onDrag" @open="(t) => openDetail(t.id)">
         <template #card="{ task }">
           <div class="tc">
             <div class="tc__title">
@@ -20,7 +21,10 @@
               <span>{{ task.title }}</span>
             </div>
             <div class="tc__foot mido-text-secondary">
-              <span :class="{ 'tc__overdue': isOverdue(task) }">{{ task.dueDate || '无截止' }}</span>
+              <span class="tc__due">
+                {{ task.dueDate || '无截止' }}
+                <StatusTag v-if="isOverdue(task)" status="逾期" />
+              </span>
               <span>{{ priorityLabel(task.priority) }} · {{ userName(task.assigneeId) }}</span>
             </div>
           </div>
@@ -46,9 +50,10 @@
         <el-table-column label="优先级" width="90">
           <template #default="{ row }">{{ priorityLabel(row.priority) }}</template>
         </el-table-column>
-        <el-table-column label="截止" width="130">
+        <el-table-column label="截止" width="150">
           <template #default="{ row }">
-            <span :class="{ 'tc__overdue': isOverdue(row) }">{{ row.dueDate || '—' }}</span>
+            {{ row.dueDate || '—' }}
+            <StatusTag v-if="isOverdue(row)" status="逾期" />
           </template>
         </el-table-column>
         <template #empty><el-empty description="暂无任务，点击右上角新建任务" /></template>
@@ -95,7 +100,8 @@ import CategoryBadge from '@/components/CategoryBadge.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES } from '@/api/task'
 import { projectApi } from '@/api/project'
-import { userApi } from '@/api/org'
+import { fetchMembers } from '@/api/org'
+import { isTaskOverdue, userName as nameOf } from '@/utils/display'
 
 const VIEWS = [
   { value: 'board', label: '看板' },
@@ -115,15 +121,15 @@ const users = ref([])
 
 const detailOpen = ref(false)
 const detailId = ref(null)
+const transitioning = ref(false)
 const createDialog = ref(false)
 const createRef = ref()
 const createForm = reactive({ title: '', assigneeId: null, priority: null, dueDate: null, isMilestone: false })
 const createRules = { title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }] }
 
-const userName = (id) => users.value.find((u) => u.id === id)?.name || (id ? `用户#${id}` : '—')
+const userName = (id) => nameOf(users.value, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
-const today = new Date().toISOString().slice(0, 10)
-const isOverdue = (t) => t.dueDate && t.dueDate < today && t.status !== '已完成' && t.status !== '已验收'
+const isOverdue = (t) => isTaskOverdue(t)
 
 // 列表树：扁平任务 → parentId 归并
 const tree = computed(() => {
@@ -154,15 +160,18 @@ async function load() {
 }
 
 async function onDrag({ task, toStatus }) {
+  transitioning.value = true
   try {
     await taskApi.transition(task.id, toStatus)
-    // 成功：同步卡片状态（否则再次拖拽时 :move 会按旧状态误判），并刷新列表树
+    // 成功：就地同步看板卡片与列表树数据源的状态，无需整表重拉
     task.status = toStatus
-    const res = await taskApi.query({ projectId, page: 1, size: 500 })
-    tasks.value = res.list || []
+    const t = tasks.value.find((x) => x.id === task.id)
+    if (t) t.status = toStatus
   } catch {
     // 失败（非法流转等）：以后端为准回滚看板
     load()
+  } finally {
+    transitioning.value = false
   }
 }
 
@@ -193,8 +202,7 @@ async function doCreate() {
 
 onMounted(async () => {
   project.value = await projectApi.get(projectId)
-  const res = await userApi.query({ page: 1, size: 200 })
-  users.value = res.list || []
+  users.value = await fetchMembers()
   load()
 })
 </script>
@@ -227,8 +235,10 @@ onMounted(async () => {
   justify-content: space-between;
   font-size: var(--mido-font-size-caption);
 }
-.tc__overdue {
-  color: var(--el-color-danger);
+.tc__due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mido-space-1);
 }
 .full {
   width: 100%;

@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="visible" :size="'calc(var(--mido-drawer-width) * 1.6)'" :with-header="false" @open="onOpen">
+  <el-drawer v-model="visible" :size="'calc(var(--mido-drawer-width) * 1.6)'" :with-header="false">
     <div v-loading="loading" class="td">
       <header class="td__head">
         <div class="td__title">
@@ -103,12 +103,13 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Flag, Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CommentThread from '@/components/CommentThread.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
+import { userName as nameOf } from '@/utils/display'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -132,15 +133,20 @@ const subDialog = ref(false)
 const subForm = reactive({ title: '', assigneeId: null })
 
 const visible = computed({ get: () => props.modelValue, set: (v) => emit('update:modelValue', v) })
-const userName = (id) => props.users.find((u) => u.id === id)?.name || (id ? `用户#${id}` : '—')
+const userName = (id) => nameOf(props.users, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
 const nextStatuses = computed(() => TASK_TRANSITIONS[task.value.status] || [])
 
-async function onOpen() {
-  tab.value = 'info'
-  sideTab.value = 'comment'
-  await reload()
-}
+// 打开或在打开状态下切换 taskId（如点击子任务钻取）都要重载，且复位 Tab
+watch(() => [props.modelValue, props.taskId], ([open, id]) => {
+  if (open && id) {
+    tab.value = 'info'
+    sideTab.value = 'comment'
+    reload()
+  }
+})
+
+// reload 仅刷新本抽屉数据，不再 emit('changed')，避免每次打开都触发父级整表重拉
 async function reload() {
   if (!props.taskId) return
   loading.value = true
@@ -156,7 +162,6 @@ async function reload() {
   } finally {
     loading.value = false
   }
-  emit('changed')
 }
 async function save() {
   await formRef.value.validate()
@@ -168,6 +173,7 @@ async function save() {
       isMilestone: milestone.value ? 1 : 0, description: form.description,
     })
     ElMessage.success('已保存')
+    emit('changed')
     reload()
   } finally {
     saving.value = false
@@ -181,6 +187,7 @@ async function onAssign(val) {
 async function transition(s) {
   await taskApi.transition(task.value.id, s)
   ElMessage.success(`已流转至「${s}」`)
+  emit('changed')
   reload()
 }
 async function addSub() {
@@ -192,6 +199,7 @@ async function addSub() {
     subDialog.value = false
     subForm.title = ''
     subForm.assigneeId = null
+    emit('changed')
     reload()
   } finally {
     saving.value = false

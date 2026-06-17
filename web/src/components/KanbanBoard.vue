@@ -8,10 +8,10 @@
         <span class="kb__count">{{ col.tasks.length }}</span>
       </header>
       <draggable :list="col.tasks" :group="group" item-key="id" :data-status="col.status"
-        :move="onMove" :animation="150" ghost-class="kb__ghost" class="kb__list"
-        @change="(e) => onChange(e, col.status)">
+        :move="onMove" :disabled="disabled" :animation="150" ghost-class="kb__ghost" class="kb__list"
+        @start="onStart" @end="onEnd" @change="(e) => onChange(e, col.status)">
         <template #item="{ element }">
-          <div class="kb__card" @click="$emit('open', element)">
+          <div class="kb__card" @click="onCardClick(element)">
             <slot name="card" :task="element">{{ element.title }}</slot>
           </div>
         </template>
@@ -30,6 +30,8 @@ defineProps({
   // [{ status, tasks: [] }]，由调用方持有并允许 vuedraggable 原地变更
   columns: { type: Array, required: true },
   group: { type: String, default: 'kanban' },
+  // 流转请求在途时禁用拖拽，避免基于陈旧状态的二次拖拽误判
+  disabled: { type: Boolean, default: false },
 })
 const emit = defineEmits(['change', 'open'])
 
@@ -46,6 +48,21 @@ function onChange(e, toStatus) {
   if (e.added) {
     emit('change', { task: e.added.element, toStatus })
   }
+}
+
+// 抑制拖拽结束后浏览器补发的 click，避免拖完顺手打开详情抽屉
+let dragged = false
+function onStart() {
+  dragged = false
+}
+function onEnd() {
+  dragged = true
+  // click 在同一事件循环紧随 mouseup 触发，置位在本 tick 生效；下一宏任务复位
+  setTimeout(() => { dragged = false }, 0)
+}
+function onCardClick(element) {
+  if (dragged) return
+  emit('open', element)
 }
 </script>
 
