@@ -69,13 +69,21 @@ public class SysUserService {
     }
 
     public Long create(UserCreateDTO dto) {
-        Long exists = userMapper.selectCount(
-                Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, dto.username()));
-        if (exists != null && exists > 0) {
+        Long phoneExists = userMapper.selectCount(
+                Wrappers.<SysUser>lambdaQuery().eq(SysUser::getPhone, dto.phone()));
+        if (phoneExists != null && phoneExists > 0) {
+            throw new BizException(ErrorCode.CONFLICT, "手机号已注册");
+        }
+        // 用户名可选，缺省取手机号；仍校验用户名唯一（双登录两条标识都不可重复）
+        String username = StrUtil.isBlank(dto.username()) ? dto.phone() : dto.username();
+        Long nameExists = userMapper.selectCount(
+                Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, username));
+        if (nameExists != null && nameExists > 0) {
             throw new BizException(ErrorCode.CONFLICT, "用户名已存在");
         }
         SysUser user = new SysUser();
-        user.setUsername(dto.username());
+        user.setPhone(dto.phone());
+        user.setUsername(username);
         user.setName(dto.name());
         user.setPassword(passwordEncoder.encode(dto.password()));
         user.setDeptId(dto.deptId());
@@ -124,7 +132,7 @@ public class SysUserService {
     }
 
     private UserVO toVO(SysUser u) {
-        return new UserVO(u.getId(), u.getUsername(), u.getName(), u.getDeptId(),
+        return new UserVO(u.getId(), u.getPhone(), u.getUsername(), u.getName(), u.getDeptId(),
                 u.getJobLevel(), u.getStatus(), u.getCreateTime());
     }
 }

@@ -141,7 +141,7 @@ CREATE TABLE pm_notification (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id B
 CREATE TABLE pm_attachment (id BIGINT PRIMARY KEY, tenant_id BIGINT, entity_type VARCHAR(16), entity_id BIGINT, name VARCHAR(256), oss_key VARCHAR(512), size BIGINT, KEY idx_entity(entity_type,entity_id));
 
 -- ========== 组织/权限域 ==========
-CREATE TABLE sys_user (id BIGINT PRIMARY KEY, tenant_id BIGINT, username VARCHAR(64), name VARCHAR(64), password VARCHAR(128), dept_id BIGINT, job_level VARCHAR(8), status VARCHAR(16), KEY idx_uname(username));
+CREATE TABLE sys_user (id BIGINT PRIMARY KEY, tenant_id BIGINT, username VARCHAR(64), phone VARCHAR(20), name VARCHAR(64), password VARCHAR(128), dept_id BIGINT, job_level VARCHAR(8), status VARCHAR(16), KEY idx_uname(username), UNIQUE KEY uk_user_phone(phone)); -- phone=登录账号(全局唯一,见 V11)；手机号/用户名双登录
 CREATE TABLE sys_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), parent_id BIGINT DEFAULT 0, KEY idx_parent(parent_id));
 CREATE TABLE sys_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), code VARCHAR(64));
 CREATE TABLE sys_user_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, role_id BIGINT, KEY idx_user(user_id));

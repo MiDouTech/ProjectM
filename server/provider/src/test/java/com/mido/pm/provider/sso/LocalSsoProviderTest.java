@@ -57,6 +57,15 @@ class LocalSsoProviderTest {
     }
 
     @Test
+    void loginByPhoneIssuesVerifiableToken() {
+        lenient().when(identityProvider.loadByPhone("13800138000"))
+                .thenReturn(Optional.of(principal("pass123", "active")));
+        String token = sso.login("13800138000", "pass123");
+        assertNotNull(token);
+        assertEquals(7L, sso.verifyToken(token));
+    }
+
+    @Test
     void loginWrongPasswordThrows() {
         lenient().when(identityProvider.loadByUsername("admin"))
                 .thenReturn(Optional.of(principal("admin123", "active")));

@@ -25,6 +25,8 @@ import java.util.Date;
 public class LocalSsoProvider implements SsoProvider {
 
     private static final String STATUS_DISABLED = "disabled";
+    /** 中国大陆 11 位手机号：用于判定登录账号走手机号还是用户名查询 */
+    private static final java.util.regex.Pattern PHONE = java.util.regex.Pattern.compile("^1[3-9]\\d{9}$");
 
     private final SecretKey key;
     private final long ttlMillis;
@@ -50,11 +52,14 @@ public class LocalSsoProvider implements SsoProvider {
     }
 
     @Override
-    public String login(String username, String rawPassword) {
-        UserPrincipal principal = identityProvider.loadByUsername(username)
-                .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED, "用户名或密码错误"));
+    public String login(String account, String rawPassword) {
+        // 双登录：11 位手机号走 loadByPhone，否则按用户名查询。
+        UserPrincipal principal = (account != null && PHONE.matcher(account).matches()
+                ? identityProvider.loadByPhone(account)
+                : identityProvider.loadByUsername(account))
+                .orElseThrow(() -> new BizException(ErrorCode.UNAUTHORIZED, "账号或密码错误"));
         if (!passwordEncoder.matches(rawPassword, principal.getPasswordHash())) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "账号或密码错误");
         }
         if (STATUS_DISABLED.equalsIgnoreCase(principal.getStatus())) {
             throw new BizException(ErrorCode.FORBIDDEN, "账号已停用");

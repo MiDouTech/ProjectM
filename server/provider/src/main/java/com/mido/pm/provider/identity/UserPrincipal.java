@@ -15,6 +15,8 @@ public class UserPrincipal {
 
     private Long userId;
     private String username;
+    /** 手机号：登录账号（全局唯一） */
+    private String phone;
     private String name;
     /** 密码哈希（仅 loadByUsername 用于登录校验时填充） */
     private String passwordHash;
@@ -44,6 +46,14 @@ public class UserPrincipal {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getName() {
