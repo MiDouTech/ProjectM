@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -262,7 +263,7 @@ public class ProjectService {
         if (me == null) {
             return List.of();
         }
-        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        Set<Long> ids = new LinkedHashSet<>();
         memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
                 .eq(PmProjectMember::getUserId, me)).forEach(m -> ids.add(m.getProjectId()));
         projectMapper.selectList(Wrappers.<PmProject>lambdaQuery()

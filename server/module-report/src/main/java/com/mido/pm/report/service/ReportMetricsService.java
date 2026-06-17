@@ -11,6 +11,7 @@ import com.mido.pm.report.dto.MetricsOverviewVO;
 import com.mido.pm.report.dto.MetricsOverviewVO.CategoryCount;
 import com.mido.pm.report.dto.ProjectHealthVO;
 import com.mido.pm.report.mapper.ReportMapper;
+import com.mido.pm.project.service.ProjectService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,10 +28,10 @@ import java.util.Map;
 public class ReportMetricsService {
 
     private final ReportMapper reportMapper;
-    private final com.mido.pm.project.service.ProjectService projectService;
+    private final ProjectService projectService;
 
     public ReportMetricsService(ReportMapper reportMapper,
-                                com.mido.pm.project.service.ProjectService projectService) {
+                                ProjectService projectService) {
         this.reportMapper = reportMapper;
         this.projectService = projectService;
     }
