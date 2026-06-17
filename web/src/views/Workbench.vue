@@ -45,19 +45,18 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { Plus } from '@element-plus/icons-vue'
 import WorkbenchCard from './workbench/WorkbenchCard.vue'
-
-const STORAGE_KEY = 'mido_workbench_cards'
+import { workbenchApi } from '@/api/workbench'
 
 // 卡片目录（design-system §7-C 默认卡）
 const CATALOG = [
-  { id: 'myProjects', group: '项目', title: '我负责的项目', type: 'projects' },
+  { id: 'myProjects', group: '项目', title: '我参与的项目', type: 'projects' },
   { id: 'myApprovals', group: '审批', title: '待我审批的立项', type: 'approvals' },
   { id: 'myTasks', group: '任务', title: '我负责的任务', type: 'tasks' },
-  { id: 'myNotifications', group: '通知', title: '我的待办通知', type: 'notifications' },
+  { id: 'myNotifications', group: '通知', title: '我的未读通知', type: 'notifications' },
 ]
 const catalogMap = Object.fromEntries(CATALOG.map((c) => [c.id, c]))
 const grouped = computed(() => {
@@ -66,17 +65,20 @@ const grouped = computed(() => {
   return g
 })
 
-// 已启用卡片（有序，持久化）；默认全部
-function loadEnabled() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
-    if (Array.isArray(saved)) return saved.filter((id) => catalogMap[id])
-  } catch { /* ignore */ }
-  return CATALOG.map((c) => c.id)
-}
-const enabled = ref(loadEnabled())
+// 已启用卡片（有序，持久化到 pm_view）；默认全部
+const enabled = ref(CATALOG.map((c) => c.id))
+
+// 从后端布局加载；未保存过(cards=null)用默认；过滤已下线卡片 id
+onMounted(async () => {
+  const layout = await workbenchApi.getLayout()
+  const saved = layout?.cards
+  // null=未保存过(用默认)；数组(含空)=用户已保存的布局，按目录过滤下线卡片
+  if (Array.isArray(saved)) {
+    enabled.value = saved.filter((id) => catalogMap[id])
+  }
+})
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(enabled.value))
+  workbenchApi.saveLayout(enabled.value)
 }
 
 const addDialog = ref(false)

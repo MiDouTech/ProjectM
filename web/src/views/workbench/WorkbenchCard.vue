@@ -15,7 +15,7 @@
     </template>
 
     <div v-loading="loading" class="wc__body">
-      <!-- 我负责的项目 -->
+      <!-- 我参与的项目 -->
       <template v-if="card.type === 'projects'">
         <div v-for="p in items" :key="p.id" class="wc__row" @click="$router.push('/project')">
           <CategoryBadge :category="p.category" :show-label="false" />
@@ -46,12 +46,12 @@
         </div>
       </template>
 
-      <!-- 待我审批的立项（待办接口就绪前为入口占位） -->
+      <!-- 待我审批的立项 -->
       <template v-else-if="card.type === 'approvals'">
-        <el-empty :image-size="60"
-          description="待我审批待办列表待后端接口就绪后接入；当前可前往审批页按实例处理">
-          <el-button type="primary" @click="$router.push('/approval')">前往审批</el-button>
-        </el-empty>
+        <div v-for="a in items" :key="a.instanceId" class="wc__row" @click="$router.push('/approval')">
+          <span class="wc__row-main">{{ bizLabel(a.bizType) }} · {{ a.node }}</span>
+          <span class="mido-text-secondary">{{ fmt(a.submittedAt) }}</span>
+        </div>
       </template>
 
       <el-empty v-if="emptyShown" description="暂无内容" :image-size="60" />
@@ -65,7 +65,7 @@ import { Rank, Refresh, Close } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { useUserStore } from '@/store/user'
-import { projectApi } from '@/api/project'
+import { projectApi, approvalApi } from '@/api/project'
 import { taskApi } from '@/api/task'
 import { notificationApi } from '@/api/collab'
 import { isTaskOverdue, formatDateTime } from '@/utils/display'
@@ -79,19 +79,20 @@ const loading = ref(false)
 const items = ref([])
 const userId = useUserStore().userId
 
-// 各卡片类型的数据加载器（approvals 为入口占位，无列表数据）
+// 各卡片类型的数据加载器（统一返回数组或分页 {list}，由 load 归一）
 const LOADERS = {
-  projects: () => projectApi.query({ page: 1, size: 50, leaderId: userId }),
+  projects: () => projectApi.mine(),
+  approvals: () => approvalApi.mine(),
   tasks: () => taskApi.query({ page: 1, size: 50, assigneeId: userId }),
   notifications: () => notificationApi.list({ page: 1, size: 50, unread: true }),
 }
 
-const count = computed(() => (props.card.type === 'approvals' ? 0 : items.value.length))
-const emptyShown = computed(() =>
-  !loading.value && !items.value.length && props.card.type !== 'approvals')
+const count = computed(() => items.value.length)
+const emptyShown = computed(() => !loading.value && !items.value.length)
 
 const overdue = (t) => isTaskOverdue(t)
 const fmt = (t) => formatDateTime(t, 5, 16)
+const bizLabel = (bizType) => (bizType === 'project_init' ? '立项审批' : bizType || '审批')
 
 async function load() {
   const loader = LOADERS[props.card.type]
@@ -99,7 +100,7 @@ async function load() {
   loading.value = true
   try {
     const res = await loader()
-    items.value = res.list || []
+    items.value = Array.isArray(res) ? res : (res.list || [])
   } finally {
     loading.value = false
   }

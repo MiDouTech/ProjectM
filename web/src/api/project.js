@@ -3,6 +3,8 @@ import request from './request'
 /** 项目 CRUD + 生命周期流转 + 成员（Step 2-1） */
 export const projectApi = {
   query: (data) => request.post('/projects/query', data),
+  // 我参与的项目（工作台卡）：我负责 ∪ 我是成员
+  mine: () => request.get('/projects/mine'),
   get: (id) => request.get(`/projects/${id}`),
   create: (data) => request.post('/projects', data),
   createFromTemplate: (data) => request.post('/projects/from-template', data),
@@ -30,6 +32,8 @@ export const approvalApi = {
   submit: (data) => request.post('/approvals/submit', data),
   act: (id, data) => request.post(`/approvals/instances/${id}/actions`, data),
   getInstance: (id) => request.get(`/approvals/instances/${id}`),
+  // 待我审批（工作台卡）：我未处理且实例 pending 的待办
+  mine: () => request.get('/approvals/mine'),
 }
 
 /** 审批流定义（Step 3，供 el-steps 进度渲染） */
