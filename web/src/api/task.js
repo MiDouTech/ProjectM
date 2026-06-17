@@ -20,6 +20,21 @@ export const taskApi = {
   batchDelete: (ids) => request.post('/tasks/batch/delete', { ids }),
 }
 
+/** 工时：登记/修改 + 记录列表 + 任务级汇总（项目级/人员级供统计页，工时 Tab 用任务级） */
+export const workHourApi = {
+  list: (taskId) => request.get('/work-hours', { params: { taskId } }),
+  log: (data) => request.post('/work-hours', data),
+  update: (id, data) => request.put(`/work-hours/${id}`, data),
+  taskSummary: (taskId) => request.get('/work-hours/summary/task', { params: { taskId } }),
+}
+
+/** 工时类型 / 类别字典（与后端校验集合一致） */
+export const WORKHOUR_KINDS = [
+  { value: 'est', label: '预估' },
+  { value: 'actual', label: '实际' },
+]
+export const WORKHOUR_CATEGORIES = ['设计', '研发', '文档', '测试', '其他']
+
 /** 任务默认工作流状态（data-model 状态字典；看板列序） */
 export const TASK_STATUSES = ['未开始', '进行中', '已完成', '已验收']
 
