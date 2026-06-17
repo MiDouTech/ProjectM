@@ -34,6 +34,8 @@ const STATUS_TYPE = {
   disabled: 'info', 停用: 'info',
   // 费用状态（pm_cost.status，待回写 design-system §1.5 登记）
   未发生: 'info', 已发生: 'success', 被退回: 'danger',
+  // 项目健康度（报表，待回写 design-system §1.5 登记）
+  健康: 'success', 关注: 'warning', 风险: 'danger',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')
