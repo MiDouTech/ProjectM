@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.mido.pm</groupId>
+    <artifactId>mido-pm-server</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>mido-pm-server</name>
+    <description>米多通用项目管理系统（mido-pm）后端 · 模块化单体</description>
+
+    <modules>
+        <module>common</module>
+        <module>provider</module>
+        <module>module-org</module>
+        <module>module-project</module>
+        <module>module-task</module>
+        <module>module-goal</module>
+        <module>module-stakeholder</module>
+        <module>module-verify</module>
+        <module>module-approval</module>
+        <module>module-cost</module>
+        <module>module-collab</module>
+        <module>module-doc</module>
+        <module>module-report</module>
+        <module>module-ai</module>
+        <module>bootstrap</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <mybatis-plus.version>3.5.9</mybatis-plus.version>
+        <hutool.version>5.8.34</hutool.version>
+        <springdoc.version>2.6.0</springdoc.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <shardingsphere.version>5.5.0</shardingsphere.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 本工程各内部模块统一版本 -->
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>provider</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-org</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-project</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-task</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-goal</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-stakeholder</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-verify</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-approval</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-cost</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-collab</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-doc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-report</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-ai</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- 第三方依赖锁版本 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <!-- 3.5.6+ 多租户/分页拦截器依赖 jsqlparser，已拆为独立模块需显式引入 -->
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <!-- ShardingSphere 5.x：阶段一仅引入依赖，不开启分片 -->
+                <groupId>org.apache.shardingsphere</groupId>
+                <artifactId>shardingsphere-jdbc</artifactId>
+                <version>${shardingsphere.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- 所有模块统一具备测试能力（JUnit5 + Mockito + AssertJ），版本由 Spring Boot BOM 管理 -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

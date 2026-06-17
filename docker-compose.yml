@@ -1,0 +1,90 @@
+# 米多通用项目管理系统（mido-pm）· 本地开发中间件
+# 一键起：docker compose up -d
+# 账号/端口见下方各服务 environment 与 ports，已配健康检查与数据卷持久化。
+name: mido-pm
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mido-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mido_pm
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7
+    container_name: mido-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: mido-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: mido
+      RABBITMQ_DEFAULT_PASS: mido
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # 管理台 http://localhost:15672
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    container_name: mido-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: mido
+      MINIO_ROOT_PASSWORD: mido12345
+    ports:
+      - "9000:9000"      # S3 API
+      - "9001:9001"      # 控制台 http://localhost:9001
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # 优先打官方存活探针(免鉴权)；curl 不在镜像时回落 mc(随镜像内置, local 为 mc 内置别名)。
+      # 二者覆盖 ubi-minimal 基础镜像可能的差异，避免容器长期 unhealthy。
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || mc ready local"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:
+  minio-data:

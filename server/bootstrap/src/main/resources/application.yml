@@ -1,0 +1,70 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mido-pm
+  # 数据源：MySQL 8.0 + HikariCP。连接信息支持环境变量覆盖。
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MIDO_DB_URL:jdbc:mysql://localhost:3306/mido_pm?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${MIDO_DB_USER:root}
+    password: ${MIDO_DB_PASSWORD:root}
+    hikari:
+      # 启动阶段不强制连库，便于无 DB 环境完成上下文装配（骨架阶段）。
+      initialization-fail-timeout: -1
+      minimum-idle: 0
+      maximum-pool-size: 10
+      pool-name: MidoHikariPool
+  # Redis 7.x
+  data:
+    redis:
+      host: ${MIDO_REDIS_HOST:localhost}
+      port: ${MIDO_REDIS_PORT:6379}
+  # RabbitMQ 3.x（事件驱动主通道，骨架阶段不声明监听器，不会在启动时连接）
+  rabbitmq:
+    host: ${MIDO_RABBIT_HOST:localhost}
+    port: ${MIDO_RABBIT_PORT:5672}
+    username: ${MIDO_RABBIT_USER:mido}
+    password: ${MIDO_RABBIT_PASSWORD:mido}
+  # Flyway 数据库迁移：启动时自动执行 db/migration 下脚本
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+# MyBatis-Plus：下划线转驼峰 + 逻辑删除 + 雪花主键
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 业务自定义配置
+mido:
+  # JWT（本地 SSO 使用），生产请覆盖 secret
+  jwt:
+    secret: ${MIDO_JWT_SECRET:mido-pm-default-secret-key-please-change-in-prod}
+    ttl-millis: 86400000
+  # MinIO / S3 兼容对象存储连接（客户端 Bean 随存储模块接入）
+  minio:
+    endpoint: ${MIDO_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MIDO_MINIO_ACCESS_KEY:mido}
+    secret-key: ${MIDO_MINIO_SECRET_KEY:mido12345}
+    bucket: ${MIDO_MINIO_BUCKET:mido-pm}
+
+# Swagger / OpenAPI 3.0
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.mido.pm: info

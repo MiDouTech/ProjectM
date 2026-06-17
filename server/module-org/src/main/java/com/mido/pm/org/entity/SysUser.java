@@ -1,0 +1,67 @@
+package com.mido.pm.org.entity;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.mido.pm.common.entity.BaseEntity;
+
+/**
+ * 用户（sys_user）。公共字段见 {@link BaseEntity}。
+ */
+@TableName("sys_user")
+public class SysUser extends BaseEntity {
+
+    private String username;
+    private String name;
+    private String password;
+    private Long deptId;
+    /** 职级（如 L1/L2/L3），立项职级 guard 依赖 */
+    private String jobLevel;
+    private String status;
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Long getDeptId() {
+        return deptId;
+    }
+
+    public void setDeptId(Long deptId) {
+        this.deptId = deptId;
+    }
+
+    public String getJobLevel() {
+        return jobLevel;
+    }
+
+    public void setJobLevel(String jobLevel) {
+        this.jobLevel = jobLevel;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+}

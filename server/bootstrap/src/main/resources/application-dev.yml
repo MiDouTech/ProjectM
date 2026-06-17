@@ -1,0 +1,33 @@
+# dev profile：对接本地 docker-compose 中间件（账号/端口与根目录 docker-compose.yml 一致）。
+# 激活：--spring.profiles.active=dev 或 -Dspring-boot.run.profiles=dev
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/mido_pm?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: mido
+    password: mido
+
+mido:
+  minio:
+    endpoint: http://localhost:9000
+    access-key: mido
+    secret-key: mido12345
+    bucket: mido-pm
+
+# 开发期打开 SQL 与 Mapper 日志，便于排查
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.mido.pm: debug
+    org.flywaydb: info

@@ -1,0 +1,207 @@
+package com.mido.pm.task.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.exception.BizException;
+import com.mido.pm.common.exception.ErrorCode;
+import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.task.domain.TaskStatus;
+import com.mido.pm.task.domain.TaskWorkflow;
+import com.mido.pm.task.dto.KanbanColumnVO;
+import com.mido.pm.task.dto.TaskCreateDTO;
+import com.mido.pm.task.dto.TaskQueryDTO;
+import com.mido.pm.task.dto.TaskUpdateDTO;
+import com.mido.pm.task.dto.TaskVO;
+import com.mido.pm.task.entity.PmTask;
+import com.mido.pm.task.event.TaskEvents;
+import com.mido.pm.task.mapper.PmTaskMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 任务服务（P0）：CRUD、子任务、指派、状态流转（默认工作流）、看板分组、列表筛选。
+ * 写操作同事务发 Outbox 事件。依赖/工时/循环规则留 P1。
+ */
+@Service
+public class TaskService {
+
+    private static final long MAX_PAGE_SIZE = 100L;
+
+    private final PmTaskMapper taskMapper;
+    private final DomainEventPublisher eventPublisher;
+
+    public TaskService(PmTaskMapper taskMapper, DomainEventPublisher eventPublisher) {
+        this.taskMapper = taskMapper;
+        this.eventPublisher = eventPublisher;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Long create(TaskCreateDTO dto) {
+        PmTask task = new PmTask();
+        task.setProjectId(dto.projectId());
+        task.setParentId(dto.parentId() == null ? 0L : dto.parentId());
+        task.setTitle(dto.title());
+        task.setDescription(dto.description());
+        task.setAssigneeId(dto.assigneeId());
+        task.setStatus(TaskStatus.NOT_STARTED.getCode());
+        task.setPriority(dto.priority());
+        task.setStage(dto.stage());
+        task.setStartDate(dto.startDate());
+        task.setDueDate(dto.dueDate());
+        task.setIsMilestone(dto.isMilestone() == null ? 0 : dto.isMilestone());
+        taskMapper.insert(task);
+
+        eventPublisher.publish(TaskEvents.CREATED, payload(
+                "taskId", task.getId(), "projectId", task.getProjectId(), "title", task.getTitle()));
+        if (task.getAssigneeId() != null) {
+            eventPublisher.publish(TaskEvents.ASSIGNED, payload(
+                    "taskId", task.getId(), "assigneeId", task.getAssigneeId()));
+        }
+        return task.getId();
+    }
+
+    public TaskVO get(Long id) {
+        return toVO(requireExists(id));
+    }
+
+    public List<TaskVO> subtasks(Long parentId) {
+        return taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
+                        .eq(PmTask::getParentId, parentId).orderByAsc(PmTask::getId))
+                .stream().map(this::toVO).toList();
+    }
+
+    public PageResult<TaskVO> page(TaskQueryDTO query) {
+        long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
+        long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);
+        Page<PmTask> page = new Page<>(pageNo, size);
+        LambdaQueryWrapper<PmTask> wrapper = buildQuery(query);
+        Page<PmTask> result = taskMapper.selectPage(page, wrapper);
+        List<TaskVO> list = result.getRecords().stream().map(this::toVO).toList();
+        return PageResult.of(list, result.getTotal(), pageNo, size);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, TaskUpdateDTO dto) {
+        PmTask task = requireExists(id);
+        task.setTitle(dto.title());
+        task.setPriority(dto.priority());
+        task.setStage(dto.stage());
+        task.setStartDate(dto.startDate());
+        task.setDueDate(dto.dueDate());
+        if (dto.isMilestone() != null) {
+            task.setIsMilestone(dto.isMilestone());
+        }
+        task.setDescription(dto.description());
+        taskMapper.updateById(task);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        requireExists(id);
+        taskMapper.deleteById(id);
+    }
+
+    /** 指派/改派，发 task.assigned。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void assign(Long id, Long assigneeId) {
+        PmTask task = requireExists(id);
+        task.setAssigneeId(assigneeId);
+        taskMapper.updateById(task);
+        eventPublisher.publish(TaskEvents.ASSIGNED, payload("taskId", id, "assigneeId", assigneeId));
+    }
+
+    /** 状态流转（看板拖拽亦走此）：校验默认工作流合法流转，发 task.status.changed。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void changeStatus(Long id, String targetStatus) {
+        PmTask task = requireExists(id);
+        TaskStatus from = TaskStatus.fromCode(task.getStatus());
+        TaskStatus to = TaskStatus.fromCode(targetStatus);
+        if (to == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "非法目标状态: " + targetStatus);
+        }
+        TaskWorkflow.assertTransit(from, to);
+        task.setStatus(to.getCode());
+        taskMapper.updateById(task);
+        eventPublisher.publish(TaskEvents.STATUS_CHANGED, payload(
+                "taskId", id, "from", from == null ? null : from.getCode(), "to", to.getCode()));
+    }
+
+    /** 看板：按工作流状态顺序分组返回某项目任务。 */
+    public List<KanbanColumnVO> kanban(Long projectId) {
+        List<PmTask> tasks = taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
+                .eq(PmTask::getProjectId, projectId).orderByDesc(PmTask::getId));
+        List<KanbanColumnVO> columns = new java.util.ArrayList<>();
+        for (TaskStatus s : TaskStatus.values()) {
+            List<TaskVO> cards = tasks.stream()
+                    .filter(t -> s.getCode().equals(t.getStatus()))
+                    .map(this::toVO).toList();
+            columns.add(new KanbanColumnVO(s.getCode(), cards));
+        }
+        return columns;
+    }
+
+    // ===== 内部 =====
+
+    private LambdaQueryWrapper<PmTask> buildQuery(TaskQueryDTO q) {
+        LambdaQueryWrapper<PmTask> w = Wrappers.<PmTask>lambdaQuery()
+                .eq(q.projectId() != null, PmTask::getProjectId, q.projectId())
+                .eq(q.assigneeId() != null, PmTask::getAssigneeId, q.assigneeId())
+                .eq(q.status() != null && !q.status().isBlank(), PmTask::getStatus, q.status());
+        if (Boolean.TRUE.equals(q.overdue())) {
+            // “今天”取统一服务器时区（启动时 TimeZone.setDefault，默认 Asia/Shanghai），跨环境一致。
+            w.lt(PmTask::getDueDate, LocalDate.now())
+                    .notIn(PmTask::getStatus, TaskStatus.DONE.getCode(), TaskStatus.ACCEPTED.getCode());
+        }
+        applySort(w, q.sort());
+        return w;
+    }
+
+    /** sort=field,asc|desc，字段白名单防注入；缺省按 id 降序。 */
+    private void applySort(LambdaQueryWrapper<PmTask> w, String sort) {
+        if (sort == null || sort.isBlank()) {
+            w.orderByDesc(PmTask::getId);
+            return;
+        }
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        boolean asc = parts.length < 2 || !"desc".equalsIgnoreCase(parts[1].trim());
+        switch (field) {
+            case "priority" -> w.orderBy(true, asc, PmTask::getPriority);
+            case "dueDate" -> w.orderBy(true, asc, PmTask::getDueDate);
+            case "startDate" -> w.orderBy(true, asc, PmTask::getStartDate);
+            case "createTime" -> w.orderBy(true, asc, PmTask::getCreateTime);
+            default -> w.orderByDesc(PmTask::getId);
+        }
+    }
+
+    private PmTask requireExists(Long id) {
+        PmTask task = taskMapper.selectById(id);
+        if (task == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "任务不存在");
+        }
+        return task;
+    }
+
+    private Map<String, Object> payload(Object... kv) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            map.put(String.valueOf(kv[i]), kv[i + 1]);
+        }
+        map.put("occurredAt", LocalDateTime.now().toString());
+        return map;
+    }
+
+    private TaskVO toVO(PmTask t) {
+        return new TaskVO(t.getId(), t.getProjectId(), t.getParentId(), t.getTitle(), t.getDescription(),
+                t.getAssigneeId(), t.getStatus(), t.getPriority(), t.getStage(),
+                t.getStartDate(), t.getDueDate(), t.getIsMilestone(), t.getCreateTime());
+    }
+}
