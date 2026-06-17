@@ -156,6 +156,27 @@ public class NpssReviewService {
         eventPublisher.publish(NpssEvents.REVIEW_COMPLETED, payload);
     }
 
+    /** 某项目的 NPSS 轮次（新→旧），供项目详情"验收"Tab 展示。 */
+    public List<NpssReviewVO> listByProject(Long projectId) {
+        return reviewMapper.selectList(Wrappers.<PmNpssReview>lambdaQuery()
+                        .eq(PmNpssReview::getProjectId, projectId)
+                        .orderByDesc(PmNpssReview::getId))
+                .stream().map(r -> get(r.getId())).toList();
+    }
+
+    /**
+     * 已汇总轮次按 result_level 计数（reviewed_at ∈ [from, toExclusive)）。供报表域 PMO 总体评价聚合（npss-rule §5）。
+     */
+    public Map<String, Long> levelCounts(java.time.LocalDateTime from, java.time.LocalDateTime toExclusive) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        reviewMapper.selectList(Wrappers.<PmNpssReview>lambdaQuery()
+                        .eq(PmNpssReview::getStatus, STATUS_DONE)
+                        .ge(PmNpssReview::getReviewedAt, from)
+                        .lt(PmNpssReview::getReviewedAt, toExclusive))
+                .forEach(r -> counts.merge(r.getResultLevel(), 1L, Long::sum));
+        return counts;
+    }
+
     public NpssReviewVO get(Long reviewId) {
         PmNpssReview r = requireReview(reviewId);
         List<NpssScoreVO> scores = scoreMapper.selectList(Wrappers.<PmNpssScore>lambdaQuery()

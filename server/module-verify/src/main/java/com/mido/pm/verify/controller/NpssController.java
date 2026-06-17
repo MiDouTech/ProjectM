@@ -42,4 +42,10 @@ public class NpssController {
     public R<NpssReviewVO> get(@PathVariable Long reviewId) {
         return R.ok(npssReviewService.get(reviewId));
     }
+
+    /** 某项目的 NPSS 轮次（验收 Tab 用）。 */
+    @GetMapping
+    public R<java.util.List<NpssReviewVO>> listByProject(@org.springframework.web.bind.annotation.RequestParam Long projectId) {
+        return R.ok(npssReviewService.listByProject(projectId));
+    }
 }

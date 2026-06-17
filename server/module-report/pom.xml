@@ -20,5 +20,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <!-- 跨域：PMO 总体评价按财年聚合 NPSS result_level，经 NpssReviewService 取计数（不查对方表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-verify</artifactId>
+        </dependency>
     </dependencies>
 </project>

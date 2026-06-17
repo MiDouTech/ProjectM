@@ -34,7 +34,7 @@
               </el-empty>
             </el-tab-pane>
             <el-tab-pane label="验收" name="verify">
-              <el-empty description="NPSS 两段式价值验收在后续验收模块前端接入" />
+              <ProjectVerifyPane :project="project" :project-id="projectId" />
             </el-tab-pane>
             <el-tab-pane label="甘特图" name="gantt" lazy>
               <GanttChart :project-id="projectId" />
@@ -82,6 +82,7 @@ import CostPanel from '@/components/CostPanel.vue'
 import ProjectFilesPanel from '@/components/ProjectFilesPanel.vue'
 import GanttChart from '@/components/GanttChart.vue'
 import ProjectInfoPane from './panes/ProjectInfoPane.vue'
+import ProjectVerifyPane from './panes/ProjectVerifyPane.vue'
 import ProjectTransitionPane from './panes/ProjectTransitionPane.vue'
 import ProjectApprovalPane from './panes/ProjectApprovalPane.vue'
 
