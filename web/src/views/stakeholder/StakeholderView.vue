@@ -143,7 +143,8 @@ import { fetchMembers } from '@/api/org'
 import { userName } from '@/utils/display'
 
 const route = useRoute()
-const projectId = Number(route.params.projectId)
+// 雪花 ID 为字符串，禁止 Number() 转换（会丢精度），直接透传给后端
+const projectId = route.params.projectId
 
 const loading = ref(false)
 const saving = ref(false)
