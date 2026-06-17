@@ -27,9 +27,12 @@ import java.util.Map;
 public class ReportMetricsService {
 
     private final ReportMapper reportMapper;
+    private final com.mido.pm.project.service.ProjectService projectService;
 
-    public ReportMetricsService(ReportMapper reportMapper) {
+    public ReportMetricsService(ReportMapper reportMapper,
+                                com.mido.pm.project.service.ProjectService projectService) {
         this.reportMapper = reportMapper;
+        this.projectService = projectService;
     }
 
     public MetricsOverviewVO overview() {
@@ -75,13 +78,16 @@ public class ReportMetricsService {
                 level.name().toLowerCase(), level.getLabel());
     }
 
-    // 数据范围：任务按 (dept_id, assignee_id)、项目按 (dept_id, leader_id)（org 拦截器复用）
+    // 数据范围 ∪ 成员可见性：任务按 (dept_id, assignee_id) + 我参与项目的任务(project_id)；
+    // 项目按 (dept_id, leader_id) + 我参与的项目(id)。与项目/任务列表口径一致。
     private <T> T scopedTask(java.util.function.Supplier<T> q) {
-        return DataScopeContext.scoped(ScopeResource.TASK, "dept_id", "assignee_id", q);
+        return DataScopeContext.scoped(ScopeResource.TASK, "dept_id", "assignee_id",
+                "project_id", projectService.myVisibleProjectIds(), q);
     }
 
     private <T> T scopedProject(java.util.function.Supplier<T> q) {
-        return DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id", q);
+        return DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
+                "id", projectService.myVisibleProjectIds(), q);
     }
 
     // ===== Map 取值（COUNT→Long，SUM→BigDecimal，统一按 Number 处理） =====

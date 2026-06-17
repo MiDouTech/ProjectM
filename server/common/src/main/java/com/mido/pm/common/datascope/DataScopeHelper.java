@@ -46,4 +46,27 @@ public final class DataScopeHelper {
         String joined = ids.stream().map(String::valueOf).collect(Collectors.joining(", "));
         return column + " IN (" + joined + ")";
     }
+
+    /**
+     * 带「成员可见性」并集的条件：在部门/本人范围基础上，OR 上「我参与的对象」（成员 ACL 轴）。
+     * 例：DEPT 范围 + 我是成员的项目 → {@code (dept_id IN (..) OR id IN (myProjectIds))}。
+     *
+     * @param memberColumn 成员匹配列（项目=id，任务=project_id）；为空则退化为纯数据范围
+     * @param memberIds    我参与的项目 id 集；为空则不加并集
+     */
+    public static String buildCondition(CurrentUser user, DataScope scope, String deptColumn,
+                                        String userColumn, String memberColumn, List<Long> memberIds) {
+        String base = buildCondition(user, scope, deptColumn, userColumn);
+        if (memberColumn == null || memberIds == null || memberIds.isEmpty()) {
+            return base;
+        }
+        if (base == null) {
+            return null; // ALL：已不限制，成员并集无意义
+        }
+        String member = inClause(memberColumn, memberIds);
+        if (DENY.equals(base)) {
+            return member; // 数据范围永假 → 仅成员可见
+        }
+        return "(" + base + " OR " + member + ")";
+    }
 }

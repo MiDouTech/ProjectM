@@ -25,5 +25,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-verify</artifactId>
         </dependency>
+        <!-- 成员可见性 ACL：取"我参与的项目 id"作数据范围并集 -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-project</artifactId>
+        </dependency>
     </dependencies>
 </project>

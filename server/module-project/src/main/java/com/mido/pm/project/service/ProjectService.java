@@ -149,9 +149,9 @@ public class ProjectService {
                 .eq(query.leaderId() != null, PmProject::getLeaderId, query.leaderId())
                 .like(StrUtil.isNotBlank(query.keyword()), PmProject::getName, query.keyword())
                 .orderByDesc(PmProject::getId);
-        // 数据范围：按部门/本人(leader_id) 约束可见项目（org 拦截器复用）
+        // 数据范围(部门/本人 leader_id) ∪ 成员可见性(我参与的项目 id)
         Page<PmProject> result = DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
-                () -> projectMapper.selectPage(page, wrapper));
+                "id", myVisibleProjectIds(), () -> projectMapper.selectPage(page, wrapper));
         List<ProjectVO> list = result.getRecords().stream().map(this::toVO).toList();
         return PageResult.of(list, result.getTotal(), pageNo, size);
     }
@@ -251,6 +251,23 @@ public class ProjectService {
             eventPublisher.publish(ProjectEvents.CLOSED, basePayload(id)
                     .add("valueReviewDueDate", String.valueOf(p.getValueReviewDueDate())).build());
         }
+    }
+
+    /**
+     * 我参与的项目 id（leader ∪ 成员）：成员可见性 ACL 轴——即便在数据范围（部门/本人）之外，
+     * 我参与的项目/其任务也应可见。供 page/任务列表/报表作并集。
+     */
+    public List<Long> myVisibleProjectIds() {
+        Long me = UserContext.currentUserId();
+        if (me == null) {
+            return List.of();
+        }
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
+                .eq(PmProjectMember::getUserId, me)).forEach(m -> ids.add(m.getProjectId()));
+        projectMapper.selectList(Wrappers.<PmProject>lambdaQuery()
+                .eq(PmProject::getLeaderId, me)).forEach(p -> ids.add(p.getId()));
+        return new ArrayList<>(ids);
     }
 
     /** leader 所属部门（数据范围归属用）；leader 为空或查不到则 null。 */

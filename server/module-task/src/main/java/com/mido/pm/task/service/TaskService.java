@@ -139,8 +139,9 @@ public class TaskService {
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);
         Page<PmTask> page = new Page<>(pageNo, size);
         LambdaQueryWrapper<PmTask> wrapper = buildQuery(query);
-        // 数据范围：按部门/本人(assignee_id) 约束可见任务（org 拦截器复用）
+        // 数据范围(部门/本人 assignee_id) ∪ 成员可见性(我参与项目的任务 project_id)
         Page<PmTask> result = DataScopeContext.scoped(ScopeResource.TASK, "dept_id", "assignee_id",
+                "project_id", projectService.myVisibleProjectIds(),
                 () -> taskMapper.selectPage(page, wrapper));
         List<TaskVO> list = result.getRecords().stream().map(this::toVO).toList();
         return PageResult.of(list, result.getTotal(), pageNo, size);

@@ -84,4 +84,33 @@ class DataScopeHelperTest {
         String c = DataScopeHelper.buildCondition(null, DataScope.ALL, "dept_id", "create_by");
         assertEquals("1 = 0", c);
     }
+
+    // ===== 成员可见性 ACL：数据范围 ∪ 我参与的项目 id =====
+
+    @Test
+    void membership_unionedWithDept() {
+        String c = DataScopeHelper.buildCondition(user(7L, 3L, List.of(), List.of()),
+                DataScope.DEPT, "dept_id", "leader_id", "id", List.of(8L, 9L));
+        assertEquals("(dept_id = 3 OR id IN (8, 9))", c);
+    }
+
+    @Test
+    void membership_allStillUnrestricted() {
+        assertNull(DataScopeHelper.buildCondition(user(7L, 3L, List.of(), List.of()),
+                DataScope.ALL, "dept_id", "leader_id", "id", List.of(8L, 9L)));
+    }
+
+    @Test
+    void membership_denyBaseFallsBackToMemberOnly() {
+        String c = DataScopeHelper.buildCondition(user(null, null, List.of(), List.of()),
+                DataScope.SELF, "dept_id", "leader_id", "id", List.of(8L));
+        assertEquals("id IN (8)", c);
+    }
+
+    @Test
+    void membership_emptyIdsKeepsBaseScope() {
+        String c = DataScopeHelper.buildCondition(user(7L, 3L, List.of(), List.of()),
+                DataScope.SELF, "dept_id", "leader_id", "id", List.of());
+        assertEquals("leader_id = 7", c);
+    }
 }
