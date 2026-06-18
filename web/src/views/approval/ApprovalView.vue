@@ -72,11 +72,11 @@
       </el-col>
     </el-row>
 
-    <!-- 转交：受让人暂以用户 ID 指定（统一选人组件待 Step 1） -->
+    <!-- 转交：经统一 UserPicker 选择受让人 -->
     <el-dialog v-model="transferVisible" title="转交审批" width="420">
       <el-form label-width="92">
-        <el-form-item label="受让人 ID" required>
-          <el-input v-model="transferTo" placeholder="输入受让人用户 ID" />
+        <el-form-item label="受让人" required>
+          <UserPicker v-model="transferTo" placeholder="选择受让人" />
         </el-form-item>
         <el-form-item label="转交说明">
           <el-input v-model="transferComment" type="textarea" :rows="2" placeholder="转交说明（可选）" />
@@ -96,6 +96,7 @@ import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
+import UserPicker from '@/components/UserPicker.vue'
 import { approvalApi } from '@/api/project'
 
 const lookupId = ref('')
