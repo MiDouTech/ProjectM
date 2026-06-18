@@ -44,6 +44,24 @@ public class ApprovalFlowService {
         return flow.getId();
     }
 
+    /** 更新审批流定义（可视化设计器保存）：校验 definition 可解析后整体覆盖。 */
+    public void update(Long id, FlowCreateDTO dto) {
+        ApprovalFlow flow = flowMapper.selectById(id);
+        if (flow == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "审批流不存在");
+        }
+        try {
+            objectMapper.readValue(dto.definition(), FlowDefinition.class);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "流程定义 JSON 非法: " + e.getMessage());
+        }
+        flow.setName(dto.name());
+        flow.setBizType(dto.bizType());
+        flow.setMode(dto.mode());
+        flow.setDefinition(dto.definition());
+        flowMapper.updateById(flow);
+    }
+
     public List<FlowVO> list(String bizType) {
         return flowMapper.selectList(Wrappers.<ApprovalFlow>lambdaQuery()
                         .eq(StrUtil.isNotBlank(bizType), ApprovalFlow::getBizType, bizType)

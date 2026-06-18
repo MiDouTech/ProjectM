@@ -5,7 +5,12 @@
         <h3 class="mido-h2">对齐到本项目的目标</h3>
         <p class="mido-text-secondary">目标为项目服务：这里展示对齐到本项目的 O / KR，进度为只读。</p>
       </div>
-      <el-button type="primary" :icon="Connection" @click="openAlign">对齐目标</el-button>
+      <div class="pg__actions">
+        <el-button :icon="Refresh" :disabled="!syncable.length" :loading="syncing" @click="syncProgress">
+          同步项目进度到 KR
+        </el-button>
+        <el-button type="primary" :icon="Connection" @click="openAlign">对齐目标</el-button>
+      </div>
     </div>
 
     <el-card shadow="never" v-loading="loading">
@@ -57,8 +62,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Connection } from '@element-plus/icons-vue'
+import { Connection, Refresh } from '@element-plus/icons-vue'
 import { goalApi, GOAL_TYPES } from '@/api/goal'
+import { reportApi } from '@/api/npss'
 
 const props = defineProps({
   projectId: { type: [Number, String], required: true },
@@ -71,6 +77,13 @@ const allGoals = ref([])
 const alignOpen = ref(false)
 const picked = ref(null)
 const saving = ref(false)
+const syncing = ref(false)
+
+// 可同步 = 量化 KR（有 metricStart/metricTarget 且 target≠start，才能把完成率映射到其量纲）
+const syncable = computed(() => rows.value.filter((r) => {
+  const g = r.goal
+  return g.metricStart != null && g.metricTarget != null && Number(g.metricTarget) !== Number(g.metricStart)
+}))
 
 const typeLabel = (t) => GOAL_TYPES.find((x) => x.value === t)?.label || t
 const pct = (v) => Math.round(Number(v) || 0)
@@ -108,6 +121,28 @@ async function confirmAlign() {
   }
 }
 
+// 手动反写：项目任务完成率 → 按各 KR 自身量纲映射当前值（current = start + (target-start)*rate/100）
+async function syncProgress() {
+  const health = await reportApi.projectHealth(props.projectId)
+  const rate = Number(health.completionRate) || 0
+  await ElMessageBox.confirm(
+    `按项目当前完成率 ${rate}% 反写 ${syncable.value.length} 个量化 KR 的进度？`,
+    '同步项目进度到 KR', { type: 'warning' })
+  syncing.value = true
+  try {
+    for (const r of syncable.value) {
+      const start = Number(r.goal.metricStart)
+      const target = Number(r.goal.metricTarget)
+      const current = Math.round((start + (target - start) * rate / 100) * 100) / 100
+      await goalApi.updateMetric(r.goal.id, current)
+    }
+    ElMessage.success(`已同步 ${syncable.value.length} 个 KR（完成率 ${rate}%）`)
+    await load()
+  } finally {
+    syncing.value = false
+  }
+}
+
 async function unalign(row) {
   await ElMessageBox.confirm(`解除目标「${row.goal.title}」与本项目的对齐？`, '解除对齐', { type: 'warning' })
   await goalApi.removeAlignment(row.alignmentId)
@@ -125,6 +160,11 @@ onMounted(load)
   justify-content: space-between;
   gap: var(--mido-space-3);
   margin-bottom: var(--mido-space-3);
+}
+.pg__actions {
+  display: flex;
+  gap: var(--mido-space-2);
+  flex: none;
 }
 .pg__title {
   display: flex;

@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,6 +44,12 @@ public class ApprovalFlowController {
     @PostMapping
     public R<Long> create(@Valid @RequestBody FlowCreateDTO dto) {
         return R.ok(flowService.create(dto));
+    }
+
+    @PutMapping("/{id}")
+    public R<Void> update(@PathVariable Long id, @Valid @RequestBody FlowCreateDTO dto) {
+        flowService.update(id, dto);
+        return R.ok();
     }
 
     @GetMapping

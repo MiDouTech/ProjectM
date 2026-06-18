@@ -36,12 +36,20 @@ export const approvalApi = {
   mine: () => request.get('/approvals/mine'),
 }
 
-/** 审批流定义（Step 3，供 el-steps 进度渲染） */
+/** 审批流定义（Step 3 进度渲染 + P2 可视化设计器 CRUD） */
 export const approvalFlowApi = {
   list: (bizType) => request.get('/approval-flows', { params: bizType ? { bizType } : {} }),
   get: (id) => request.get(`/approval-flows/${id}`),
   designerMeta: () => request.get('/approval-flows/designer-meta'),
+  create: (data) => request.post('/approval-flows', data),
+  update: (id, data) => request.put(`/approval-flows/${id}`, data),
 }
+
+/** 立项审批 bizType（与后端 ProjectInitService.BIZ_TYPE 对齐） */
+export const APPROVAL_BIZ_TYPES = [
+  { value: 'project_init', label: '立项审批' },
+  { value: 'cost', label: '费用审批' },
+]
 
 /** 项目类型字典（CLAUDE.md §6：S 战略级 / I 创新级 / O 运营级） */
 export const PROJECT_CATEGORIES = [

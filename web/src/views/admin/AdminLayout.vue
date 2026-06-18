@@ -14,6 +14,9 @@
         <el-menu-item index="/admin/org">
           <el-icon><Connection /></el-icon><span>组织架构</span>
         </el-menu-item>
+        <el-menu-item index="/admin/approval-flows">
+          <el-icon><Stamp /></el-icon><span>审批流设计器</span>
+        </el-menu-item>
       </el-menu>
     </aside>
     <section class="admin__content">
@@ -23,7 +26,7 @@
 </template>
 
 <script setup>
-import { User, Avatar, OfficeBuilding, Connection } from '@element-plus/icons-vue'
+import { User, Avatar, OfficeBuilding, Connection, Stamp } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>
