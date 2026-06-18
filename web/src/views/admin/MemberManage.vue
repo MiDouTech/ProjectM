@@ -9,6 +9,7 @@
     </div>
 
     <el-table v-loading="loading" :data="rows" stripe>
+      <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="name" label="姓名" />
       <el-table-column label="部门">
@@ -31,8 +32,11 @@
     <!-- 新建/编辑（右抽屉） -->
     <el-drawer v-model="drawer" :title="editing ? '编辑成员' : '新建成员'" size="var(--mido-drawer-width)">
       <el-form ref="formRef" :model="form" :rules="rules" :label-width="80">
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="form.phone" :disabled="editing" placeholder="作为登录账号，11 位" />
+        </el-form-item>
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" :disabled="editing" />
+          <el-input v-model="form.username" :disabled="editing" placeholder="选填，缺省取手机号" />
         </el-form-item>
         <el-form-item label="姓名" prop="name"><el-input v-model="form.name" /></el-form-item>
         <el-form-item v-if="!editing" label="密码" prop="password">
@@ -92,9 +96,12 @@ const treeProps = { label: 'name', children: 'children' }
 const drawer = ref(false)
 const editing = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, username: '', name: '', password: '', deptId: null, jobLevel: '', status: 'active' })
+const form = reactive({ id: null, phone: '', username: '', name: '', password: '', deptId: null, jobLevel: '', status: 'active' })
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' },
+  ],
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
@@ -123,12 +130,12 @@ async function load() {
 
 function openCreate() {
   editing.value = false
-  Object.assign(form, { id: null, username: '', name: '', password: '', deptId: null, jobLevel: '', status: 'active' })
+  Object.assign(form, { id: null, phone: '', username: '', name: '', password: '', deptId: null, jobLevel: '', status: 'active' })
   drawer.value = true
 }
 function openEdit(row) {
   editing.value = true
-  Object.assign(form, { id: row.id, username: row.username, name: row.name, password: '', deptId: row.deptId, jobLevel: row.jobLevel, status: row.status })
+  Object.assign(form, { id: row.id, phone: row.phone, username: row.username, name: row.name, password: '', deptId: row.deptId, jobLevel: row.jobLevel, status: row.status })
   drawer.value = true
 }
 async function save() {
@@ -138,7 +145,7 @@ async function save() {
     if (editing.value) {
       await userApi.update(form.id, { name: form.name, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
     } else {
-      await userApi.create({ username: form.username, name: form.name, password: form.password, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
+      await userApi.create({ phone: form.phone, username: form.username || undefined, name: form.name, password: form.password, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
     }
     ElMessage.success('保存成功')
     drawer.value = false

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +41,10 @@ class ApprovalServiceTest {
 
     private static final String SINGLE_NODE =
             "{\"nodes\":[{\"key\":\"n1\",\"name\":\"审批\",\"approvers\":[100],\"mode\":\"or\"}]}";
+    private static final String TWO_NODE =
+            "{\"nodes\":["
+            + "{\"key\":\"n1\",\"name\":\"一审\",\"approvers\":[100],\"mode\":\"or\"},"
+            + "{\"key\":\"n2\",\"name\":\"二审\",\"approvers\":[200,300],\"mode\":\"or\"}]}";
 
     @Mock private ApprovalFlowMapper flowMapper;
     @Mock private ApprovalInstanceMapper instanceMapper;
@@ -93,7 +99,10 @@ class ApprovalServiceTest {
         verify(guardRegistry).run(any(), any());
         verify(instanceMapper).insert(any(ApprovalInstance.class));
         verify(taskMapper).insert(any(ApprovalTask.class));
-        verify(eventPublisher).publish(eq("approval.submitted"), any());
+        // 事件携带首节点审批人，供通知监听器多通道通知
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.submitted"), captor.capture());
+        assertEquals(List.of(100L), captor.getValue().get("approverIds"));
     }
 
     @Test
@@ -116,6 +125,34 @@ class ApprovalServiceTest {
         assertEquals(ApprovalInstance.STATUS_APPROVED, inst.getStatus());
         verify(eventPublisher).publish(eq("approval.node.approved"), any());
         verify(eventPublisher).publish(eq("approval.approved"), any());
+    }
+
+    @Test
+    void approveFirstNodeCarriesNextApproversAndAdvances() {
+        login(100);
+        ApprovalInstance inst = pendingInstance();
+        ApprovalFlow twoNode = flow();
+        twoNode.setDefinition(TWO_NODE);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        when(flowMapper.selectById(10L)).thenReturn(twoNode);
+        ApprovalTask todo = new ApprovalTask();
+        todo.setInstanceId(1L);
+        todo.setNode("n1");
+        todo.setApproverId(100L);
+        when(taskMapper.selectOne(any())).thenReturn(todo);
+        ApprovalTask approved = new ApprovalTask();
+        approved.setApproverId(100L);
+        when(taskMapper.selectList(any())).thenReturn(List.of(approved));
+
+        service.act(1L, new ActDTO("approve", "ok"));
+
+        // 推进到 n2、为其建待办、事件携带下一节点审批人
+        assertEquals("n2", inst.getCurrentNode());
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.node.approved"), captor.capture());
+        assertEquals(List.of(200L, 300L), captor.getValue().get("nextApproverIds"));
+        assertEquals("n2", captor.getValue().get("nextNode"));
+        verify(eventPublisher, never()).publish(eq("approval.approved"), any());
     }
 
     @Test
@@ -143,5 +180,53 @@ class ApprovalServiceTest {
         when(instanceMapper.selectById(1L)).thenReturn(inst);
 
         assertThrows(BizException.class, () -> service.act(1L, new ActDTO("approve", null)));
+    }
+
+    @Test
+    void myPendingReturnsOnlyUnprocessedOnPendingInstances() {
+        login(100);
+        ApprovalTask t1 = pendingTask(10L);   // 实例 pending → 计入
+        ApprovalTask t2 = pendingTask(20L);   // 实例 approved → 排除
+        when(taskMapper.selectList(any())).thenReturn(List.of(t1, t2));
+        when(instanceMapper.selectBatchIds(any())).thenReturn(List.of(
+                instanceWithStatus(10L, ApprovalInstance.STATUS_PENDING),
+                instanceWithStatus(20L, ApprovalInstance.STATUS_APPROVED)));
+
+        var result = service.myPending();
+
+        assertEquals(1, result.size());
+        assertEquals(10L, result.get(0).instanceId());
+        assertEquals("n1", result.get(0).node());
+    }
+
+    @Test
+    void myPendingDedupesMultipleTasksOnSameInstance() {
+        login(100);
+        // 同一用户在同一实例的两条未处理待办（多节点）→ 去重为一条，避免前端 key 冲突
+        when(taskMapper.selectList(any())).thenReturn(List.of(pendingTask(10L), pendingTask(10L)));
+        when(instanceMapper.selectBatchIds(any())).thenReturn(List.of(
+                instanceWithStatus(10L, ApprovalInstance.STATUS_PENDING)));
+
+        var result = service.myPending();
+
+        assertEquals(1, result.size());
+        assertEquals(10L, result.get(0).instanceId());
+    }
+
+    private ApprovalTask pendingTask(long instanceId) {
+        ApprovalTask t = new ApprovalTask();
+        t.setInstanceId(instanceId);
+        t.setNode("n1");
+        t.setApproverId(100L);
+        return t;
+    }
+
+    private ApprovalInstance instanceWithStatus(long id, String status) {
+        ApprovalInstance i = new ApprovalInstance();
+        i.setId(id);
+        i.setStatus(status);
+        i.setBizType("project_init");
+        i.setBizId(id);
+        return i;
     }
 }

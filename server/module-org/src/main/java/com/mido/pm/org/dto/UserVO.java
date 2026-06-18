@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 /** 用户视图（不含 password）。 */
 public record UserVO(
         Long id,
+        String phone,
         String username,
         String name,
         Long deptId,

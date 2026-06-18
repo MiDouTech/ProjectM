@@ -20,5 +20,6 @@ public record ProjectVO(
         LocalDate endDate,
         LocalDate valueReviewDueDate,
         LocalDateTime pmoRegisteredAt,
-        LocalDateTime createTime) {
+        LocalDateTime createTime,
+        Long deptId) {
 }

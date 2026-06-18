@@ -1,18 +1,26 @@
 package com.mido.pm.project.service;
 
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.project.dto.ProjectCreateDTO;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
+import com.mido.pm.project.dto.ProjectUpdateDTO;
 import com.mido.pm.project.entity.PmProject;
 import com.mido.pm.project.mapper.PmProjectMapper;
+import com.mido.pm.project.mapper.PmProjectMemberMapper;
 import com.mido.pm.provider.identity.IdentityProvider;
 import com.mido.pm.provider.identity.UserPrincipal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,9 +43,13 @@ class ProjectServiceTest {
     @Mock
     private PmProjectMapper projectMapper;
     @Mock
+    private PmProjectMemberMapper memberMapper;
+    @Mock
     private DomainEventPublisher eventPublisher;
     @Mock
     private IdentityProvider identityProvider;
+    @Mock
+    private AuditLogService auditLogService;
     @InjectMocks
     private ProjectService service;
 
@@ -105,6 +117,53 @@ class ProjectServiceTest {
         assertThrows(BizException.class,
                 () -> service.transitionManual(1L, new ProjectTransitionDTO("已注册", true)));
         verifyNoInteractions(projectMapper, eventPublisher);
+    }
+
+    @Test
+    void createRecordsActivity() {
+        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null));
+        verify(auditLogService).record(eq("project"), any(), eq(AuditActions.CREATED), any());
+    }
+
+    @Test
+    void createSetsDeptFromLeader() {
+        // 归属部门 = leader 所属部门（数据范围用）
+        com.mido.pm.provider.identity.UserPrincipal leader = new com.mido.pm.provider.identity.UserPrincipal();
+        leader.setDeptId(88L);
+        when(identityProvider.loadById(1L)).thenReturn(java.util.Optional.of(leader));
+
+        ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
+        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null));
+
+        verify(projectMapper).insert(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(88L, captor.getValue().getDeptId());
+    }
+
+    @Test
+    void transitionRecordsStatusChanged() {
+        when(projectMapper.selectById(1L)).thenReturn(project("草稿", "S", 1L));
+        service.transition(1L, new ProjectTransitionDTO("审批中", null));
+        verify(auditLogService).record(eq("project"), eq(1L), eq(AuditActions.STATUS_CHANGED), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateRecordsLeaderChangeOnly() {
+        PmProject p = project("草稿", "O", 1L);
+        p.setName("旧名");
+        when(projectMapper.selectById(1L)).thenReturn(p);
+
+        // 仅改负责人（1→2），名称不变
+        service.update(1L, new ProjectUpdateDTO("旧名", null, 2L, null, null, null, null));
+
+        ArgumentCaptor<Object> detail = ArgumentCaptor.forClass(Object.class);
+        verify(auditLogService).record(eq("project"), eq(1L), eq(AuditActions.UPDATED), detail.capture());
+        List<Map<String, Object>> changes =
+                (List<Map<String, Object>>) ((Map<String, Object>) detail.getValue()).get("changes");
+        assertEquals(1, changes.size());
+        assertEquals("leaderId", changes.get(0).get("field"));
+        assertEquals(1L, changes.get(0).get("from"));
+        assertEquals(2L, changes.get(0).get("to"));
     }
 
     @Test

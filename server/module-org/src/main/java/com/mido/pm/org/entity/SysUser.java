@@ -10,6 +10,8 @@ import com.mido.pm.common.entity.BaseEntity;
 public class SysUser extends BaseEntity {
 
     private String username;
+    /** 手机号：登录账号（全局唯一），手机号/用户名双登录 */
+    private String phone;
     private String name;
     private String password;
     private Long deptId;
@@ -23,6 +25,14 @@ public class SysUser extends BaseEntity {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public String getName() {

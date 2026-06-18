@@ -34,10 +34,16 @@
               </el-empty>
             </el-tab-pane>
             <el-tab-pane label="验收" name="verify">
-              <el-empty description="NPSS 两段式价值验收在后续验收模块前端接入" />
+              <ProjectVerifyPane :project="project" :project-id="projectId" />
+            </el-tab-pane>
+            <el-tab-pane label="甘特图" name="gantt" lazy>
+              <GanttChart :project-id="projectId" />
+            </el-tab-pane>
+            <el-tab-pane label="费用管理" name="cost">
+              <CostPanel :project-id="projectId" />
             </el-tab-pane>
             <el-tab-pane label="文件" name="doc">
-              <el-empty description="项目文件在文档模块前端接入" />
+              <ProjectFilesPanel :project-id="projectId" :user-name="userName" />
             </el-tab-pane>
           </el-tabs>
         </section>
@@ -55,7 +61,7 @@
               <el-empty description="评论在协作模块前端接入" />
             </el-tab-pane>
             <el-tab-pane label="活动" name="activity">
-              <el-empty description="活动日志在协作模块前端接入" />
+              <ActivityTimeline entity-type="project" :entity-id="projectId" :user-name="userName" />
             </el-tab-pane>
           </el-tabs>
         </aside>
@@ -71,7 +77,12 @@ import { Operation, User } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import { projectApi } from '@/api/project'
+import ActivityTimeline from '@/components/ActivityTimeline.vue'
+import CostPanel from '@/components/CostPanel.vue'
+import ProjectFilesPanel from '@/components/ProjectFilesPanel.vue'
+import GanttChart from '@/components/GanttChart.vue'
 import ProjectInfoPane from './panes/ProjectInfoPane.vue'
+import ProjectVerifyPane from './panes/ProjectVerifyPane.vue'
 import ProjectTransitionPane from './panes/ProjectTransitionPane.vue'
 import ProjectApprovalPane from './panes/ProjectApprovalPane.vue'
 

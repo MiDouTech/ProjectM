@@ -10,6 +10,7 @@ import com.mido.pm.approval.domain.FlowNode;
 import com.mido.pm.approval.domain.NodeStatus;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
+import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
@@ -27,6 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,9 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ApprovalService {
+
+    /** 工作台「待我审批」卡返回上限 */
+    private static final int MINE_LIMIT = 50;
 
     private final ApprovalFlowMapper flowMapper;
     private final ApprovalInstanceMapper instanceMapper;
@@ -87,7 +93,8 @@ public class ApprovalService {
         eventPublisher.publish(ApprovalEvents.SUBMITTED, payload(
                 "instanceId", instance.getId(), "flowId", flow.getId(),
                 "bizType", instance.getBizType(), "bizId", instance.getBizId(),
-                "applicantId", instance.getApplicantId()));
+                "applicantId", instance.getApplicantId(),
+                "approverIds", first.approvers() == null ? List.of() : first.approvers()));
         return instance.getId();
     }
 
@@ -147,12 +154,16 @@ public class ApprovalService {
             return; // 会签未齐，等待其余审批人
         }
 
-        eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
-                "instanceId", instanceId, "node", current.key(), "approverId", approverId));
-
         int nextIndex = active.indexOf(current) + 1;
-        if (nextIndex < active.size()) {
-            FlowNode next = active.get(nextIndex);
+        FlowNode next = nextIndex < active.size() ? active.get(nextIndex) : null;
+
+        // 携带下一节点审批人，供通知监听器多通道通知"轮到你审批"（无下一节点则为空）
+        eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
+                "instanceId", instanceId, "node", current.key(), "approverId", approverId,
+                "nextNode", next == null ? null : next.key(),
+                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers()));
+
+        if (next != null) {
             guardRegistry.run(next, ctx);
             createTasks(instanceId, next);
             instance.setCurrentNode(next.key());
@@ -164,6 +175,38 @@ public class ApprovalService {
                     "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                     "applicantId", instance.getApplicantId()));
         }
+    }
+
+    /**
+     * 待我审批（工作台卡）：当前用户名下未处理(action 为空)的待办，且其实例仍 pending；按待办新→旧。
+     */
+    public List<PendingApprovalVO> myPending() {
+        Long me = currentUserId();
+        List<ApprovalTask> tasks = taskMapper.selectList(Wrappers.<ApprovalTask>lambdaQuery()
+                .eq(ApprovalTask::getApproverId, me)
+                .isNull(ApprovalTask::getAction)
+                .orderByDesc(ApprovalTask::getId));
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+        List<Long> instanceIds = tasks.stream().map(ApprovalTask::getInstanceId).distinct().toList();
+        Map<Long, ApprovalInstance> instById = instanceMapper.selectBatchIds(instanceIds).stream()
+                .collect(Collectors.toMap(ApprovalInstance::getId, i -> i));
+        // 一个实例至多一条（同一用户在同一实例多节点待办去重，避免前端 key 冲突）；上限 MINE_LIMIT
+        Set<Long> seenInstances = new HashSet<>();
+        List<PendingApprovalVO> result = new ArrayList<>();
+        for (ApprovalTask t : tasks) {
+            ApprovalInstance inst = instById.get(t.getInstanceId());
+            if (inst != null && ApprovalInstance.STATUS_PENDING.equals(inst.getStatus())
+                    && seenInstances.add(inst.getId())) {
+                result.add(new PendingApprovalVO(inst.getId(), inst.getBizType(), inst.getBizId(),
+                        t.getNode(), inst.getApplicantId(), inst.getCreateTime()));
+                if (result.size() >= MINE_LIMIT) {
+                    break;
+                }
+            }
+        }
+        return result;
     }
 
     public InstanceVO getInstance(Long id) {

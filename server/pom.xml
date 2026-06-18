@@ -31,6 +31,7 @@
         <module>module-cost</module>
         <module>module-collab</module>
         <module>module-doc</module>
+        <module>module-view</module>
         <module>module-report</module>
         <module>module-ai</module>
         <module>bootstrap</module>
@@ -46,6 +47,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <jjwt.version>0.12.6</jjwt.version>
         <shardingsphere.version>5.5.0</shardingsphere.version>
+        <minio.version>8.5.12</minio.version>
     </properties>
 
     <dependencyManagement>
@@ -113,6 +115,11 @@
             </dependency>
             <dependency>
                 <groupId>com.mido.pm</groupId>
+                <artifactId>module-view</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
                 <artifactId>module-report</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -164,6 +171,12 @@
                 <groupId>org.apache.shardingsphere</groupId>
                 <artifactId>shardingsphere-jdbc</artifactId>
                 <version>${shardingsphere.version}</version>
+            </dependency>
+            <dependency>
+                <!-- MinIO / S3 兼容对象存储客户端（StorageProvider 实现用） -->
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

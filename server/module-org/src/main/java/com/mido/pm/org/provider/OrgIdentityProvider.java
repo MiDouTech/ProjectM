@@ -54,6 +54,13 @@ public class OrgIdentityProvider implements IdentityProvider {
     }
 
     @Override
+    public Optional<UserPrincipal> loadByPhone(String phone) {
+        SysUser user = userMapper.selectOne(
+                Wrappers.<SysUser>lambdaQuery().eq(SysUser::getPhone, phone));
+        return user == null ? Optional.empty() : Optional.of(build(user));
+    }
+
+    @Override
     public Optional<UserPrincipal> loadById(Long userId) {
         SysUser user = userMapper.selectById(userId);
         return user == null ? Optional.empty() : Optional.of(build(user));
@@ -63,6 +70,7 @@ public class OrgIdentityProvider implements IdentityProvider {
         UserPrincipal p = new UserPrincipal();
         p.setUserId(user.getId());
         p.setUsername(user.getUsername());
+        p.setPhone(user.getPhone());
         p.setName(user.getName());
         p.setPasswordHash(user.getPassword());
         p.setDeptId(user.getDeptId());

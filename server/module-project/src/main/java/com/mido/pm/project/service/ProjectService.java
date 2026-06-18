@@ -4,6 +4,8 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
@@ -18,17 +20,26 @@ import com.mido.pm.project.dto.ProjectTransitionDTO;
 import com.mido.pm.project.dto.ProjectUpdateDTO;
 import com.mido.pm.project.dto.ProjectVO;
 import com.mido.pm.project.entity.PmProject;
+import com.mido.pm.project.entity.PmProjectMember;
 import com.mido.pm.project.event.ProjectEvents;
 import com.mido.pm.project.mapper.PmProjectMapper;
+import com.mido.pm.project.mapper.PmProjectMemberMapper;
+import com.mido.pm.common.datascope.DataScopeContext;
+import com.mido.pm.common.datascope.ScopeResource;
 import com.mido.pm.provider.identity.IdentityProvider;
+import com.mido.pm.provider.identity.UserPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -49,16 +60,45 @@ public class ProjectService {
             ProjectStatus.RESULT_VERIFY.getCode(),
             ProjectStatus.CLOSED.getCode());
 
+    /** 工作台「我参与的项目」上限 */
+    private static final int MINE_LIMIT = 50;
+
     private final PmProjectMapper projectMapper;
+    private final PmProjectMemberMapper memberMapper;
     private final DomainEventPublisher eventPublisher;
     private final IdentityProvider identityProvider;
+    private final AuditLogService auditLogService;
 
-    public ProjectService(PmProjectMapper projectMapper, DomainEventPublisher eventPublisher,
-                          IdentityProvider identityProvider) {
+    public ProjectService(PmProjectMapper projectMapper, PmProjectMemberMapper memberMapper,
+                          DomainEventPublisher eventPublisher,
+                          IdentityProvider identityProvider, AuditLogService auditLogService) {
         this.projectMapper = projectMapper;
+        this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
         this.identityProvider = identityProvider;
+        this.auditLogService = auditLogService;
     }
+
+    /**
+     * 我参与的项目（工作台卡）：我负责(leader) ∪ 我是成员，去重、按 id 倒序，上限 {@value #MINE_LIMIT}。
+     */
+    public List<ProjectVO> myProjects() {
+        Long me = UserContext.currentUserId();
+        List<Long> memberPids = memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
+                        .select(PmProjectMember::getProjectId)
+                        .eq(PmProjectMember::getUserId, me))
+                .stream().map(PmProjectMember::getProjectId).distinct().toList();
+        var wrapper = Wrappers.<PmProject>lambdaQuery();
+        wrapper.and(w -> {
+            w.eq(PmProject::getLeaderId, me);
+            if (!memberPids.isEmpty()) {
+                w.or().in(PmProject::getId, memberPids);
+            }
+        });
+        wrapper.orderByDesc(PmProject::getId).last("limit " + MINE_LIMIT);
+        return projectMapper.selectList(wrapper).stream().map(this::toVO).toList();
+    }
+
 
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectCreateDTO dto) {
@@ -71,6 +111,7 @@ public class ProjectService {
         p.setCategory(dto.category());
         p.setSubCategory(dto.subCategory());
         p.setLeaderId(dto.leaderId());
+        p.setDeptId(leaderDept(dto.leaderId())); // 归属部门=leader 部门（数据范围用）
         p.setBudget(dto.budget());
         p.setTemplateId(dto.templateId());
         p.setDescription(dto.description());
@@ -82,11 +123,21 @@ public class ProjectService {
 
         eventPublisher.publish(ProjectEvents.CREATED, basePayload(p.getId())
                 .add("name", p.getName()).add("category", p.getCategory()).build());
+        auditLogService.record(AuditActions.TARGET_PROJECT, p.getId(), AuditActions.CREATED, null);
         return p.getId();
     }
 
     public ProjectVO get(Long id) {
         return toVO(requireExists(id));
+    }
+
+    /** 到期待价值验收的项目：已结案 且 value_review_due_date<=today（NPSS 定时 Job 用，npss-rule §2）。 */
+    public List<ProjectVO> dueForValueReview() {
+        return projectMapper.selectList(Wrappers.<PmProject>lambdaQuery()
+                        .eq(PmProject::getStatus, ProjectStatus.CLOSED.getCode())
+                        .isNotNull(PmProject::getValueReviewDueDate)
+                        .le(PmProject::getValueReviewDueDate, java.time.LocalDate.now()))
+                .stream().map(this::toVO).toList();
     }
 
     public PageResult<ProjectVO> page(ProjectQueryDTO query) {
@@ -99,7 +150,9 @@ public class ProjectService {
                 .eq(query.leaderId() != null, PmProject::getLeaderId, query.leaderId())
                 .like(StrUtil.isNotBlank(query.keyword()), PmProject::getName, query.keyword())
                 .orderByDesc(PmProject::getId);
-        Page<PmProject> result = projectMapper.selectPage(page, wrapper);
+        // 数据范围(部门/本人 leader_id) ∪ 成员可见性(我参与的项目 id)
+        Page<PmProject> result = DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
+                "id", myVisibleProjectIds(), () -> projectMapper.selectPage(page, wrapper));
         List<ProjectVO> list = result.getRecords().stream().map(this::toVO).toList();
         return PageResult.of(list, result.getTotal(), pageNo, size);
     }
@@ -107,14 +160,30 @@ public class ProjectService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, ProjectUpdateDTO dto) {
         PmProject p = requireExists(id);
+        // 编辑前后字段差异 → 活动流（一次写一条，含 changes 列表）
+        List<Map<String, Object>> changes = new ArrayList<>();
+        addChange(changes, "name", p.getName(), dto.name());
+        addChange(changes, "subCategory", p.getSubCategory(), dto.subCategory());
+        addChange(changes, "leaderId", p.getLeaderId(), dto.leaderId());
+        addBudgetChange(changes, p.getBudget(), dto.budget());
+        addChange(changes, "description", p.getDescription(), dto.description());
+        addChange(changes, "startDate", p.getStartDate(), dto.startDate());
+        addChange(changes, "endDate", p.getEndDate(), dto.endDate());
+
         p.setName(dto.name());
         p.setSubCategory(dto.subCategory());
         p.setLeaderId(dto.leaderId());
+        p.setDeptId(leaderDept(dto.leaderId())); // leader 变更时同步归属部门
         p.setBudget(dto.budget());
         p.setDescription(dto.description());
         p.setStartDate(dto.startDate());
         p.setEndDate(dto.endDate());
         projectMapper.updateById(p);
+
+        if (!changes.isEmpty()) {
+            auditLogService.record(AuditActions.TARGET_PROJECT, id, AuditActions.UPDATED,
+                    Map.of("changes", changes));
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -175,6 +244,8 @@ public class ProjectService {
         eventPublisher.publish(ProjectEvents.STATUS_CHANGED, basePayload(id)
                 .add("from", from == null ? null : from.getCode())
                 .add("to", to.getCode()).build());
+        auditLogService.record(AuditActions.TARGET_PROJECT, id, AuditActions.STATUS_CHANGED,
+                statusDetail(from == null ? null : from.getCode(), to.getCode()));
         if (to == ProjectStatus.REGISTERED) {
             eventPublisher.publish(ProjectEvents.REGISTERED, basePayload(id).build());
         } else if (to == ProjectStatus.CLOSED) {
@@ -183,12 +254,64 @@ public class ProjectService {
         }
     }
 
+    /**
+     * 我参与的项目 id（leader ∪ 成员）：成员可见性 ACL 轴——即便在数据范围（部门/本人）之外，
+     * 我参与的项目/其任务也应可见。供 page/任务列表/报表作并集。
+     */
+    public List<Long> myVisibleProjectIds() {
+        Long me = UserContext.currentUserId();
+        if (me == null) {
+            return List.of();
+        }
+        Set<Long> ids = new LinkedHashSet<>();
+        memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
+                .eq(PmProjectMember::getUserId, me)).forEach(m -> ids.add(m.getProjectId()));
+        projectMapper.selectList(Wrappers.<PmProject>lambdaQuery()
+                .eq(PmProject::getLeaderId, me)).forEach(p -> ids.add(p.getId()));
+        return new ArrayList<>(ids);
+    }
+
+    /** leader 所属部门（数据范围归属用）；leader 为空或查不到则 null。 */
+    private Long leaderDept(Long leaderId) {
+        return leaderId == null ? null
+                : identityProvider.loadById(leaderId).map(UserPrincipal::getDeptId).orElse(null);
+    }
+
     private String leaderJobLevel(PmProject p) {
         if (p.getLeaderId() == null) {
             return null;
         }
         return identityProvider.loadById(p.getLeaderId())
                 .map(up -> up.getJobLevel()).orElse(null);
+    }
+
+    /** 记一个字段变更（值不等才记；from/to 允许 null，故不用 Map.of）。 */
+    private void addChange(List<Map<String, Object>> changes, String field, Object oldVal, Object newVal) {
+        if (Objects.equals(oldVal, newVal)) {
+            return;
+        }
+        Map<String, Object> change = new LinkedHashMap<>();
+        change.put("field", field);
+        change.put("from", oldVal);
+        change.put("to", newVal);
+        changes.add(change);
+    }
+
+    /** 预算按数值比较（忽略 BigDecimal 标度差异）。 */
+    private void addBudgetChange(List<Map<String, Object>> changes, BigDecimal oldVal, BigDecimal newVal) {
+        boolean changed = (oldVal == null) != (newVal == null)
+                || (oldVal != null && oldVal.compareTo(newVal) != 0);
+        if (changed) {
+            addChange(changes, "budget", oldVal, newVal);
+        }
+    }
+
+    /** 状态变更明细 {from,to}（from 允许 null）。 */
+    private Map<String, Object> statusDetail(String from, String to) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("from", from);
+        detail.put("to", to);
+        return detail;
     }
 
     private PmProject requireExists(Long id) {
@@ -200,7 +323,7 @@ public class ProjectService {
     }
 
     private PayloadBuilder basePayload(Long projectId) {
-        Long operatorId = UserContext.get() == null ? null : UserContext.get().getUserId();
+        Long operatorId = UserContext.currentUserId();
         return new PayloadBuilder()
                 .add("projectId", projectId)
                 .add("operatorId", operatorId)
@@ -211,7 +334,7 @@ public class ProjectService {
         return new ProjectVO(p.getId(), p.getCode(), p.getName(), p.getDescription(),
                 p.getCategory(), p.getSubCategory(), p.getTemplateId(), p.getLeaderId(),
                 p.getStatus(), p.getBudget(), p.getActualCost(), p.getStartDate(), p.getEndDate(),
-                p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime());
+                p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime(), p.getDeptId());
     }
 
     /** 事件载荷构造（保序，允许 null 值）。 */

@@ -2,8 +2,14 @@ package com.mido.pm.task.controller;
 
 import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.api.R;
+import com.mido.pm.common.audit.ActivityVO;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.task.dto.KanbanColumnVO;
 import com.mido.pm.task.dto.TaskAssignDTO;
+import com.mido.pm.task.dto.TaskBatchAssignDTO;
+import com.mido.pm.task.dto.TaskBatchDeleteDTO;
+import com.mido.pm.task.dto.TaskBatchStatusDTO;
 import com.mido.pm.task.dto.TaskCreateDTO;
 import com.mido.pm.task.dto.TaskQueryDTO;
 import com.mido.pm.task.dto.TaskTransitionDTO;
@@ -29,9 +35,11 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final AuditLogService auditLogService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, AuditLogService auditLogService) {
         this.taskService = taskService;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
@@ -84,5 +92,34 @@ public class TaskController {
     @GetMapping("/kanban")
     public R<List<KanbanColumnVO>> kanban(@RequestParam Long projectId) {
         return R.ok(taskService.kanban(projectId));
+    }
+
+    /** 批量改状态（逐条校验工作流合法性，任一非法整批回滚，每条各自发 task.status.changed）。 */
+    @PostMapping("/batch/transition")
+    public R<Void> batchTransition(@Valid @RequestBody TaskBatchStatusDTO dto) {
+        taskService.batchChangeStatus(dto.ids(), dto.targetStatus());
+        return R.ok();
+    }
+
+    /** 批量改负责人（每条各自发 task.assigned）。 */
+    @PostMapping("/batch/assignee")
+    public R<Void> batchAssign(@Valid @RequestBody TaskBatchAssignDTO dto) {
+        taskService.batchAssign(dto.ids(), dto.assigneeId());
+        return R.ok();
+    }
+
+    /** 批量删除（逻辑删，每条各自发 task.deleted）。 */
+    @PostMapping("/batch/delete")
+    public R<Void> batchDelete(@Valid @RequestBody TaskBatchDeleteDTO dto) {
+        taskService.batchDelete(dto.ids());
+        return R.ok();
+    }
+
+    /** 活动日志（谁在何时改了什么 X→Y）：分页倒序，page 从 1、size 默认 20 上限 100。 */
+    @GetMapping("/{id}/activities")
+    public R<PageResult<ActivityVO>> activities(@PathVariable Long id,
+                                                @RequestParam(defaultValue = "1") Long page,
+                                                @RequestParam(defaultValue = "20") Long size) {
+        return R.ok(auditLogService.query(AuditActions.TARGET_TASK, id, page, size));
     }
 }

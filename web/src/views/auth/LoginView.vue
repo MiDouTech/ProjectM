@@ -7,7 +7,7 @@
       </div>
       <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent>
         <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="User" />
+          <el-input v-model="form.username" placeholder="手机号 / 用户名" :prefix-icon="User" />
         </el-form-item>
         <el-form-item prop="password">
           <el-input
@@ -37,9 +37,9 @@ import { useUserStore } from '@/store/user'
 const router = useRouter()
 const formRef = ref()
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: '' })
+const form = reactive({ username: '13800000000', password: '' })
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  username: [{ required: true, message: '请输入手机号或用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 

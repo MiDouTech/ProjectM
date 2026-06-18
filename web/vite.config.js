@@ -8,6 +8,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // frappe-gantt 的 exports 仅暴露入口，CSS 需显式指向 dist 文件
+      'frappe-gantt/dist/frappe-gantt.css': fileURLToPath(
+        new URL('./node_modules/frappe-gantt/dist/frappe-gantt.css', import.meta.url)),
     },
   },
   server: {

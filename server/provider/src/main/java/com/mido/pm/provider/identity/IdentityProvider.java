@@ -14,6 +14,9 @@ public interface IdentityProvider {
     /** 按用户名加载（含密码哈希，供登录校验）。 */
     Optional<UserPrincipal> loadByUsername(String username);
 
+    /** 按手机号加载（含密码哈希，供手机号登录校验）。 */
+    Optional<UserPrincipal> loadByPhone(String phone);
+
     /** 按用户 ID 加载（含权限码/数据范围，供令牌校验后装配安全上下文）。 */
     Optional<UserPrincipal> loadById(Long userId);
 }

@@ -20,5 +20,18 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <!-- 跨域：项目状态流转/到期扫描、干系人权重、消息通知（经 Service/Provider 接口） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-project</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-stakeholder</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>provider</artifactId>
+        </dependency>
     </dependencies>
 </project>

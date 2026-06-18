@@ -18,8 +18,10 @@
 | `task.created` | 建任务 | 消息(通知负责人) |
 | `task.assigned` | 指派/改派 | 消息 |
 | `task.status.changed` | 状态流转(含看板拖拽) | 报表、AI(风险) |
+| `task.deleted` | 删除任务(逻辑删，含批量) | 报表、活动流 |
 | `task.overdue` | 定时扫描逾期 | 消息(催办)、AI(风险) |
 | `task.milestone.reached` | 里程碑任务完成 | 报表、消息 |
+| `workhour.logged` | 登记/修改工时(预估/实际) | 报表(工时统计) |
 
 ## 3. 立项/审批域 approval.*
 | 事件 | 触发 | 订阅方 |
@@ -37,12 +39,14 @@
 | `npss.scored` | 干系人提交评分 | 报表 |
 | `npss.review.completed` | 评分汇总完成 | 报表(PMO汇总)、消息、AI |
 
-## 5. 协作/费用 collab.* / cost.*
+## 5. 协作/费用/附件 collab.* / cost.* / attachment.*
 | 事件 | 触发 | 订阅方 |
 |---|---|---|
 | `comment.created` | 评论(含@) | 消息(@提醒) |
 | `cost.submitted` | 提报费用 | 审批、消息 |
 | `cost.exceeded.budget` | 费用累计超预算 | 消息(预警)、AI |
+| `attachment.uploaded` | 上传附件 | 报表、活动流 |
+| `attachment.deleted` | 删除附件(逻辑删) | 活动流 |
 
 ## 6. 订阅方说明
 - **消息(MessageProvider)**：阶段一站内信；激活后企微推送。按事件类型路由到 `pm_notification` 或企微应用消息。

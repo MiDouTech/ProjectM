@@ -27,6 +27,7 @@ CREATE TABLE pm_project (
   category VARCHAR(8) NOT NULL,            -- S/I/O
   sub_category VARCHAR(16),                -- 常规运营/定向整改/专项督办
   template_id BIGINT, leader_id BIGINT,
+  dept_id BIGINT,                          -- V9 追加：归属部门(=leader 部门)，数据范围按部门过滤
   status VARCHAR(32), workflow_id BIGINT,
   start_date DATE, end_date DATE,
   budget DECIMAL(14,2), actual_cost DECIMAL(14,2),
@@ -49,7 +50,8 @@ CREATE TABLE pm_project_template (
 CREATE TABLE pm_task (
   id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, project_id BIGINT NOT NULL,
   parent_id BIGINT DEFAULT 0, title VARCHAR(256) NOT NULL, description TEXT,
-  assignee_id BIGINT, status VARCHAR(32), priority TINYINT, stage VARCHAR(32),
+  assignee_id BIGINT, dept_id BIGINT,  -- dept_id V9 追加：=所属项目部门，数据范围按部门过滤
+  status VARCHAR(32), priority TINYINT, stage VARCHAR(32),
   start_date DATE, due_date DATE, is_milestone TINYINT DEFAULT 0, recur_rule JSON,
   est_hours DECIMAL(8,2), actual_hours DECIMAL(8,2),
   custom_fields JSON, ai_source VARCHAR(32) DEFAULT 'human',
@@ -124,7 +126,10 @@ CREATE TABLE pm_workflow_transition (id BIGINT PRIMARY KEY, tenant_id BIGINT, wo
 -- ========== 视图配置 ==========
 CREATE TABLE pm_view (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), owner_id BIGINT,
-  type VARCHAR(16), config JSON);
+  type VARCHAR(16), name VARCHAR(64), project_id BIGINT, config JSON);
+-- name/project_id 由 V8 追加（视图设计器命名与项目级绑定）；scope=personal|project|workbench。
+-- config 仅承载查询配置(锁定 schema)：{groupBy, sort:[{field,dir}], expandLevel(1-5),
+--   filters:{logic:and|or, conditions:[{field,op,value}]}, columns:[field]}。详见 ViewConfig。
 
 -- ========== 自定义字段 EAV ==========
 CREATE TABLE pm_field_def (id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), name VARCHAR(64), type VARCHAR(32));
@@ -136,7 +141,7 @@ CREATE TABLE pm_notification (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id B
 CREATE TABLE pm_attachment (id BIGINT PRIMARY KEY, tenant_id BIGINT, entity_type VARCHAR(16), entity_id BIGINT, name VARCHAR(256), oss_key VARCHAR(512), size BIGINT, KEY idx_entity(entity_type,entity_id));
 
 -- ========== 组织/权限域 ==========
-CREATE TABLE sys_user (id BIGINT PRIMARY KEY, tenant_id BIGINT, username VARCHAR(64), name VARCHAR(64), password VARCHAR(128), dept_id BIGINT, job_level VARCHAR(8), status VARCHAR(16), KEY idx_uname(username));
+CREATE TABLE sys_user (id BIGINT PRIMARY KEY, tenant_id BIGINT, username VARCHAR(64), phone VARCHAR(20), name VARCHAR(64), password VARCHAR(128), dept_id BIGINT, job_level VARCHAR(8), status VARCHAR(16), KEY idx_uname(username), UNIQUE KEY uk_user_phone(phone)); -- phone=登录账号(全局唯一,见 V11)；手机号/用户名双登录
 CREATE TABLE sys_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), parent_id BIGINT DEFAULT 0, KEY idx_parent(parent_id));
 CREATE TABLE sys_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), code VARCHAR(64));
 CREATE TABLE sys_user_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, role_id BIGINT, KEY idx_user(user_id));

@@ -27,7 +27,8 @@ public class DataScopeInterceptor implements InnerInterceptor {
             return;
         }
         DataScope scope = user.effectiveScope(setting.resource());
-        String condition = DataScopeHelper.buildCondition(user, scope, setting.deptColumn(), setting.userColumn());
+        String condition = DataScopeHelper.buildCondition(user, scope, setting.deptColumn(),
+                setting.userColumn(), setting.memberColumn(), setting.memberIds());
         if (condition == null) {
             // ALL：不限制
             return;

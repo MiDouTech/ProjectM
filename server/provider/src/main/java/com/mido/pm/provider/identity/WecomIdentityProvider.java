@@ -14,6 +14,11 @@ public class WecomIdentityProvider implements IdentityProvider {
     }
 
     @Override
+    public Optional<UserPrincipal> loadByPhone(String phone) {
+        throw new UnsupportedOperationException("TODO: 企微通讯录身份实现，P2 激活");
+    }
+
+    @Override
     public Optional<UserPrincipal> loadById(Long userId) {
         throw new UnsupportedOperationException("TODO: 企微通讯录身份实现，P2 激活");
     }

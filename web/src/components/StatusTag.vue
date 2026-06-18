@@ -20,15 +20,22 @@ const STATUS_TYPE = {
   未开始: 'info', 已注册: 'info', 草稿: 'info', 已归档: 'info',
   // primary：进行中 / 价值验收中
   进行中: 'primary', 价值验收中: 'primary', 审批中: 'primary',
-  // warning：有风险 / 临期 / 结果验收中
-  有风险: 'warning', 临期: 'warning', 结果验收中: 'warning', 结果验收: 'warning',
+  // warning：有风险 / 临期 / 结果验收中 / NPSS 混合
+  有风险: 'warning', 临期: 'warning', 结果验收中: 'warning', 结果验收: 'warning', 混合: 'warning',
+  // danger：逾期 / 阻塞 / 失败（NPSS）
+  失败: 'danger',
   // danger：逾期 / 阻塞 / 失败
   逾期: 'danger', 阻塞: 'danger', 失败: 'danger',
-  // success：已完成 / 已结案 / 成功 / 已评价
-  已完成: 'success', 已结案: 'success', 成功: 'success', 已评价: 'success', 已验收: 'success',
+  // success：已完成 / 已结案 / 成功 / 已评价 / PMO 达标
+  已完成: 'success', 已结案: 'success', 成功: 'success', 已评价: 'success', 已验收: 'success', 达标: 'success',
+  未达标: 'warning',
   // 账号启用/停用（§4 派生，待回写 design-system §1.5 登记）
   active: 'success', 启用: 'success',
   disabled: 'info', 停用: 'info',
+  // 费用状态（pm_cost.status，待回写 design-system §1.5 登记）
+  未发生: 'info', 已发生: 'success', 被退回: 'danger',
+  // 项目健康度（报表，待回写 design-system §1.5 登记）
+  健康: 'success', 关注: 'warning', 风险: 'danger',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')
