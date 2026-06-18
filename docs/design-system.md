@@ -165,10 +165,13 @@
 | `ViewSwitcher` | 看板/列表/表格/甘特/日历/仪表盘切换器 | 自研 |
 | `UserPicker` | 成员/部门/角色三态选人（预留企微组织树） | 自研 |
 | `StatusTag` | 业务状态标签，内置 1.5 映射表 | 封装 el-tag |
+| `EmptyState` | 统一空状态（描述 + 可选主操作），落实 §8 空态规范 | 封装 el-empty |
 
 ### 5.3 状态标签 StatusTag —— 全局唯一着色入口
 
-所有状态展示**必须**走 `<StatusTag :status="...">`，组件内部据第 1.5 节映射 type 与文案。禁止业务页面自己写 `el-tag type="danger"`。这是一致性的强约束点。
+**业务状态**（任务/项目/审批/NPSS 等生命周期状态，见 1.5 映射表）展示**必须**走 `<StatusTag :status="...">`，组件内部据第 1.5 节映射 type 与文案。**禁止业务页面用带语义色的 `el-tag type="danger/success/warning/primary"` 表达业务状态。**
+
+**中性元标签**（非业务状态的标注，如「外部干系人」「会签/或签」「评分中」）允许直接用 `el-tag type="info" effect="plain"`（中性灰、plain 描边），不得使用语义色 type。即：语义色只能经 StatusTag；中性 info-plain 用于纯标注。
 
 ---
 

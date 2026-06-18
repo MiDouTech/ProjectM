@@ -7,7 +7,7 @@
         <span class="mido-text-secondary">加权满意度</span>
       </div>
       <StatusTag v-if="review.resultLevel" :status="levelLabel(review.resultLevel)" />
-      <el-tag v-else type="info" disable-transitions>评分中</el-tag>
+      <el-tag v-else type="info" effect="plain" disable-transitions>评分中</el-tag>
     </div>
 
     <!-- 外部干系人无系统账号，提示其评分由 PMO/负责人代录 -->
