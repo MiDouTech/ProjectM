@@ -7,6 +7,7 @@ public final class ApprovalEvents {
     public static final String NODE_APPROVED = "approval.node.approved";
     public static final String APPROVED = "approval.approved";
     public static final String REJECTED = "approval.rejected";
+    public static final String WITHDRAWN = "approval.withdrawn";
 
     private ApprovalEvents() {
     }

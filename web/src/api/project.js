@@ -34,6 +34,8 @@ export const approvalApi = {
   submit: (data) => request.post('/approvals/submit', data),
   act: (id, data) => request.post(`/approvals/instances/${id}/actions`, data),
   getInstance: (id) => request.get(`/approvals/instances/${id}`),
+  // 发起人撤回（仅 pending + 仅申请人）：data { reason? }
+  withdraw: (id, data) => request.post(`/approvals/instances/${id}/withdraw`, data),
   // 待我审批（工作台卡）：我未处理且实例 pending 的待办
   mine: () => request.get('/approvals/mine'),
 }

@@ -16,6 +16,11 @@
 
     <el-divider />
 
+    <div v-if="canWithdraw" class="trans__withdraw">
+      <el-button type="warning" plain @click="doWithdraw">撤回立项申请</el-button>
+      <span class="mido-text-secondary">撤回后项目回到「草稿」，可修改后重新提交</span>
+    </div>
+
     <h4 class="mido-h2">可执行流转</h4>
     <p class="mido-text-secondary">仅展示用户可手动执行的流转；注册等系统态由立项审批/系统驱动。</p>
     <div v-if="available.length" class="trans__actions">
@@ -31,13 +36,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
-import { projectApi, MANUAL_TRANSITIONS } from '@/api/project'
+import { projectApi, approvalApi, MANUAL_TRANSITIONS } from '@/api/project'
+import { useUserStore } from '@/store/user'
 
 const props = defineProps({
   project: { type: Object, required: true },
   userName: { type: Function, default: (id) => (id ? `用户#${id}` : '—') },
 })
 const emit = defineEmits(['transitioned'])
+
+const userStore = useUserStore()
 
 // 生命周期顺序（architecture-overview §2.2）
 const LIFECYCLE = ['草稿', '审批中', '已注册', '进行中', '结果验收', '已结案', '价值验收中', '已评价']
@@ -63,6 +71,23 @@ onMounted(async () => {
     approval.value = await projectApi.currentApproval(props.project.id)
   }
 })
+
+// 撤回：仅审批中、实例 pending、且当前用户为发起人（applicantId 经全局序列化为字符串）
+const canWithdraw = computed(() =>
+  props.project.status === '审批中'
+  && approval.value?.status === 'pending'
+  && approval.value?.applicantId === userStore.userId)
+
+async function doWithdraw() {
+  const { value } = await ElMessageBox.prompt('撤回原因（选填）', '撤回立项申请', {
+    confirmButtonText: '确认撤回',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+  })
+  await approvalApi.withdraw(approval.value.id, { reason: value || null })
+  ElMessage.success('已撤回，项目回到草稿')
+  emit('transitioned')
+}
 
 const doneIndex = computed(() => LIFECYCLE.indexOf(props.project.status))
 const dotType = (s) => {
@@ -96,6 +121,12 @@ async function doTransition(t) {
 }
 .trans__appr {
   margin-top: var(--mido-space-1);
+}
+.trans__withdraw {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-4);
 }
 .trans__actions {
   display: flex;

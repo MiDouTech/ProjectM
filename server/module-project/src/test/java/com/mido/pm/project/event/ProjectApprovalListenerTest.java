@@ -35,6 +35,15 @@ class ProjectApprovalListenerTest {
     }
 
     @Test
+    void withdrawnProjectInitTriggersDraft() {
+        listener.onDomainEvent(new DomainEventMessage("approval.withdrawn",
+                Map.of("bizType", "project_init", "bizId", 42L), 1L));
+
+        verify(projectService).transition(eq(42L), argThat((ProjectTransitionDTO d) ->
+                "草稿".equals(d.targetStatus())));
+    }
+
+    @Test
     void otherEventIgnored() {
         listener.onDomainEvent(new DomainEventMessage("approval.rejected",
                 Map.of("bizType", "project_init", "bizId", 42L), 1L));

@@ -3,6 +3,7 @@ package com.mido.pm.approval.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
 import com.mido.pm.approval.entity.ApprovalTask;
@@ -211,6 +212,43 @@ class ApprovalServiceTest {
 
         assertEquals(1, result.size());
         assertEquals(10L, result.get(0).instanceId());
+    }
+
+    @Test
+    void withdrawByApplicantMarksWithdrawnAndPublishes() {
+        login(7);
+        ApprovalInstance inst = pendingInstance();
+        inst.setApplicantId(7L);
+        inst.setBizType("project_init");
+        inst.setBizId(1L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+
+        service.withdraw(1L, new WithdrawDTO("不做了"));
+
+        assertEquals(ApprovalInstance.STATUS_WITHDRAWN, inst.getStatus());
+        verify(eventPublisher).publish(eq("approval.withdrawn"), any());
+    }
+
+    @Test
+    void withdrawByNonApplicantForbidden() {
+        login(8);
+        ApprovalInstance inst = pendingInstance();
+        inst.setApplicantId(7L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+
+        assertThrows(BizException.class, () -> service.withdraw(1L, new WithdrawDTO(null)));
+        verify(eventPublisher, never()).publish(eq("approval.withdrawn"), any());
+    }
+
+    @Test
+    void withdrawNonPendingConflict() {
+        login(7);
+        ApprovalInstance inst = pendingInstance();
+        inst.setStatus(ApprovalInstance.STATUS_APPROVED);
+        inst.setApplicantId(7L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+
+        assertThrows(BizException.class, () -> service.withdraw(1L, new WithdrawDTO(null)));
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
 import com.mido.pm.approval.entity.ApprovalTask;
@@ -175,6 +176,30 @@ public class ApprovalService {
                     "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                     "applicantId", instance.getApplicantId()));
         }
+    }
+
+    /**
+     * 发起人撤回：仅 pending 实例、仅申请人本人可撤回；置 withdrawn 并发 approval.withdrawn
+     * （项目侧据此回退草稿）。撤回后实例非 pending，审批人 act 会被拒、不再出现在「待我审批」。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void withdraw(Long instanceId, WithdrawDTO dto) {
+        ApprovalInstance instance = instanceMapper.selectById(instanceId);
+        if (instance == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "审批实例不存在");
+        }
+        if (!ApprovalInstance.STATUS_PENDING.equals(instance.getStatus())) {
+            throw new BizException(ErrorCode.CONFLICT, "审批已结束，不可撤回");
+        }
+        Long me = currentUserId();
+        if (instance.getApplicantId() == null || !instance.getApplicantId().equals(me)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅发起人可撤回该审批");
+        }
+        instance.setStatus(ApprovalInstance.STATUS_WITHDRAWN);
+        instanceMapper.updateById(instance);
+        eventPublisher.publish(ApprovalEvents.WITHDRAWN, payload(
+                "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                "applicantId", instance.getApplicantId(), "reason", dto == null ? null : dto.reason()));
     }
 
     /**

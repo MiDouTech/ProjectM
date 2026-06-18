@@ -14,9 +14,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.Map;
 
 /**
- * 监听 approval.approved(biz_type=project_init) → 驱动项目 审批中→已注册（写 pmo_registered_at）。
- * 事件解耦：审批域只发事件，注册由项目状态机完成（approvalPassed=true）。
- * AFTER_COMMIT：审批事务提交后才注册，避免审批回滚却注册。
+ * 监听立项审批结果事件，驱动项目状态机（事件解耦，审批域不直写项目表）：
+ * - approval.approved(project_init) → 审批中→已注册（approvalPassed=true，写 pmo_registered_at）
+ * - approval.withdrawn(project_init) → 审批中→草稿（发起人撤回，可修改后重新提交）
+ * AFTER_COMMIT：审批事务提交后才驱动，避免审批回滚却联动。
  */
 @Component
 public class ProjectApprovalListener {
@@ -31,7 +32,9 @@ public class ProjectApprovalListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onDomainEvent(DomainEventMessage message) {
-        if (!"approval.approved".equals(message.eventType())) {
+        boolean approved = "approval.approved".equals(message.eventType());
+        boolean withdrawn = "approval.withdrawn".equals(message.eventType());
+        if (!approved && !withdrawn) {
             return;
         }
         if (!(message.payload() instanceof Map<?, ?> payload)) {
@@ -45,7 +48,12 @@ public class ProjectApprovalListener {
             return;
         }
         Long projectId = num.longValue();
-        log.info("立项审批通过，驱动项目注册：projectId={}", projectId);
-        projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.REGISTERED.getCode(), true));
+        if (approved) {
+            log.info("立项审批通过，驱动项目注册：projectId={}", projectId);
+            projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.REGISTERED.getCode(), true));
+        } else {
+            log.info("立项审批撤回，项目回退草稿：projectId={}", projectId);
+            projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.DRAFT.getCode(), null));
+        }
     }
 }
