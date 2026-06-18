@@ -2,6 +2,9 @@
   <div class="login">
     <!-- 品牌墙 -->
     <aside class="login__brand-panel">
+      <!-- 背景照片层（蓝色星球）：半透明 + 左侧渐隐，清晰融入品牌墙不突兀。
+           图片放 web/public/login-bg.jpg；缺失时优雅回落到下方纯 CSS 渐变 -->
+      <div class="login__brand-photo" aria-hidden="true"></div>
       <!-- 半透明品牌背景：蓝图点阵网格 + 柔光斑（纯 CSS，由 token 派生）-->
       <div class="login__brand-grid" aria-hidden="true"></div>
       <div class="login__brand-deco" aria-hidden="true"></div>
@@ -133,6 +136,23 @@ async function submit() {
     var(--mido-cat-s) 135%
   );
   color: var(--mido-nav-text-active);
+}
+
+/* 背景照片层：蓝色星球。cover 充满，半透明融入渐变；左侧用 mask 渐隐，保证标题区干净不突兀 */
+.login__brand-photo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url('/login-bg.jpg');
+  background-size: cover;
+  background-position: right center;
+  /* 半透明：与品牌渐变融合，避免照片喧宾夺主 */
+  opacity: 0.5;
+  /* 左→右渐显：标题/卖点所在的左侧近乎隐去，星球留在右侧，过渡柔和 */
+  -webkit-mask-image: linear-gradient(
+    105deg, transparent 0%, var(--mido-nav-text-active) 48%, var(--mido-nav-text-active) 100%);
+  mask-image: linear-gradient(
+    105deg, transparent 0%, var(--mido-nav-text-active) 48%, var(--mido-nav-text-active) 100%);
 }
 
 /* 蓝图点阵网格：半透明背景纹理，由品牌色派生，左上浓右下淡 */
