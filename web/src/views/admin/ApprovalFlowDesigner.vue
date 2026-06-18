@@ -47,9 +47,7 @@
             </div>
             <el-form label-width="84px" label-position="left" class="afd__node-form">
               <el-form-item label="审批人">
-                <el-select v-model="n.approvers" multiple filterable placeholder="选择审批人" class="afd__wide">
-                  <el-option v-for="m in members" :key="m.id" :label="m.name" :value="m.id" />
-                </el-select>
+                <UserSelect v-model="n.approvers" multiple placeholder="选择审批人" class="afd__wide" />
               </el-form-item>
               <el-form-item label="签署方式">
                 <el-radio-group v-model="n.mode">
@@ -62,9 +60,7 @@
                 <span class="mido-text-secondary afd__hint">开启则按项目类型校验 Leader 职级（S→L3+/O→L2+）</span>
               </el-form-item>
               <el-form-item label="知会人">
-                <el-select v-model="n.cc" multiple filterable placeholder="可选" class="afd__wide">
-                  <el-option v-for="m in members" :key="m.id" :label="m.name" :value="m.id" />
-                </el-select>
+                <UserSelect v-model="n.cc" multiple placeholder="可选" class="afd__wide" />
               </el-form-item>
               <el-form-item label="路由条件">
                 <div class="afd__cond">
@@ -92,13 +88,12 @@ import { onMounted, reactive, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { ElMessage } from 'element-plus'
 import { Plus, Check, Delete, Rank } from '@element-plus/icons-vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { approvalFlowApi, APPROVAL_BIZ_TYPES } from '@/api/project'
-import { fetchMembers } from '@/api/org'
 
 const loading = ref(false)
 const saving = ref(false)
 const flows = ref([])
-const members = ref([])
 const meta = reactive({ conditionFields: [], conditionOps: [], guards: [], modes: [] })
 const nodes = ref([])
 const form = reactive({ id: null, name: '', bizType: 'project_init', mode: 'fixed' })
@@ -207,7 +202,6 @@ async function save() {
 }
 
 onMounted(async () => {
-  members.value = await fetchMembers()
   const m = await approvalFlowApi.designerMeta()
   Object.assign(meta, m)
   await loadFlows()

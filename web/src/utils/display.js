@@ -16,9 +16,11 @@ export function isTaskOverdue(task, today = todayStr()) {
   return !!task?.dueDate && task.dueDate < today && !TASK_TERMINAL.includes(task.status)
 }
 
-/** 用户 ID → 姓名；未命中回落「用户#id」，空值回落「—」。 */
+/** 用户 ID → 姓名；未命中回落「用户#id」，空值回落「—」。
+ *  按字符串比较：选人组件回传雪花 ID 为字符串，后端为数字，避免严格相等漏匹配。 */
 export function userName(users, id) {
-  return users?.find((u) => u.id === id)?.name || (id ? `用户#${id}` : '—')
+  if (id == null || id === '') return '—'
+  return users?.find((u) => String(u.id) === String(id))?.name || `用户#${id}`
 }
 
 /** LocalDateTime 字符串截断展示（默认到分钟）。 */

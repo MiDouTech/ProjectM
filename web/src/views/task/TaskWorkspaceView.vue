@@ -79,10 +79,8 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-select v-model="batchAssignee" filterable clearable placeholder="批量改负责人"
-            class="tw__batch-sel" :disabled="batching" @change="batchSetAssignee">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="batchAssignee" placeholder="批量改负责人"
+            class="tw__batch-sel" :disabled="batching" @change="batchSetAssignee" />
           <el-button type="danger" plain :loading="batching" @click="batchRemove">批量删除</el-button>
         </div>
         <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }"
@@ -120,9 +118,7 @@
       <el-form ref="createRef" :model="createForm" :rules="createRules" :label-width="72">
         <el-form-item label="标题" prop="title"><el-input v-model="createForm.title" /></el-form-item>
         <el-form-item label="负责人">
-          <el-select v-model="createForm.assigneeId" filterable clearable placeholder="选择负责人" class="full">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="createForm.assigneeId" placeholder="选择负责人" />
         </el-form-item>
         <el-form-item label="优先级">
           <el-select v-model="createForm.priority" clearable placeholder="选择优先级" class="full">
@@ -156,6 +152,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import ViewDesigner from '@/components/ViewDesigner.vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi } from '@/api/view'
 import { projectApi } from '@/api/project'

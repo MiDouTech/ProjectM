@@ -90,9 +90,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="form.internal && !editing" label="成员" prop="userId">
-          <el-select v-model="form.userId" filterable placeholder="选择成员" class="full">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="form.userId" placeholder="选择成员" />
         </el-form-item>
         <el-form-item v-else label="姓名" prop="externalName">
           <el-input v-model="form.externalName" placeholder="外部干系人姓名" />
@@ -139,6 +137,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import PowerInterestMatrix from '@/components/PowerInterestMatrix.vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { stakeholderApi, STAKEHOLDER_ROLES, ROLE_LABEL, isBeneficiaryRole } from '@/api/stakeholder'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
