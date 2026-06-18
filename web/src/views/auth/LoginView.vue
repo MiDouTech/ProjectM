@@ -146,13 +146,13 @@ async function submit() {
   background-image: url('/login-bg.jpg');
   background-size: cover;
   background-position: right center;
-  /* 半透明：与品牌渐变融合，避免照片喧宾夺主 */
-  opacity: 0.5;
-  /* 左→右渐显：标题/卖点所在的左侧近乎隐去，星球留在右侧，过渡柔和 */
+  /* 半透明：星球清晰可辨又与品牌渐变融合 */
+  opacity: 0.62;
+  /* 左→右渐显：标题/卖点所在的左半区近乎隐去，星球留在右侧空白区，过渡柔和不突兀 */
   -webkit-mask-image: linear-gradient(
-    105deg, transparent 0%, var(--mido-nav-text-active) 48%, var(--mido-nav-text-active) 100%);
+    100deg, transparent 0%, var(--mido-nav-text-active) 52%, var(--mido-nav-text-active) 100%);
   mask-image: linear-gradient(
-    105deg, transparent 0%, var(--mido-nav-text-active) 48%, var(--mido-nav-text-active) 100%);
+    100deg, transparent 0%, var(--mido-nav-text-active) 52%, var(--mido-nav-text-active) 100%);
 }
 
 /* 蓝图点阵网格：半透明背景纹理，由品牌色派生，左上浓右下淡 */
