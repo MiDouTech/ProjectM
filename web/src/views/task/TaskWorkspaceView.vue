@@ -45,7 +45,7 @@
         <el-collapse v-if="grouped.groups.length">
           <el-collapse-item v-for="(g, i) in grouped.groups" :key="i" :name="i"
             :title="`${groupTitle(g.groupKey)}（${g.tasks.length}）`">
-            <el-table :data="g.tasks" @row-click="(r) => openDetail(r.id)">
+            <el-table :data="g.tasks" class="is-clickable" @row-click="(r) => openDetail(r.id)">
               <el-table-column label="标题" min-width="220">
                 <template #default="{ row }">
                   <span class="tc__title"><el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}</span>
@@ -60,7 +60,7 @@
               <el-table-column label="优先级" width="90">
                 <template #default="{ row }">{{ priorityLabel(row.priority) }}</template>
               </el-table-column>
-              <el-table-column label="截止" width="130" prop="dueDate" />
+              <el-table-column label="截止" width="130" prop="dueDate" sortable />
             </el-table>
           </el-collapse-item>
         </el-collapse>
@@ -84,7 +84,7 @@
           <el-button type="danger" plain :loading="batching" @click="batchRemove">批量删除</el-button>
         </div>
         <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }"
-          default-expand-all @row-click="(r) => openDetail(r.id)" @selection-change="onSelectionChange">
+          default-expand-all class="is-clickable" @row-click="(r) => openDetail(r.id)" @selection-change="onSelectionChange">
           <el-table-column type="selection" width="48" />
           <el-table-column label="标题" min-width="240">
           <template #default="{ row }">

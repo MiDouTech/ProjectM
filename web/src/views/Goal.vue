@@ -14,7 +14,7 @@
     <!-- 列表/树：量化指标行内编辑 -->
     <el-card v-show="tab === 'list'" shadow="never" v-loading="loading">
       <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }" default-expand-all
-        @row-click="openDetail">
+        class="is-clickable" @row-click="openDetail">
         <el-table-column label="目标" min-width="240">
           <template #default="{ row }">
             <el-tag size="small" :type="row.type === 'objective' ? 'primary' : 'success'" disable-transitions>

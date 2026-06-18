@@ -14,13 +14,13 @@
           <el-avatar :size="32" :src="avatarUrls[row.avatar]">{{ (row.name || '?').charAt(0) }}</el-avatar>
         </template>
       </el-table-column>
-      <el-table-column prop="phone" label="手机号" width="130" />
-      <el-table-column prop="username" label="用户名" />
-      <el-table-column prop="name" label="姓名" />
+      <el-table-column prop="phone" label="手机号" width="130" sortable />
+      <el-table-column prop="username" label="用户名" sortable />
+      <el-table-column prop="name" label="姓名" sortable />
       <el-table-column label="部门">
         <template #default="{ row }">{{ deptName(row.deptId) }}</template>
       </el-table-column>
-      <el-table-column prop="jobLevel" label="职级" width="80" />
+      <el-table-column prop="jobLevel" label="职级" width="80" sortable />
       <el-table-column label="状态" width="90">
         <template #default="{ row }"><StatusTag :status="row.status" /></template>
       </el-table-column>

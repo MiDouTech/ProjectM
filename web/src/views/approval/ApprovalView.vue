@@ -14,7 +14,7 @@
       <el-col :span="8">
         <el-card shadow="never" v-loading="mineLoading">
           <h3 class="mido-h2">待我审批（{{ mine.length }}）</h3>
-          <el-table :data="mine" @row-click="(r) => select(r.instanceId)">
+          <el-table :data="mine" class="is-clickable" @row-click="(r) => select(r.instanceId)">
             <el-table-column label="审批对象" min-width="140">
               <template #default="{ row }">
                 <div class="apv__obj">{{ row.title || bizTypeLabel(row.bizType) }}</div>
@@ -30,7 +30,7 @@
 
         <el-card shadow="never" class="apv__recent">
           <h3 class="mido-h2">最近打开</h3>
-          <el-table :data="recent" @row-click="(r) => select(r.id)">
+          <el-table :data="recent" class="is-clickable" @row-click="(r) => select(r.id)">
             <el-table-column label="实例" prop="id" width="90">
               <template #default="{ row }"><span class="mido-mono">#{{ row.id }}</span></template>
             </el-table-column>

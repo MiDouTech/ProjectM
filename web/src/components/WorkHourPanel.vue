@@ -54,9 +54,9 @@
       <el-table-column label="类型" width="70">
         <template #default="{ row }">{{ kindLabel(row.kind) }}</template>
       </el-table-column>
-      <el-table-column prop="category" label="类别" width="80" />
-      <el-table-column prop="workDate" label="日期" width="120" />
-      <el-table-column label="工时" width="90" align="right">
+      <el-table-column prop="category" label="类别" width="80" sortable />
+      <el-table-column prop="workDate" label="日期" width="120" sortable />
+      <el-table-column label="工时" width="90" align="right" sortable :sort-by="(row) => row.hours">
         <template #default="{ row }"><span class="mido-mono">{{ fmtHours(row.hours) }}</span></template>
       </el-table-column>
       <el-table-column label="人员" width="110">

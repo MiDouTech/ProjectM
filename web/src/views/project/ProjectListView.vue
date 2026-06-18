@@ -34,7 +34,7 @@
     <!-- 主体视图区 -->
     <el-card shadow="never" v-loading="loading">
       <!-- 列表 / 表格 -->
-      <el-table v-if="view !== 'card'" :data="viewRows" stripe @row-click="openDetail">
+      <el-table v-if="view !== 'card'" :data="viewRows" stripe class="is-clickable" @row-click="openDetail">
         <el-table-column label="项目" min-width="220">
           <template #default="{ row }">
             <div class="pl__name">

@@ -54,7 +54,7 @@
               <span class="mido-text-secondary">共 {{ subtasks.length }} 个子任务</span>
               <el-button link type="primary" :icon="Plus" @click="subDialog = true">添加子任务</el-button>
             </div>
-            <el-table :data="subtasks" @row-click="(r) => $emit('open', r.id)">
+            <el-table :data="subtasks" class="is-clickable" @row-click="(r) => $emit('open', r.id)">
               <el-table-column label="标题" prop="title" />
               <el-table-column label="状态" width="100">
                 <template #default="{ row }"><StatusTag :status="row.status" /></template>

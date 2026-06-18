@@ -71,6 +71,12 @@ body {
   box-shadow: 0 0 0 var(--mido-border-width) var(--el-color-primary) inset;
 }
 
+/* 可点击表格行：行可点（@row-click）时给指针手势，明确可交互（Element 默认已提供 hover 行高亮）。
+   用法：在对应 <el-table> 上加 class="is-clickable"。 */
+.el-table.is-clickable .el-table__row {
+  cursor: pointer;
+}
+
 /* 可悬浮卡片：可点击卡面统一 hover 抬升（§8 交互反馈）*/
 .mido-hoverable {
   cursor: pointer;
