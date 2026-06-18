@@ -11,6 +11,7 @@ import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.project.domain.JobLevelGuard;
+import com.mido.pm.project.domain.NpssPolicy;
 import com.mido.pm.project.domain.ProjectCategory;
 import com.mido.pm.project.domain.ProjectStateMachine;
 import com.mido.pm.project.domain.ProjectStatus;
@@ -119,6 +120,10 @@ public class ProjectService {
         p.setEndDate(dto.endDate());
         p.setStatus(ProjectStatus.DRAFT.getCode());
         p.setArchived(0);
+        // 是否走 NPSS：显式指定优先，否则按类型默认（仅 O·定向整改/专项督办 默认否）
+        boolean requiresNpss = dto.requiresNpss() != null ? dto.requiresNpss()
+                : NpssPolicy.defaultRequiresNpss(dto.category(), dto.subCategory());
+        p.setRequiresNpss(requiresNpss ? 1 : 0);
         projectMapper.insert(p);
 
         eventPublisher.publish(ProjectEvents.CREATED, basePayload(p.getId())
@@ -235,7 +240,10 @@ public class ProjectService {
         if (to == ProjectStatus.REGISTERED) {
             p.setPmoRegisteredAt(LocalDateTime.now());
         } else if (to == ProjectStatus.CLOSED) {
-            p.setValueReviewDueDate(LocalDate.now().plusMonths(VALUE_REVIEW_MONTHS));
+            // 仅 NPSS 项目结案才安排价值验收；非 NPSS 项目结案即终止，不被定时唤醒
+            if (!Integer.valueOf(0).equals(p.getRequiresNpss())) {
+                p.setValueReviewDueDate(LocalDate.now().plusMonths(VALUE_REVIEW_MONTHS));
+            }
         }
         p.setStatus(to.getCode());
         projectMapper.updateById(p);
@@ -334,7 +342,8 @@ public class ProjectService {
         return new ProjectVO(p.getId(), p.getCode(), p.getName(), p.getDescription(),
                 p.getCategory(), p.getSubCategory(), p.getTemplateId(), p.getLeaderId(),
                 p.getStatus(), p.getBudget(), p.getActualCost(), p.getStartDate(), p.getEndDate(),
-                p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime(), p.getDeptId());
+                p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime(), p.getDeptId(),
+                p.getRequiresNpss());
     }
 
     /** 事件载荷构造（保序，允许 null 值）。 */

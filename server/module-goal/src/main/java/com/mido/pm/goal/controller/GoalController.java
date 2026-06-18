@@ -2,6 +2,7 @@ package com.mido.pm.goal.controller;
 
 import com.mido.pm.common.api.R;
 import com.mido.pm.goal.dto.AlignGraphVO;
+import com.mido.pm.goal.dto.AlignedGoalVO;
 import com.mido.pm.goal.dto.AlignmentCreateDTO;
 import com.mido.pm.goal.dto.AlignmentVO;
 import com.mido.pm.goal.dto.GoalCreateDTO;
@@ -81,6 +82,13 @@ public class GoalController {
     @GetMapping("/{id}/alignments")
     public R<List<AlignmentVO>> listAlignments(@PathVariable Long id) {
         return R.ok(goalService.listAlignments(id));
+    }
+
+    /** 反向查询：对齐到某对象（project/task）的目标（项目工作台·目标用）。 */
+    @GetMapping("/by-target")
+    public R<List<AlignedGoalVO>> listByTarget(@RequestParam String targetType,
+                                               @RequestParam Long targetId) {
+        return R.ok(goalService.listGoalsByTarget(targetType, targetId));
     }
 
     @DeleteMapping("/alignments/{alignmentId}")

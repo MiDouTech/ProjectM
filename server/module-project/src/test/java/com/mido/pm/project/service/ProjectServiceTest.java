@@ -121,7 +121,7 @@ class ProjectServiceTest {
 
     @Test
     void createRecordsActivity() {
-        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null));
+        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null, null));
         verify(auditLogService).record(eq("project"), any(), eq(AuditActions.CREATED), any());
     }
 
@@ -133,7 +133,7 @@ class ProjectServiceTest {
         when(identityProvider.loadById(1L)).thenReturn(java.util.Optional.of(leader));
 
         ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
-        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null));
+        service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null, null));
 
         verify(projectMapper).insert(captor.capture());
         org.junit.jupiter.api.Assertions.assertEquals(88L, captor.getValue().getDeptId());
@@ -164,6 +164,40 @@ class ProjectServiceTest {
         assertEquals("leaderId", changes.get(0).get("field"));
         assertEquals(1L, changes.get(0).get("from"));
         assertEquals(2L, changes.get(0).get("to"));
+    }
+
+    @Test
+    void closeNpssProjectSchedulesValueReview() {
+        PmProject p = project("结果验收", "S", 1L);
+        p.setRequiresNpss(1);
+        when(projectMapper.selectById(1L)).thenReturn(p);
+
+        service.transition(1L, new ProjectTransitionDTO("已结案", null));
+
+        assertEquals("已结案", p.getStatus());
+        assertNotNull(p.getValueReviewDueDate(), "NPSS 项目结案应安排价值验收日");
+    }
+
+    @Test
+    void closeNonNpssProjectSkipsValueReview() {
+        PmProject p = project("结果验收", "O", 1L);
+        p.setSubCategory("定向整改");
+        p.setRequiresNpss(0);
+        when(projectMapper.selectById(1L)).thenReturn(p);
+
+        service.transition(1L, new ProjectTransitionDTO("已结案", null));
+
+        assertEquals("已结案", p.getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(p.getValueReviewDueDate(),
+                "非 NPSS 项目结案不应安排价值验收日");
+    }
+
+    @Test
+    void createOperationRectifyDefaultsToNonNpss() {
+        ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
+        service.create(new ProjectCreateDTO("整改A", "O", "定向整改", 1L, null, null, null, null, null, null));
+        verify(projectMapper).insert(captor.capture());
+        assertEquals(0, captor.getValue().getRequiresNpss(), "定向整改默认不走 NPSS");
     }
 
     @Test

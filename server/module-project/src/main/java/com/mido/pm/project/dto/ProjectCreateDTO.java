@@ -15,5 +15,7 @@ public record ProjectCreateDTO(
         Long templateId,
         String description,
         LocalDate startDate,
-        LocalDate endDate) {
+        LocalDate endDate,
+        /** 是否走 NPSS 价值验收；为空则按项目类型默认（仅 O·定向整改/专项督办 默认否）。 */
+        Boolean requiresNpss) {
 }

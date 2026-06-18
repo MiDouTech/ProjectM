@@ -21,5 +21,6 @@ public record ProjectVO(
         LocalDate valueReviewDueDate,
         LocalDateTime pmoRegisteredAt,
         LocalDateTime createTime,
-        Long deptId) {
+        Long deptId,
+        Integer requiresNpss) {
 }

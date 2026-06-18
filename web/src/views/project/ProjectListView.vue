@@ -95,19 +95,18 @@
     </el-card>
 
     <CreateProjectWizard v-model="wizardOpen" @created="onCreated" />
-    <ProjectDetailDrawer v-model="detailOpen" :project-id="detailId" :user-map="userMap" @changed="load" />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, Search, Filter, SortUp, SortDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import FilterBuilder from '@/components/FilterBuilder.vue'
 import CreateProjectWizard from './CreateProjectWizard.vue'
-import ProjectDetailDrawer from './ProjectDetailDrawer.vue'
 import { projectApi, PROJECT_CATEGORIES } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { applyFilter, applySort } from '@/utils/filter'
@@ -151,8 +150,7 @@ const filterPop = ref()
 const activeFilter = ref(null)
 
 const wizardOpen = ref(false)
-const detailOpen = ref(false)
-const detailId = ref(null)
+const router = useRouter()
 
 const users = ref([])
 const userMap = computed(() => Object.fromEntries(users.value.map((u) => [u.id, u.name])))
@@ -194,12 +192,11 @@ function onApplyFilter(f) {
   filterPop.value?.hide()
 }
 function openDetail(row) {
-  detailId.value = row.id
-  detailOpen.value = true
+  router.push(`/project/${row.id}`)
 }
 function onCreated(id) {
   load()
-  if (id) openDetail({ id })
+  if (id) router.push(`/project/${id}`)
 }
 
 onMounted(async () => {

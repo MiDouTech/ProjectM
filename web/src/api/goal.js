@@ -13,6 +13,10 @@ export const goalApi = {
   listAlignments: (id) => request.get(`/goals/${id}/alignments`),
   addAlignment: (id, data) => request.post(`/goals/${id}/alignments`, data),
   removeAlignment: (alignmentId) => request.delete(`/goals/alignments/${alignmentId}`),
+  // 反向查询：对齐到某对象的目标（项目工作台·目标用）
+  listByTarget: (targetType, targetId) =>
+    request.get('/goals/by-target', { params: { targetType, targetId } }),
+  byProject: (projectId) => goalApi.listByTarget('project', projectId),
 }
 
 export const GOAL_TYPES = [

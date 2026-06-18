@@ -19,7 +19,11 @@ import com.mido.pm.goal.mapper.PmGoalMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mido.pm.goal.dto.AlignedGoalVO;
+
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -149,6 +153,31 @@ public class GoalService {
         return alignmentMapper.selectList(Wrappers.<PmGoalAlignment>lambdaQuery()
                         .eq(PmGoalAlignment::getGoalId, goalId))
                 .stream().map(this::toVO).toList();
+    }
+
+    /**
+     * 反向查询：对齐到某对象（project/task）的全部目标（含对齐关系 id）。
+     * 「项目工作台·目标」用：让目标为项目服务，直接看到/管理本项目对齐的 KR。
+     */
+    public List<AlignedGoalVO> listGoalsByTarget(String targetType, Long targetId) {
+        if (!TARGET_TYPES.contains(targetType)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "非法对齐类型: " + targetType);
+        }
+        List<PmGoalAlignment> aligns = alignmentMapper.selectList(
+                Wrappers.<PmGoalAlignment>lambdaQuery()
+                        .eq(PmGoalAlignment::getTargetType, targetType)
+                        .eq(PmGoalAlignment::getTargetId, targetId));
+        if (aligns.isEmpty()) {
+            return List.of();
+        }
+        // goalId → 对齐 id（同一目标对同一对象唯一，addAlignment 已防重）
+        Map<Long, Long> alignIdByGoal = new LinkedHashMap<>();
+        for (PmGoalAlignment a : aligns) {
+            alignIdByGoal.putIfAbsent(a.getGoalId(), a.getId());
+        }
+        return goalMapper.selectBatchIds(alignIdByGoal.keySet()).stream()
+                .map(g -> new AlignedGoalVO(alignIdByGoal.get(g.getId()), toVO(g)))
+                .toList();
     }
 
     /** 对齐网全量（目标树 + 对齐边），供 G6 渲染。 */

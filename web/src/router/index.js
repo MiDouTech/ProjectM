@@ -22,6 +22,7 @@ const routes = [
     children: [
       { path: 'workbench', component: () => import('@/views/Workbench.vue') },
       { path: 'project', component: () => import('@/views/project/ProjectListView.vue') },
+      { path: 'project/:projectId', component: () => import('@/views/project/ProjectWorkspaceView.vue') },
       { path: 'project/:projectId/tasks', component: () => import('@/views/task/TaskWorkspaceView.vue') },
       { path: 'project/:projectId/stakeholders', component: () => import('@/views/stakeholder/StakeholderView.vue') },
       { path: 'goal', component: () => import('@/views/Goal.vue') },
@@ -37,6 +38,7 @@ const routes = [
           { path: 'roles', component: () => import('@/views/admin/RoleManage.vue') },
           { path: 'depts', component: () => import('@/views/admin/DeptTree.vue') },
           { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
+          { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
         ],
       },
     ],
