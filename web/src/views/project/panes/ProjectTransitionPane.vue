@@ -9,6 +9,8 @@
       <el-timeline-item v-for="s in LIFECYCLE" :key="s"
         :type="dotType(s)" :hollow="s !== project.status">
         <span :class="{ 'trans__now': s === project.status }">{{ s }}</span>
+        <div v-if="s === '审批中' && project.status === '审批中' && approverText"
+          class="trans__appr mido-text-secondary">{{ approverText }}</div>
       </el-timeline-item>
     </el-timeline>
 
@@ -26,18 +28,41 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import { projectApi, MANUAL_TRANSITIONS } from '@/api/project'
 
 const props = defineProps({
   project: { type: Object, required: true },
+  userName: { type: Function, default: (id) => (id ? `用户#${id}` : '—') },
 })
 const emit = defineEmits(['transitioned'])
 
 // 生命周期顺序（architecture-overview §2.2）
 const LIFECYCLE = ['草稿', '审批中', '已注册', '进行中', '结果验收', '已结案', '价值验收中', '已评价']
+
+// 当前立项审批实例（仅审批中时拉取），用于「审批中」节点旁展示待谁审批
+const approval = ref(null)
+const approverText = computed(() => {
+  const a = approval.value
+  if (!a) return ''
+  const pending = a.pendingApproverIds || []
+  const names = pending.map((id) => props.userName(id)).join('、')
+  const nodeName = a.currentNodeName || '审批'
+  if (!names) return `${nodeName}：等待系统处理`
+  if (a.currentMode === 'and') {
+    const total = pending.length + (a.approvedApproverIds?.length || 0)
+    return `${nodeName} · 待 ${names} 审批（会签 ${a.approvedApproverIds?.length || 0}/${total}）`
+  }
+  return `${nodeName} · 待 ${names} 审批（或签）`
+})
+
+onMounted(async () => {
+  if (props.project.status === '审批中') {
+    approval.value = await projectApi.currentApproval(props.project.id)
+  }
+})
 
 const doneIndex = computed(() => LIFECYCLE.indexOf(props.project.status))
 const dotType = (s) => {
@@ -68,6 +93,9 @@ async function doTransition(t) {
 .trans__now {
   font-weight: var(--mido-font-weight-bold);
   color: var(--el-color-primary);
+}
+.trans__appr {
+  margin-top: var(--mido-space-1);
 }
 .trans__actions {
   display: flex;

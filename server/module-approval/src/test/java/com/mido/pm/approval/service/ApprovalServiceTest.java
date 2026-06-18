@@ -213,6 +213,24 @@ class ApprovalServiceTest {
         assertEquals(10L, result.get(0).instanceId());
     }
 
+    @Test
+    void getInstanceExposesCurrentNodeAndPendingApprovers() {
+        ApprovalInstance inst = pendingInstance();
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        when(flowMapper.selectById(10L)).thenReturn(flow());
+        ApprovalTask pending = new ApprovalTask();
+        pending.setApproverId(100L);
+        pending.setNode("n1");
+        when(taskMapper.selectList(any())).thenReturn(List.of(pending));
+
+        var vo = service.getInstance(1L);
+
+        assertEquals("审批", vo.currentNodeName());
+        assertEquals("or", vo.currentMode());
+        assertEquals(List.of(100L), vo.pendingApproverIds());
+        assertEquals(List.of(), vo.approvedApproverIds());
+    }
+
     private ApprovalTask pendingTask(long instanceId) {
         ApprovalTask t = new ApprovalTask();
         t.setInstanceId(instanceId);

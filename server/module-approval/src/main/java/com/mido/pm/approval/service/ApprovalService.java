@@ -214,11 +214,49 @@ public class ApprovalService {
         if (i == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "审批实例不存在");
         }
-        return new InstanceVO(i.getId(), i.getFlowId(), i.getBizType(), i.getBizId(),
-                i.getStatus(), i.getCurrentNode(), i.getApplicantId());
+        return toVO(i);
+    }
+
+    /** 按业务反查最新审批实例（含「待谁审批」），无则 null。供项目侧刷新后展示审批进度。 */
+    public InstanceVO findCurrentInstance(String bizType, Long bizId) {
+        ApprovalInstance i = instanceMapper.selectOne(Wrappers.<ApprovalInstance>lambdaQuery()
+                .eq(ApprovalInstance::getBizType, bizType)
+                .eq(ApprovalInstance::getBizId, bizId)
+                .orderByDesc(ApprovalInstance::getId)
+                .last("LIMIT 1"));
+        return i == null ? null : toVO(i);
     }
 
     // ===== 内部 =====
+
+    /** 组装实例视图：解析当前节点名/会签模式，并按待办/已通过拆分审批人。 */
+    private InstanceVO toVO(ApprovalInstance i) {
+        String nodeName = null;
+        String mode = null;
+        List<Long> pending = List.of();
+        List<Long> approved = List.of();
+        if (i.getCurrentNode() != null) {
+            ApprovalFlow flow = flowMapper.selectById(i.getFlowId());
+            if (flow != null) {
+                FlowNode node = parseDefinition(flow.getDefinition()).nodes().stream()
+                        .filter(n -> i.getCurrentNode().equals(n.key())).findFirst().orElse(null);
+                if (node != null) {
+                    nodeName = node.name();
+                    mode = node.mode();
+                }
+            }
+            List<ApprovalTask> tasks = taskMapper.selectList(Wrappers.<ApprovalTask>lambdaQuery()
+                    .eq(ApprovalTask::getInstanceId, i.getId())
+                    .eq(ApprovalTask::getNode, i.getCurrentNode()));
+            pending = tasks.stream().filter(t -> t.getAction() == null)
+                    .map(ApprovalTask::getApproverId).toList();
+            approved = tasks.stream().filter(t -> ApprovalTask.ACTION_APPROVE.equals(t.getAction()))
+                    .map(ApprovalTask::getApproverId).toList();
+        }
+        return new InstanceVO(i.getId(), i.getFlowId(), i.getBizType(), i.getBizId(),
+                i.getStatus(), i.getCurrentNode(), i.getApplicantId(),
+                nodeName, mode, pending, approved);
+    }
 
     private void createTasks(Long instanceId, FlowNode node) {
         List<Long> approvers = node.approvers() == null ? List.of() : node.approvers();

@@ -64,7 +64,7 @@
       </el-card>
       <el-card shadow="never" class="ov__card">
         <h3 class="mido-h2">生命周期</h3>
-        <ProjectTransitionPane :project="project" @transitioned="$emit('changed')" />
+        <ProjectTransitionPane :project="project" :user-name="userName" @transitioned="$emit('changed')" />
       </el-card>
     </aside>
   </div>
