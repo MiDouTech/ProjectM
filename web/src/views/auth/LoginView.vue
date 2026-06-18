@@ -146,8 +146,9 @@ async function submit() {
     transparent 1px
   );
   background-size: 22px 22px;
-  -webkit-mask-image: linear-gradient(135deg, #000 0%, transparent 72%);
-  mask-image: linear-gradient(135deg, #000 0%, transparent 72%);
+  /* mask 走 alpha 通道：恒不透明的 token 色 → transparent，渐隐效果，不写裸 hex */
+  -webkit-mask-image: linear-gradient(135deg, var(--mido-nav-text-active) 0%, transparent 72%);
+  mask-image: linear-gradient(135deg, var(--mido-nav-text-active) 0%, transparent 72%);
   opacity: 0.7;
 }
 
