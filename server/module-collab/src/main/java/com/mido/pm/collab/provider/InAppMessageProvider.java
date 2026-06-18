@@ -30,14 +30,22 @@ public class InAppMessageProvider implements MessageProvider {
 
     @Override
     public void send(Long userId, String title, String content) {
+        send(userId, title, content, null, null, null);
+    }
+
+    @Override
+    public void send(Long userId, String title, String content, String bizType, Long bizId, String link) {
         if (userId == null) {
             return;
         }
         PmNotification n = new PmNotification();
         n.setUserId(userId);
         n.setType(TYPE_SYSTEM);
+        n.setBizType(bizType);
+        n.setBizId(bizId);
         n.setTitle(title);
         n.setPayload(JSONUtil.toJsonStr(Map.of("content", content == null ? "" : content)));
+        n.setLink(link);
         n.setIsRead(0);
         n.setChannel(PmNotification.CHANNEL_INAPP);
         notificationMapper.insert(n);

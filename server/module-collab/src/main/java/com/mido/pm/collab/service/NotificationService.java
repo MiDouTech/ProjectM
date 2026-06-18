@@ -67,7 +67,8 @@ public class NotificationService {
     }
 
     private NotificationVO toVO(PmNotification n) {
-        return new NotificationVO(n.getId(), n.getType(), n.getTitle(), n.getPayload(),
+        return new NotificationVO(n.getId(), n.getType(), n.getBizType(), n.getBizId(),
+                n.getTitle(), n.getPayload(), n.getLink(),
                 n.getIsRead(), n.getChannel(), n.getCreateTime());
     }
 

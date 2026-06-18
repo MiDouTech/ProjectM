@@ -12,8 +12,8 @@
       <div class="mido-topbar__spacer" />
       <div class="mido-topbar__actions">
         <el-button type="primary" :icon="Plus" size="small">新建</el-button>
-        <el-badge :is-dot="true">
-          <el-icon class="mido-topbar__icon"><Bell /></el-icon>
+        <el-badge :value="unread" :max="99" :hidden="!unread">
+          <el-icon class="mido-topbar__icon" @click="goNotifications"><Bell /></el-icon>
         </el-badge>
         <el-dropdown @command="onUserCommand">
           <el-avatar class="mido-topbar__avatar">M</el-avatar>
@@ -67,16 +67,31 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus, Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
+import { notificationApi } from '@/api/collab'
 
 const route = useRoute()
 const router = useRouter()
 // 高亮顶层导航（嵌套子路由如 /admin/members 也命中 /admin）
 const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'workbench'))
+
+// 顶栏未读数：进入应用与路由切换时刷新（轻量，不做长轮询）
+const unread = ref(0)
+async function loadUnread() {
+  try {
+    unread.value = await notificationApi.unreadCount()
+  } catch {
+    unread.value = 0
+  }
+}
+function goNotifications() {
+  router.push('/notifications')
+}
+watch(() => route.path, loadUnread)
 
 // 响应式导航：<1280 自动收起为图标态（design-system §9），亦可手动切换
 const NARROW = 1280
@@ -87,6 +102,7 @@ function syncByWidth() {
 onMounted(() => {
   syncByWidth()
   window.addEventListener('resize', syncByWidth)
+  loadUnread()
 })
 onUnmounted(() => window.removeEventListener('resize', syncByWidth))
 

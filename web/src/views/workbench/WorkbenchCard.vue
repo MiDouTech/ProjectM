@@ -37,12 +37,15 @@
       <template v-else-if="card.type === 'notifications'">
         <div class="wc__bar">
           <span class="mido-text-secondary">{{ items.length ? `${items.length} 条未读` : '' }}</span>
-          <el-button v-if="items.length" link type="primary" @click="markAll">全部已读</el-button>
+          <span>
+            <el-button link type="primary" @click="$router.push('/notifications')">查看全部</el-button>
+            <el-button v-if="items.length" link type="primary" @click="markAll">全部已读</el-button>
+          </span>
         </div>
-        <div v-for="n in items" :key="n.id" class="wc__row">
+        <div v-for="n in items" :key="n.id" class="wc__row" @click="openNotification(n)">
           <span class="wc__row-main">{{ n.title }}</span>
           <span class="mido-text-secondary">{{ fmt(n.createTime) }}</span>
-          <el-button link type="primary" @click="read(n)">已读</el-button>
+          <el-button link type="primary" @click.stop="read(n)">已读</el-button>
         </div>
       </template>
 
@@ -62,6 +65,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Rank, Refresh, Close } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -69,7 +73,9 @@ import { useUserStore } from '@/store/user'
 import { projectApi, approvalApi } from '@/api/project'
 import { taskApi } from '@/api/task'
 import { notificationApi } from '@/api/collab'
-import { isTaskOverdue, formatDateTime } from '@/utils/display'
+import { isTaskOverdue, formatDateTime, notificationRoute } from '@/utils/display'
+
+const router = useRouter()
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -109,6 +115,13 @@ async function load() {
 async function read(n) {
   await notificationApi.markRead(n.id)
   load()
+}
+// 点击通知：标记已读并按 bizType/link 跳转到对应详情；无法定位则仅刷新
+async function openNotification(n) {
+  try { await notificationApi.markRead(n.id) } catch { /* 忽略：跳转优先 */ }
+  const to = notificationRoute(n)
+  if (to) router.push(to)
+  else load()
 }
 async function markAll() {
   await notificationApi.markAllRead()
