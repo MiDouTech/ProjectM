@@ -45,4 +45,31 @@ class GoalServiceTest {
         verify(alignmentMapper).delete(any());
         verify(goalMapper, org.mockito.Mockito.never()).deleteById(eq(9L));
     }
+
+    @Test
+    void listGoalsByTargetMapsAlignmentId() {
+        com.mido.pm.goal.entity.PmGoalAlignment a = new com.mido.pm.goal.entity.PmGoalAlignment();
+        a.setId(100L);
+        a.setGoalId(7L);
+        a.setTargetType("project");
+        a.setTargetId(42L);
+        when(alignmentMapper.selectList(any())).thenReturn(java.util.List.of(a));
+        PmGoal g = new PmGoal();
+        g.setId(7L);
+        g.setTitle("KR-A");
+        when(goalMapper.selectBatchIds(any())).thenReturn(java.util.List.of(g));
+
+        var result = service.listGoalsByTarget("project", 42L);
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, result.size());
+        org.junit.jupiter.api.Assertions.assertEquals(100L, result.get(0).alignmentId());
+        org.junit.jupiter.api.Assertions.assertEquals(7L, result.get(0).goal().id());
+    }
+
+    @Test
+    void listGoalsByTargetRejectsBadType() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.mido.pm.common.exception.BizException.class,
+                () -> service.listGoalsByTarget("user", 1L));
+    }
 }

@@ -1,10 +1,12 @@
 <template>
-  <div class="mido-page">
+  <div :class="{ 'mido-page': !embedded }">
     <div class="tw__bar">
       <div class="tw__bar-left">
-        <el-button :icon="ArrowLeft" link @click="$router.push('/project')">返回项目</el-button>
-        <h1 class="mido-h1">{{ project.name || '任务' }}</h1>
-        <CategoryBadge v-if="project.category" :category="project.category" :show-label="false" />
+        <template v-if="!embedded">
+          <el-button :icon="ArrowLeft" link @click="$router.push('/project')">返回项目</el-button>
+          <h1 class="mido-h1">{{ project.name || '任务' }}</h1>
+          <CategoryBadge v-if="project.category" :category="project.category" :show-label="false" />
+        </template>
         <ViewSwitcher v-model="view" :views="VIEWS" @update:model-value="onSwitchType" />
         <el-select v-model="activeViewId" placeholder="我的视图" clearable class="tw__viewsel"
           @change="onSelectView">
@@ -165,9 +167,15 @@ const VIEWS = [
   { value: 'list', label: '列表' },
 ]
 
+// 内嵌模式：作为「项目工作台」子标签渲染，隐藏自带页头（返回/标题），projectId 由父级透传
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  projectId: { type: [Number, String], default: null },
+})
+
 const route = useRoute()
 // 雪花 ID 为字符串，禁止 Number() 转换（会丢精度），直接透传给后端
-const projectId = route.params.projectId
+const projectId = props.projectId ?? route.params.projectId
 
 const loading = ref(false)
 const saving = ref(false)
