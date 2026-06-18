@@ -160,6 +160,8 @@ class ApprovalServiceTest {
     void rejectMarksInstanceRejected() {
         login(100);
         ApprovalInstance inst = pendingInstance();
+        inst.setBizType("project_init");
+        inst.setBizId(99L);
         when(instanceMapper.selectById(1L)).thenReturn(inst);
         when(flowMapper.selectById(10L)).thenReturn(flow());
         ApprovalTask todo = new ApprovalTask();
@@ -170,7 +172,11 @@ class ApprovalServiceTest {
         service.act(1L, new ActDTO("reject", "驳回理由"));
 
         assertEquals(ApprovalInstance.STATUS_REJECTED, inst.getStatus());
-        verify(eventPublisher).publish(eq("approval.rejected"), any());
+        // 驳回事件须携带 bizType/bizId，业务侧才能据此回退状态
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.rejected"), captor.capture());
+        assertEquals(99L, captor.getValue().get("bizId"));
+        assertEquals("project_init", captor.getValue().get("bizType"));
     }
 
     @Test

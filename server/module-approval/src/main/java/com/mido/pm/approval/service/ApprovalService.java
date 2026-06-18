@@ -141,9 +141,10 @@ public class ApprovalService {
         if (reject) {
             instance.setStatus(ApprovalInstance.STATUS_REJECTED);
             instanceMapper.updateById(instance);
+            // 携带 bizType/bizId，供业务侧（如立项）监听驳回事件驱动状态回退
             eventPublisher.publish(ApprovalEvents.REJECTED, payload(
-                    "instanceId", instanceId, "node", current.key(),
-                    "approverId", approverId, "comment", dto.comment(),
+                    "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                    "node", current.key(), "approverId", approverId, "comment", dto.comment(),
                     "applicantId", instance.getApplicantId()));
             return;
         }

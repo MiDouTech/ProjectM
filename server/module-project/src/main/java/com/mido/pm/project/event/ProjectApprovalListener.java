@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * 监听立项审批结果事件，驱动项目状态机（事件解耦，审批域不直写项目表）：
  * - approval.approved(project_init) → 审批中→已注册（approvalPassed=true，写 pmo_registered_at）
- * - approval.withdrawn(project_init) → 审批中→草稿（发起人撤回，可修改后重新提交）
+ * - approval.withdrawn/rejected(project_init) → 审批中→草稿（撤回/驳回均可修改后重新提交）
  * AFTER_COMMIT：审批事务提交后才驱动，避免审批回滚却联动。
  */
 @Component
@@ -33,8 +33,10 @@ public class ProjectApprovalListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onDomainEvent(DomainEventMessage message) {
         boolean approved = "approval.approved".equals(message.eventType());
-        boolean withdrawn = "approval.withdrawn".equals(message.eventType());
-        if (!approved && !withdrawn) {
+        // 撤回与驳回都让项目回退草稿，供修改后重新提交
+        boolean backToDraft = "approval.withdrawn".equals(message.eventType())
+                || "approval.rejected".equals(message.eventType());
+        if (!approved && !backToDraft) {
             return;
         }
         if (!(message.payload() instanceof Map<?, ?> payload)) {
@@ -52,7 +54,7 @@ public class ProjectApprovalListener {
             log.info("立项审批通过，驱动项目注册：projectId={}", projectId);
             projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.REGISTERED.getCode(), true));
         } else {
-            log.info("立项审批撤回，项目回退草稿：projectId={}", projectId);
+            log.info("立项审批{}，项目回退草稿：projectId={}", message.eventType(), projectId);
             projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.DRAFT.getCode(), null));
         }
     }
