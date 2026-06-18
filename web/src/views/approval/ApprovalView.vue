@@ -49,6 +49,7 @@
                 </el-form-item>
               </el-form>
               <div class="apv__actions">
+                <el-button plain :loading="acting" @click="transferVisible = true">转交</el-button>
                 <el-button type="danger" plain :loading="acting" @click="act('reject')">驳回</el-button>
                 <el-button type="primary" :loading="acting" @click="act('approve')">通过</el-button>
               </div>
@@ -60,6 +61,22 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 转交：受让人暂以用户 ID 指定（统一选人组件待 Step 1） -->
+    <el-dialog v-model="transferVisible" title="转交审批" width="420">
+      <el-form label-width="92">
+        <el-form-item label="受让人 ID" required>
+          <el-input v-model="transferTo" placeholder="输入受让人用户 ID" />
+        </el-form-item>
+        <el-form-item label="转交说明">
+          <el-input v-model="transferComment" type="textarea" :rows="2" placeholder="转交说明（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="transferVisible = false">取消</el-button>
+        <el-button type="primary" :loading="acting" :disabled="!transferTo" @click="doTransfer">确认转交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -78,6 +95,9 @@ const comment = ref('')
 const current = ref(null)
 const recent = ref([])
 const stepsRef = ref()
+const transferVisible = ref(false)
+const transferTo = ref('')
+const transferComment = ref('')
 
 // 审批实例状态码 → StatusTag 中文（pending/approved/rejected）
 const STATUS_ZH = { pending: '审批中', approved: '已结案', rejected: '失败' }
@@ -105,6 +125,22 @@ async function act(action) {
     await approvalApi.act(current.value.id, { action, comment: comment.value })
     ElMessage.success(action === 'approve' ? '已通过' : '已驳回')
     comment.value = ''
+    await loadInstance(current.value.id)
+    stepsRef.value?.reload()
+  } finally {
+    acting.value = false
+  }
+}
+async function doTransfer() {
+  acting.value = true
+  try {
+    await approvalApi.transfer(current.value.id, {
+      toUserId: transferTo.value, comment: transferComment.value || null,
+    })
+    ElMessage.success('已转交')
+    transferVisible.value = false
+    transferTo.value = ''
+    transferComment.value = ''
     await loadInstance(current.value.id)
     stepsRef.value?.reload()
   } finally {

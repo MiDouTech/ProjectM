@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -20,27 +19,29 @@ class ApprovalEngineTest {
     @Test
     void orNodePassesWhenAnyApproves() {
         FlowNode n = node("A", List.of(1L, 2L), FlowNode.MODE_OR, null);
-        assertEquals(NodeStatus.PENDING, ApprovalEngine.evaluateNode(n, Set.of(), false));
-        assertEquals(NodeStatus.PASSED, ApprovalEngine.evaluateNode(n, Set.of(1L), false));
+        // 尚无通过、仍有待办 → 待定；任一通过 → 过（或签不要求待办清空）
+        assertEquals(NodeStatus.PENDING, ApprovalEngine.evaluateNode(n, false, true, false));
+        assertEquals(NodeStatus.PASSED, ApprovalEngine.evaluateNode(n, true, true, false));
     }
 
     @Test
     void andNodePassesOnlyWhenAllApprove() {
         FlowNode n = node("B", List.of(3L, 4L), FlowNode.MODE_AND, null);
-        assertEquals(NodeStatus.PENDING, ApprovalEngine.evaluateNode(n, Set.of(3L), false));
-        assertEquals(NodeStatus.PASSED, ApprovalEngine.evaluateNode(n, Set.of(3L, 4L), false));
+        // 会签：已有通过但仍有待办 → 待定；全部处理完且有通过 → 过
+        assertEquals(NodeStatus.PENDING, ApprovalEngine.evaluateNode(n, true, true, false));
+        assertEquals(NodeStatus.PASSED, ApprovalEngine.evaluateNode(n, true, false, false));
     }
 
     @Test
     void rejectedShortCircuits() {
         FlowNode n = node("A", List.of(1L), FlowNode.MODE_OR, null);
-        assertEquals(NodeStatus.REJECTED, ApprovalEngine.evaluateNode(n, Set.of(1L), true));
+        assertEquals(NodeStatus.REJECTED, ApprovalEngine.evaluateNode(n, true, false, true));
     }
 
     @Test
-    void emptyApproversStaysPending() {
+    void noTasksStaysPending() {
         FlowNode n = node("A", List.of(), FlowNode.MODE_OR, null);
-        assertEquals(NodeStatus.PENDING, ApprovalEngine.evaluateNode(n, Set.of(1L), false));
+        assertEquals(NodeStatus.PENDING, ApprovalEngine.evaluateNode(n, false, false, false));
     }
 
     @Test

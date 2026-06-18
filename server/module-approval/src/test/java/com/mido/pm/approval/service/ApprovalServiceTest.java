@@ -3,6 +3,7 @@ package com.mido.pm.approval.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
@@ -119,6 +120,7 @@ class ApprovalServiceTest {
         when(taskMapper.selectOne(any())).thenReturn(todo);
         ApprovalTask approved = new ApprovalTask();
         approved.setApproverId(100L);
+        approved.setAction(ApprovalTask.ACTION_APPROVE);
         when(taskMapper.selectList(any())).thenReturn(List.of(approved));
 
         service.act(1L, new ActDTO("approve", "ok"));
@@ -143,6 +145,7 @@ class ApprovalServiceTest {
         when(taskMapper.selectOne(any())).thenReturn(todo);
         ApprovalTask approved = new ApprovalTask();
         approved.setApproverId(100L);
+        approved.setAction(ApprovalTask.ACTION_APPROVE);
         when(taskMapper.selectList(any())).thenReturn(List.of(approved));
 
         service.act(1L, new ActDTO("approve", "ok"));
@@ -255,6 +258,47 @@ class ApprovalServiceTest {
         when(instanceMapper.selectById(1L)).thenReturn(inst);
 
         assertThrows(BizException.class, () -> service.withdraw(1L, new WithdrawDTO(null)));
+    }
+
+    @Test
+    void transferCreatesHandoffTaskAndEvent() {
+        login(100);
+        ApprovalInstance inst = pendingInstance();
+        inst.setBizType("project_init");
+        inst.setBizId(7L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        ApprovalTask todo = new ApprovalTask();
+        todo.setInstanceId(1L);
+        todo.setNode("n1");
+        todo.setApproverId(100L);
+        when(taskMapper.selectOne(any())).thenReturn(todo);
+
+        service.transfer(1L, new TransferDTO(200L, "出差代审"));
+
+        assertEquals(ApprovalTask.ACTION_TRANSFER, todo.getAction());
+        verify(taskMapper).insert(any(ApprovalTask.class)); // 为受让人建新待办
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.transferred"), captor.capture());
+        assertEquals(200L, captor.getValue().get("toUserId"));
+        assertEquals(100L, captor.getValue().get("fromUserId"));
+    }
+
+    @Test
+    void transferToSelfRejected() {
+        login(100);
+        when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+
+        assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(100L, null)));
+        verify(eventPublisher, never()).publish(eq("approval.transferred"), any());
+    }
+
+    @Test
+    void transferWithoutTodoForbidden() {
+        login(100);
+        when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+        when(taskMapper.selectOne(any())).thenReturn(null);
+
+        assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(200L, null)));
     }
 
     @Test

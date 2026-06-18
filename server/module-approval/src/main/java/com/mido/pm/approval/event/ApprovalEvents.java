@@ -8,6 +8,7 @@ public final class ApprovalEvents {
     public static final String APPROVED = "approval.approved";
     public static final String REJECTED = "approval.rejected";
     public static final String WITHDRAWN = "approval.withdrawn";
+    public static final String TRANSFERRED = "approval.transferred";
 
     private ApprovalEvents() {
     }

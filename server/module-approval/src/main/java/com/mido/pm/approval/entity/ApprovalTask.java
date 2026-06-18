@@ -13,6 +13,7 @@ public class ApprovalTask extends BaseEntity {
 
     public static final String ACTION_APPROVE = "approve";
     public static final String ACTION_REJECT = "reject";
+    public static final String ACTION_TRANSFER = "transfer";
 
     private Long instanceId;
     private String node;

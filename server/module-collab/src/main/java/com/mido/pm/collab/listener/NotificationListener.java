@@ -55,6 +55,12 @@ public class NotificationListener {
                     "有一条立项审批待你处理。");
             case "approval.node.approved" -> notifyApprovers(eventType, payload.get("nextApproverIds"),
                     "上一节点已通过，有一条立项审批待你处理。");
+            case "approval.transferred" -> {
+                Long toUser = asLong(payload.get("toUserId"));
+                if (toUser != null) {
+                    notify(eventType, toUser, "待审批", "有一条审批转交给你处理，请尽快查看。");
+                }
+            }
             case "npss.review.started" -> {
                 // 收件干系人由事件携带（recipientUserIds），逐个多通道通知去打分
                 if (payload.get("recipientUserIds") instanceof List<?> recipients) {

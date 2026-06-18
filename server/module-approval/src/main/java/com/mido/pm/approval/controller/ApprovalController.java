@@ -4,6 +4,7 @@ import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.api.R;
@@ -49,6 +50,13 @@ public class ApprovalController {
     @PostMapping("/instances/{id}/withdraw")
     public R<Void> withdraw(@PathVariable Long id, @RequestBody(required = false) WithdrawDTO dto) {
         approvalService.withdraw(id, dto);
+        return R.ok();
+    }
+
+    /** 转交：当前审批人把待办交给他人；body.toUserId 必填、comment 选填。 */
+    @PostMapping("/instances/{id}/transfer")
+    public R<Void> transfer(@PathVariable Long id, @Valid @RequestBody TransferDTO dto) {
+        approvalService.transfer(id, dto);
         return R.ok();
     }
 
