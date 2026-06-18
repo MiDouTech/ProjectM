@@ -3,6 +3,8 @@ package com.mido.pm.approval.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.TransferDTO;
+import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
 import com.mido.pm.approval.entity.ApprovalTask;
@@ -118,6 +120,7 @@ class ApprovalServiceTest {
         when(taskMapper.selectOne(any())).thenReturn(todo);
         ApprovalTask approved = new ApprovalTask();
         approved.setApproverId(100L);
+        approved.setAction(ApprovalTask.ACTION_APPROVE);
         when(taskMapper.selectList(any())).thenReturn(List.of(approved));
 
         service.act(1L, new ActDTO("approve", "ok"));
@@ -142,6 +145,7 @@ class ApprovalServiceTest {
         when(taskMapper.selectOne(any())).thenReturn(todo);
         ApprovalTask approved = new ApprovalTask();
         approved.setApproverId(100L);
+        approved.setAction(ApprovalTask.ACTION_APPROVE);
         when(taskMapper.selectList(any())).thenReturn(List.of(approved));
 
         service.act(1L, new ActDTO("approve", "ok"));
@@ -159,6 +163,8 @@ class ApprovalServiceTest {
     void rejectMarksInstanceRejected() {
         login(100);
         ApprovalInstance inst = pendingInstance();
+        inst.setBizType("project_init");
+        inst.setBizId(99L);
         when(instanceMapper.selectById(1L)).thenReturn(inst);
         when(flowMapper.selectById(10L)).thenReturn(flow());
         ApprovalTask todo = new ApprovalTask();
@@ -169,7 +175,11 @@ class ApprovalServiceTest {
         service.act(1L, new ActDTO("reject", "驳回理由"));
 
         assertEquals(ApprovalInstance.STATUS_REJECTED, inst.getStatus());
-        verify(eventPublisher).publish(eq("approval.rejected"), any());
+        // 驳回事件须携带 bizType/bizId，业务侧才能据此回退状态
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.rejected"), captor.capture());
+        assertEquals(99L, captor.getValue().get("bizId"));
+        assertEquals("project_init", captor.getValue().get("bizType"));
     }
 
     @Test
@@ -211,6 +221,126 @@ class ApprovalServiceTest {
 
         assertEquals(1, result.size());
         assertEquals(10L, result.get(0).instanceId());
+    }
+
+    @Test
+    void withdrawByApplicantMarksWithdrawnAndCarriesApprovers() {
+        login(7);
+        ApprovalInstance inst = pendingInstance();
+        inst.setApplicantId(7L);
+        inst.setBizType("project_init");
+        inst.setBizId(1L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        // 当前节点待办审批人 → 撤回事件须携带，供通知监听器通知其无需处理
+        ApprovalTask pending = new ApprovalTask();
+        pending.setApproverId(55L);
+        pending.setNode("n1");
+        when(taskMapper.selectList(any())).thenReturn(List.of(pending));
+
+        service.withdraw(1L, new WithdrawDTO("不做了"));
+
+        assertEquals(ApprovalInstance.STATUS_WITHDRAWN, inst.getStatus());
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.withdrawn"), captor.capture());
+        assertEquals(List.of(55L), captor.getValue().get("approverIds"));
+    }
+
+    @Test
+    void withdrawByNonApplicantForbidden() {
+        login(8);
+        ApprovalInstance inst = pendingInstance();
+        inst.setApplicantId(7L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+
+        assertThrows(BizException.class, () -> service.withdraw(1L, new WithdrawDTO(null)));
+        verify(eventPublisher, never()).publish(eq("approval.withdrawn"), any());
+    }
+
+    @Test
+    void withdrawNonPendingConflict() {
+        login(7);
+        ApprovalInstance inst = pendingInstance();
+        inst.setStatus(ApprovalInstance.STATUS_APPROVED);
+        inst.setApplicantId(7L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+
+        assertThrows(BizException.class, () -> service.withdraw(1L, new WithdrawDTO(null)));
+    }
+
+    @Test
+    void transferCreatesHandoffTaskAndEvent() {
+        login(100);
+        ApprovalInstance inst = pendingInstance();
+        inst.setBizType("project_init");
+        inst.setBizId(7L);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        when(flowMapper.selectById(10L)).thenReturn(flow());
+        ApprovalTask todo = new ApprovalTask();
+        todo.setInstanceId(1L);
+        todo.setNode("n1");
+        todo.setApproverId(100L);
+        when(taskMapper.selectOne(any())).thenReturn(todo);
+
+        service.transfer(1L, new TransferDTO(200L, "出差代审"));
+
+        assertEquals(ApprovalTask.ACTION_TRANSFER, todo.getAction());
+        verify(taskMapper).insert(any(ApprovalTask.class)); // 为受让人建新待办
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.transferred"), captor.capture());
+        assertEquals(200L, captor.getValue().get("toUserId"));
+        assertEquals(100L, captor.getValue().get("fromUserId"));
+    }
+
+    @Test
+    void transferToSelfRejected() {
+        login(100);
+        when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+
+        assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(100L, null)));
+        verify(eventPublisher, never()).publish(eq("approval.transferred"), any());
+    }
+
+    @Test
+    void transferToExistingApproverRejected() {
+        login(100);
+        when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+        when(flowMapper.selectById(10L)).thenReturn(flow());
+        ApprovalTask mine = new ApprovalTask();
+        mine.setNode("n1");
+        mine.setApproverId(100L);
+        when(taskMapper.selectOne(any())).thenReturn(mine);
+        when(taskMapper.selectCount(any())).thenReturn(1L); // 受让人在该节点已有待办
+
+        assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(200L, null)));
+        verify(eventPublisher, never()).publish(eq("approval.transferred"), any());
+    }
+
+    @Test
+    void transferWithoutTodoForbidden() {
+        login(100);
+        when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+        when(flowMapper.selectById(10L)).thenReturn(flow());
+        when(taskMapper.selectOne(any())).thenReturn(null);
+
+        assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(200L, null)));
+    }
+
+    @Test
+    void getInstanceExposesCurrentNodeAndPendingApprovers() {
+        ApprovalInstance inst = pendingInstance();
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        when(flowMapper.selectById(10L)).thenReturn(flow());
+        ApprovalTask pending = new ApprovalTask();
+        pending.setApproverId(100L);
+        pending.setNode("n1");
+        when(taskMapper.selectList(any())).thenReturn(List.of(pending));
+
+        var vo = service.getInstance(1L);
+
+        assertEquals("审批", vo.currentNodeName());
+        assertEquals("or", vo.currentMode());
+        assertEquals(List.of(100L), vo.pendingApproverIds());
+        assertEquals(List.of(), vo.approvedApproverIds());
     }
 
     private ApprovalTask pendingTask(long instanceId) {

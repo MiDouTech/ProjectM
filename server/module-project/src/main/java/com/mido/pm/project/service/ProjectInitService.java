@@ -1,6 +1,7 @@
 package com.mido.pm.project.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.service.ApprovalFlowService;
 import com.mido.pm.approval.service.ApprovalService;
@@ -93,6 +94,11 @@ public class ProjectInitService {
         Long instanceId = approvalService.submit(new SubmitDTO(flowId, BIZ_TYPE, projectId, formData));
         projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.APPROVING.getCode(), null));
         return instanceId;
+    }
+
+    /** 当前立项审批实例（含「待谁审批」），未提交过则返回 null。 */
+    public InstanceVO currentApproval(Long projectId) {
+        return approvalService.findCurrentInstance(BIZ_TYPE, projectId);
     }
 
     /** 解析默认审批流标识：优先模板 config.approvalFlow，否则按类型/子类回落。 */

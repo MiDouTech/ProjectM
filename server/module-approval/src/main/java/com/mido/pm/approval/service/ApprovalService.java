@@ -12,6 +12,8 @@ import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.TransferDTO;
+import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
 import com.mido.pm.approval.entity.ApprovalTask;
@@ -94,7 +96,8 @@ public class ApprovalService {
                 "instanceId", instance.getId(), "flowId", flow.getId(),
                 "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                 "applicantId", instance.getApplicantId(),
-                "approverIds", first.approvers() == null ? List.of() : first.approvers()));
+                "approverIds", first.approvers() == null ? List.of() : first.approvers(),
+                "ccIds", first.cc() == null ? List.of() : first.cc()));
         return instance.getId();
     }
 
@@ -118,14 +121,7 @@ public class ApprovalService {
                 .orElseThrow(() -> new BizException(ErrorCode.SYSTEM_ERROR, "当前节点不在活动节点中"));
 
         Long approverId = currentUserId();
-        ApprovalTask task = taskMapper.selectOne(Wrappers.<ApprovalTask>lambdaQuery()
-                .eq(ApprovalTask::getInstanceId, instanceId)
-                .eq(ApprovalTask::getNode, current.key())
-                .eq(ApprovalTask::getApproverId, approverId)
-                .isNull(ApprovalTask::getAction));
-        if (task == null) {
-            throw new BizException(ErrorCode.FORBIDDEN, "你在当前节点无待办或已处理");
-        }
+        ApprovalTask task = requireMyPendingTask(instanceId, current.key(), approverId);
 
         boolean approve = ApprovalTask.ACTION_APPROVE.equals(dto.action());
         boolean reject = ApprovalTask.ACTION_REJECT.equals(dto.action());
@@ -140,16 +136,19 @@ public class ApprovalService {
         if (reject) {
             instance.setStatus(ApprovalInstance.STATUS_REJECTED);
             instanceMapper.updateById(instance);
+            // 携带 bizType/bizId，供业务侧（如立项）监听驳回事件驱动状态回退
             eventPublisher.publish(ApprovalEvents.REJECTED, payload(
-                    "instanceId", instanceId, "node", current.key(),
-                    "approverId", approverId, "comment", dto.comment(),
+                    "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                    "node", current.key(), "approverId", approverId, "comment", dto.comment(),
                     "applicantId", instance.getApplicantId()));
             return;
         }
 
-        // approve：判定当前节点
-        Set<Long> approved = approvedApprovers(instanceId, current.key());
-        NodeStatus status = ApprovalEngine.evaluateNode(current, approved, false);
+        // approve：基于当前节点动态待办判定（支持转交后由受让人推进）
+        List<ApprovalTask> nodeTasks = nodeTasks(instanceId, current.key());
+        boolean anyApproved = nodeTasks.stream().anyMatch(t -> ApprovalTask.ACTION_APPROVE.equals(t.getAction()));
+        boolean anyPending = nodeTasks.stream().anyMatch(t -> t.getAction() == null);
+        NodeStatus status = ApprovalEngine.evaluateNode(current, anyApproved, anyPending, false);
         if (status != NodeStatus.PASSED) {
             return; // 会签未齐，等待其余审批人
         }
@@ -161,7 +160,8 @@ public class ApprovalService {
         eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
                 "instanceId", instanceId, "node", current.key(), "approverId", approverId,
                 "nextNode", next == null ? null : next.key(),
-                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers()));
+                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers(),
+                "nextCcIds", next == null || next.cc() == null ? List.of() : next.cc()));
 
         if (next != null) {
             guardRegistry.run(next, ctx);
@@ -175,6 +175,85 @@ public class ApprovalService {
                     "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                     "applicantId", instance.getApplicantId()));
         }
+    }
+
+    /**
+     * 发起人撤回：仅 pending 实例、仅申请人本人可撤回；置 withdrawn 并发 approval.withdrawn
+     * （项目侧据此回退草稿）。撤回后实例非 pending，审批人 act 会被拒、不再出现在「待我审批」。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void withdraw(Long instanceId, WithdrawDTO dto) {
+        ApprovalInstance instance = instanceMapper.selectById(instanceId);
+        if (instance == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "审批实例不存在");
+        }
+        if (!ApprovalInstance.STATUS_PENDING.equals(instance.getStatus())) {
+            throw new BizException(ErrorCode.CONFLICT, "审批已结束，不可撤回");
+        }
+        Long me = currentUserId();
+        if (instance.getApplicantId() == null || !instance.getApplicantId().equals(me)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅发起人可撤回该审批");
+        }
+        // 当前节点待办审批人——撤回后通知他们「无需处理」（docs/domain-events.md：通知审批人）
+        List<Long> approverIds = nodeTasks(instanceId, instance.getCurrentNode()).stream()
+                .filter(t -> t.getAction() == null)
+                .map(ApprovalTask::getApproverId).distinct().toList();
+        instance.setStatus(ApprovalInstance.STATUS_WITHDRAWN);
+        instanceMapper.updateById(instance);
+        eventPublisher.publish(ApprovalEvents.WITHDRAWN, payload(
+                "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                "applicantId", instance.getApplicantId(), "approverIds", approverIds,
+                "reason", dto == null ? null : dto.reason()));
+    }
+
+    /**
+     * 转交：当前审批人把自己在当前节点的待办交给他人。原待办标记 transfer 留痕，为受让人新建待办，
+     * 发 approval.transferred（通知受让人）。节点是否通过按动态待办判定，故受让人通过即可推进。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void transfer(Long instanceId, TransferDTO dto) {
+        if (dto == null || dto.toUserId() == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "转交对象不能为空");
+        }
+        ApprovalInstance instance = instanceMapper.selectById(instanceId);
+        if (instance == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "审批实例不存在");
+        }
+        if (!ApprovalInstance.STATUS_PENDING.equals(instance.getStatus())) {
+            throw new BizException(ErrorCode.CONFLICT, "审批已结束，不可转交");
+        }
+        Long me = currentUserId();
+        if (dto.toUserId().equals(me)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "不能转交给自己");
+        }
+        // 当前节点须仍为活动节点（与 act 一致）：避免条件路由失活后转交产生孤儿待办与误导通知
+        FlowNode current = requireCurrentActiveNode(instance);
+        ApprovalTask task = requireMyPendingTask(instanceId, current.key(), me);
+        // 受让人在该节点已有待办则拒绝：避免重复待办致会签卡死、受让人 act 命中多行
+        boolean alreadyAssigned = taskMapper.selectCount(Wrappers.<ApprovalTask>lambdaQuery()
+                .eq(ApprovalTask::getInstanceId, instanceId)
+                .eq(ApprovalTask::getNode, current.key())
+                .eq(ApprovalTask::getApproverId, dto.toUserId())
+                .isNull(ApprovalTask::getAction)) > 0;
+        if (alreadyAssigned) {
+            throw new BizException(ErrorCode.CONFLICT, "该用户在当前节点已有待办，无需转交");
+        }
+        // 原待办标记已转交（留痕），为受让人新建待办
+        task.setAction(ApprovalTask.ACTION_TRANSFER);
+        task.setComment(dto.comment());
+        task.setActedAt(LocalDateTime.now());
+        taskMapper.updateById(task);
+
+        ApprovalTask handoff = new ApprovalTask();
+        handoff.setInstanceId(instanceId);
+        handoff.setNode(current.key());
+        handoff.setApproverId(dto.toUserId());
+        taskMapper.insert(handoff);
+
+        eventPublisher.publish(ApprovalEvents.TRANSFERRED, payload(
+                "instanceId", instanceId, "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                "node", current.key(), "fromUserId", me, "toUserId", dto.toUserId(),
+                "comment", dto.comment()));
     }
 
     /**
@@ -214,11 +293,49 @@ public class ApprovalService {
         if (i == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "审批实例不存在");
         }
-        return new InstanceVO(i.getId(), i.getFlowId(), i.getBizType(), i.getBizId(),
-                i.getStatus(), i.getCurrentNode(), i.getApplicantId());
+        return toVO(i);
+    }
+
+    /** 按业务反查最新审批实例（含「待谁审批」），无则 null。供项目侧刷新后展示审批进度。 */
+    public InstanceVO findCurrentInstance(String bizType, Long bizId) {
+        ApprovalInstance i = instanceMapper.selectOne(Wrappers.<ApprovalInstance>lambdaQuery()
+                .eq(ApprovalInstance::getBizType, bizType)
+                .eq(ApprovalInstance::getBizId, bizId)
+                .orderByDesc(ApprovalInstance::getId)
+                .last("LIMIT 1"));
+        return i == null ? null : toVO(i);
     }
 
     // ===== 内部 =====
+
+    /** 组装实例视图：解析当前节点名/会签模式，并按待办/已通过拆分审批人。 */
+    private InstanceVO toVO(ApprovalInstance i) {
+        String nodeName = null;
+        String mode = null;
+        List<Long> pending = List.of();
+        List<Long> approved = List.of();
+        if (i.getCurrentNode() != null) {
+            ApprovalFlow flow = flowMapper.selectById(i.getFlowId());
+            if (flow != null) {
+                FlowNode node = parseDefinition(flow.getDefinition()).nodes().stream()
+                        .filter(n -> i.getCurrentNode().equals(n.key())).findFirst().orElse(null);
+                if (node != null) {
+                    nodeName = node.name();
+                    mode = node.mode();
+                }
+            }
+            List<ApprovalTask> tasks = taskMapper.selectList(Wrappers.<ApprovalTask>lambdaQuery()
+                    .eq(ApprovalTask::getInstanceId, i.getId())
+                    .eq(ApprovalTask::getNode, i.getCurrentNode()));
+            pending = tasks.stream().filter(t -> t.getAction() == null)
+                    .map(ApprovalTask::getApproverId).toList();
+            approved = tasks.stream().filter(t -> ApprovalTask.ACTION_APPROVE.equals(t.getAction()))
+                    .map(ApprovalTask::getApproverId).toList();
+        }
+        return new InstanceVO(i.getId(), i.getFlowId(), i.getBizType(), i.getBizId(),
+                i.getStatus(), i.getCurrentNode(), i.getApplicantId(),
+                nodeName, mode, pending, approved);
+    }
 
     private void createTasks(Long instanceId, FlowNode node) {
         List<Long> approvers = node.approvers() == null ? List.of() : node.approvers();
@@ -231,12 +348,34 @@ public class ApprovalService {
         }
     }
 
-    private Set<Long> approvedApprovers(Long instanceId, String node) {
+    /** 某实例某节点的全部待办（含已处理），用于按动态任务状态判定节点是否通过。 */
+    private List<ApprovalTask> nodeTasks(Long instanceId, String node) {
         return taskMapper.selectList(Wrappers.<ApprovalTask>lambdaQuery()
-                        .eq(ApprovalTask::getInstanceId, instanceId)
-                        .eq(ApprovalTask::getNode, node)
-                        .eq(ApprovalTask::getAction, ApprovalTask.ACTION_APPROVE))
-                .stream().map(ApprovalTask::getApproverId).collect(Collectors.toSet());
+                .eq(ApprovalTask::getInstanceId, instanceId)
+                .eq(ApprovalTask::getNode, node));
+    }
+
+    /** 当前用户在某节点的未处理待办，无则抛 FORBIDDEN。act/transfer 共用。 */
+    private ApprovalTask requireMyPendingTask(Long instanceId, String node, Long userId) {
+        ApprovalTask task = taskMapper.selectOne(Wrappers.<ApprovalTask>lambdaQuery()
+                .eq(ApprovalTask::getInstanceId, instanceId)
+                .eq(ApprovalTask::getNode, node)
+                .eq(ApprovalTask::getApproverId, userId)
+                .isNull(ApprovalTask::getAction));
+        if (task == null) {
+            throw new BizException(ErrorCode.FORBIDDEN, "你在当前节点无待办或已处理");
+        }
+        return task;
+    }
+
+    /** 解析实例当前节点并校验其仍为活动节点（条件路由后可能失活），失活抛 SYSTEM_ERROR。 */
+    private FlowNode requireCurrentActiveNode(ApprovalInstance instance) {
+        ApprovalFlow flow = requireFlow(instance.getFlowId());
+        FlowDefinition definition = parseDefinition(flow.getDefinition());
+        ApprovalContext ctx = new ApprovalContext(readMap(instance.getFormData()));
+        return ApprovalEngine.activeNodes(definition, ctx).stream()
+                .filter(n -> n.key().equals(instance.getCurrentNode())).findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.SYSTEM_ERROR, "当前节点不在活动节点中"));
     }
 
     private ApprovalFlow requireFlow(Long flowId) {

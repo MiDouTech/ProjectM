@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.mido.pm.common.entity.BaseEntity;
 
 /**
- * 审批实例（approval_instance）。status：pending/approved/rejected。
+ * 审批实例（approval_instance）。status：pending/approved/rejected/withdrawn。
  */
 @TableName("approval_instance")
 public class ApprovalInstance extends BaseEntity {
@@ -12,6 +12,7 @@ public class ApprovalInstance extends BaseEntity {
     public static final String STATUS_PENDING = "pending";
     public static final String STATUS_APPROVED = "approved";
     public static final String STATUS_REJECTED = "rejected";
+    public static final String STATUS_WITHDRAWN = "withdrawn";
 
     private Long flowId;
     private String bizType;

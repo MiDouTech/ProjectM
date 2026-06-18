@@ -19,34 +19,51 @@
     <!-- ② 价值验收（NPSS） -->
     <div class="pv__seg">
       <span class="mido-h2">价值验收（NPSS）</span>
-      <NpssScoreCard v-if="review" :review="review" @scored="load" />
+      <NpssScoreCard v-if="review" :review="review"
+        :stakeholder-name="stakeholderName" :external-ids="externalIds" @scored="load" />
       <el-empty v-else description="尚未发起价值验收（结案后到期自动发起）" :image-size="60" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
 import NpssScoreCard from '@/components/NpssScoreCard.vue'
 import { npssApi } from '@/api/npss'
+import { stakeholderApi } from '@/api/stakeholder'
 
 const props = defineProps({
   project: { type: Object, default: () => ({}) },
   projectId: { type: [Number, String], default: null },
+  userName: { type: Function, default: (id) => (id ? `用户#${id}` : '—') },
 })
 
 const loading = ref(false)
 const review = ref(null)
+const stakeholders = ref([])
 
 const money = (v) => (v == null ? '—' : Number(v).toFixed(2))
+
+// 干系人名称解析 + 外部干系人识别（无系统账号者 userId 为空）
+const stakeholderName = (id) => {
+  const s = stakeholders.value.find((x) => String(x.id) === String(id))
+  if (!s) return `干系人#${id}`
+  return s.externalName || props.userName(s.userId)
+}
+const externalIds = computed(() =>
+  stakeholders.value.filter((s) => !s.userId).map((s) => s.id))
 
 async function load() {
   if (!props.projectId) return
   loading.value = true
   try {
-    const reviews = await npssApi.listByProject(props.projectId)
+    const [reviews, stks] = await Promise.all([
+      npssApi.listByProject(props.projectId),
+      stakeholderApi.list(props.projectId),
+    ])
     review.value = reviews && reviews.length ? reviews[0] : null // 取最新一轮
+    stakeholders.value = stks || []
   } finally {
     loading.value = false
   }

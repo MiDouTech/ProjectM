@@ -7,13 +7,20 @@
         <span class="mido-text-secondary">加权满意度</span>
       </div>
       <StatusTag v-if="review.resultLevel" :status="levelLabel(review.resultLevel)" />
-      <el-tag v-else type="info" disable-transitions>评分中</el-tag>
+      <el-tag v-else type="info" effect="plain" disable-transitions>评分中</el-tag>
     </div>
+
+    <!-- 外部干系人无系统账号，提示其评分由 PMO/负责人代录 -->
+    <el-alert v-if="hasExternal" class="nsc__hint" type="info" :closable="false" show-icon
+      title="外部干系人无系统账号，其评分由 PMO/负责人代为录入" />
 
     <!-- 干系人打分（0-10），待打分行可内联提交 -->
     <el-table :data="review.scores" size="small">
-      <el-table-column label="干系人" width="120">
-        <template #default="{ row }">{{ stakeholderName(row.stakeholderId) }}</template>
+      <el-table-column label="干系人" width="140">
+        <template #default="{ row }">
+          {{ stakeholderName(row.stakeholderId) }}
+          <el-tag v-if="isExternal(row.stakeholderId)" size="small" type="info" effect="plain">外部</el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="权重" width="80" align="right">
         <template #default="{ row }"><span class="mido-mono">{{ pct(row.weight) }}</span></template>
@@ -39,7 +46,7 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import StatusTag from './StatusTag.vue'
 import { npssApi, RESULT_LEVEL_LABEL } from '@/api/npss'
@@ -48,8 +55,14 @@ const props = defineProps({
   review: { type: Object, required: true },
   // 解析干系人名称（可选）
   stakeholderName: { type: Function, default: (id) => `干系人#${id}` },
+  // 外部干系人 id 列表（无系统账号，评分代录）
+  externalIds: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['scored'])
+
+const isExternal = (id) => props.externalIds.some((x) => String(x) === String(id))
+const hasExternal = computed(() =>
+  (props.review?.scores || []).some((s) => isExternal(s.stakeholderId)))
 
 const saving = reactive({ value: false })
 // 每个待打分干系人的草稿
@@ -94,6 +107,9 @@ async function submit(row) {
   display: flex;
   align-items: center;
   gap: var(--mido-space-4);
+  margin-bottom: var(--mido-space-3);
+}
+.nsc__hint {
   margin-bottom: var(--mido-space-3);
 }
 .nsc__score {

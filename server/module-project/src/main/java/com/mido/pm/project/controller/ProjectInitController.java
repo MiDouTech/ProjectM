@@ -1,8 +1,10 @@
 package com.mido.pm.project.controller;
 
+import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.common.api.R;
 import com.mido.pm.project.dto.InitiationFormDTO;
 import com.mido.pm.project.service.ProjectInitService;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,5 +26,11 @@ public class ProjectInitController {
     @PostMapping("/{id}/submit-approval")
     public R<Long> submitApproval(@PathVariable Long id, @RequestBody InitiationFormDTO form) {
         return R.ok(initService.submitApproval(id, form));
+    }
+
+    /** 当前立项审批实例（含「待谁审批」），用于刷新后展示审批进度；未提交过返回 null。 */
+    @GetMapping("/{id}/approval")
+    public R<InstanceVO> currentApproval(@PathVariable Long id) {
+        return R.ok(initService.currentApproval(id));
     }
 }

@@ -1,7 +1,6 @@
 package com.mido.pm.approval.domain;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * 审批引擎核心（纯逻辑、可单测）：解析活动节点 + 单节点通过判定（会签/或签/驳回）。
@@ -18,26 +17,27 @@ public final class ApprovalEngine {
     }
 
     /**
-     * 判定某节点状态。
+     * 判定某节点状态。基于该节点的动态待办任务状态（而非静态审批人列表），
+     * 以支持「转交」——转交产生新待办，受让人通过即可推进，不依赖其是否在原始审批人名单。
      *
-     * @param node             节点
-     * @param approvedApprovers 已点通过的审批人集合
-     * @param rejected         是否已有人驳回
+     * @param node        节点（仅取会签/或签模式）
+     * @param anyApproved 该节点是否已有审批人点了通过
+     * @param anyPending  该节点是否仍有未处理待办（含转交产生的新待办）
+     * @param rejected    是否已有人驳回
      */
-    public static NodeStatus evaluateNode(FlowNode node, Set<Long> approvedApprovers, boolean rejected) {
+    public static NodeStatus evaluateNode(FlowNode node, boolean anyApproved, boolean anyPending, boolean rejected) {
         if (rejected) {
             return NodeStatus.REJECTED;
         }
-        List<Long> approvers = node.approvers() == null ? List.of() : node.approvers();
-        if (approvers.isEmpty()) {
+        if (!anyApproved && !anyPending) {
+            // 节点无任何待办（未配置审批人）：保持待定，避免空节点误判通过
             return NodeStatus.PENDING;
         }
         if (node.isCountersign()) {
-            // 会签：全部通过
-            return approvedApprovers.containsAll(approvers) ? NodeStatus.PASSED : NodeStatus.PENDING;
+            // 会签：全部待办处理完且至少一人通过
+            return (anyApproved && !anyPending) ? NodeStatus.PASSED : NodeStatus.PENDING;
         }
-        // 或签：任一通过
-        return approvers.stream().anyMatch(approvedApprovers::contains)
-                ? NodeStatus.PASSED : NodeStatus.PENDING;
+        // 或签：任一通过即过
+        return anyApproved ? NodeStatus.PASSED : NodeStatus.PENDING;
     }
 }

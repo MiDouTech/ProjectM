@@ -68,7 +68,9 @@
         <el-table-column label="周期" v-else min-width="180">
           <template #default="{ row }">{{ row.startDate || '—' }} ~ {{ row.endDate || '—' }}</template>
         </el-table-column>
-        <template #empty><el-empty description="暂无项目，点击右上角新建项目" /></template>
+        <template #empty>
+          <EmptyState description="还没有项目" action-text="新建项目" :action-icon="Plus" @action="wizardOpen = true" />
+        </template>
       </el-table>
 
       <!-- 卡片 -->
@@ -85,7 +87,8 @@
             <span>{{ money(row.budget) }}</span>
           </div>
         </div>
-        <el-empty v-if="!viewRows.length" description="暂无项目，点击右上角新建项目" />
+        <EmptyState v-if="!viewRows.length" description="还没有项目" action-text="新建项目"
+          :action-icon="Plus" @action="wizardOpen = true" />
       </div>
 
       <div class="pl__pager">
@@ -105,6 +108,7 @@ import { Plus, Search, Filter, SortUp, SortDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import FilterBuilder from '@/components/FilterBuilder.vue'
 import CreateProjectWizard from './CreateProjectWizard.vue'
 import { projectApi, PROJECT_CATEGORIES } from '@/api/project'
@@ -250,10 +254,22 @@ onMounted(async () => {
   border: var(--mido-border-width) solid var(--el-border-color-light);
   border-radius: var(--mido-radius-md);
   cursor: pointer;
-  transition: box-shadow .2s;
+  transition: box-shadow var(--mido-duration) var(--mido-ease),
+    transform var(--mido-duration) var(--mido-ease),
+    border-color var(--mido-duration) var(--mido-ease);
 }
 .pcard:hover {
-  box-shadow: var(--mido-shadow-card);
+  box-shadow: var(--mido-shadow-hover);
+  border-color: var(--el-color-primary-light-7);
+  transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pcard {
+    transition: none;
+  }
+  .pcard:hover {
+    transform: none;
+  }
 }
 .pcard__top {
   display: flex;

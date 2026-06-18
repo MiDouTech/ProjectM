@@ -4,6 +4,8 @@ import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
+import com.mido.pm.approval.dto.TransferDTO;
+import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.api.R;
 import jakarta.validation.Valid;
@@ -42,6 +44,20 @@ public class ApprovalController {
     @GetMapping("/instances/{id}")
     public R<InstanceVO> getInstance(@PathVariable Long id) {
         return R.ok(approvalService.getInstance(id));
+    }
+
+    /** 发起人撤回（仅 pending + 仅申请人本人）；body.reason 选填。 */
+    @PostMapping("/instances/{id}/withdraw")
+    public R<Void> withdraw(@PathVariable Long id, @RequestBody(required = false) WithdrawDTO dto) {
+        approvalService.withdraw(id, dto);
+        return R.ok();
+    }
+
+    /** 转交：当前审批人把待办交给他人；body.toUserId 必填、comment 选填。 */
+    @PostMapping("/instances/{id}/transfer")
+    public R<Void> transfer(@PathVariable Long id, @Valid @RequestBody TransferDTO dto) {
+        approvalService.transfer(id, dto);
+        return R.ok();
     }
 
     /** 待我审批（工作台卡）：当前用户未处理且实例仍 pending 的待办列表。 */
