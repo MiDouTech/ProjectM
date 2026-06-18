@@ -279,7 +279,7 @@ public class ApprovalService {
             if (inst != null && ApprovalInstance.STATUS_PENDING.equals(inst.getStatus())
                     && seenInstances.add(inst.getId())) {
                 result.add(new PendingApprovalVO(inst.getId(), inst.getBizType(), inst.getBizId(),
-                        t.getNode(), inst.getApplicantId(), inst.getCreateTime()));
+                        t.getNode(), inst.getApplicantId(), bizTitle(inst), inst.getCreateTime()));
                 if (result.size() >= MINE_LIMIT) {
                     break;
                 }
@@ -334,7 +334,14 @@ public class ApprovalService {
         }
         return new InstanceVO(i.getId(), i.getFlowId(), i.getBizType(), i.getBizId(),
                 i.getStatus(), i.getCurrentNode(), i.getApplicantId(),
-                nodeName, mode, pending, approved);
+                nodeName, mode, pending, approved, readMap(i.getFormData()));
+    }
+
+    /** 业务展示标题：取 formData.projectName/title（旧实例可能缺失，返回 null）。 */
+    private String bizTitle(ApprovalInstance i) {
+        Map<String, Object> data = readMap(i.getFormData());
+        Object name = data.getOrDefault("projectName", data.get("title"));
+        return name == null ? null : String.valueOf(name);
     }
 
     private void createTasks(Long instanceId, FlowNode node) {

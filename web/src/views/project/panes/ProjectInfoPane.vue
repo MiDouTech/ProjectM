@@ -32,9 +32,7 @@
         <el-input v-else v-model="form.subCategory" placeholder="可选" />
       </el-form-item>
       <el-form-item label="负责人">
-        <el-select v-model="form.leaderId" filterable clearable placeholder="选择负责人" class="full">
-          <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-        </el-select>
+        <UserSelect v-model="form.leaderId" placeholder="选择负责人" />
       </el-form-item>
       <el-form-item label="预算">
         <el-input-number v-model="form.budget" :min="0" :step="1000" :controls="false" class="full" />
@@ -67,9 +65,7 @@
     <el-dialog v-model="memberDialog" title="添加成员" width="var(--mido-login-card-width)">
       <el-form :label-width="64">
         <el-form-item label="成员">
-          <el-select v-model="memberForm.userId" filterable placeholder="选择成员" class="full">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="memberForm.userId" placeholder="选择成员" />
         </el-form-item>
         <el-form-item label="角色"><el-input v-model="memberForm.projectRole" placeholder="如 开发/测试" /></el-form-item>
       </el-form>
@@ -82,12 +78,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Plus } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { projectApi, O_SUB_CATEGORIES } from '@/api/project'
-import { fetchMembers } from '@/api/org'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -96,7 +92,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['updated', 'members-changed'])
 
-const users = ref([])
 const editing = ref(false)
 const saving = ref(false)
 const formRef = ref()
@@ -148,10 +143,6 @@ async function removeMember(row) {
   ElMessage.success('已移除')
   emit('members-changed')
 }
-
-onMounted(async () => {
-  users.value = await fetchMembers()
-})
 </script>
 
 <style scoped>

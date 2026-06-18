@@ -56,6 +56,21 @@ body {
   outline-offset: 2px;
 }
 
+/* 表单输入控件聚焦态（用户反馈：内边框太丑）：
+   Element 输入框本身已带聚焦描边，叠加全局聚焦环会出现「内外双层边框」，鼠标点击时尤为明显。
+   这里统一去掉输入类控件的外层聚焦环，仅保留单层克制的主色描边。*/
+.el-input__inner:focus-visible,
+.el-textarea__inner:focus-visible,
+.el-input__wrapper:focus-visible,
+.el-select__wrapper:focus-visible {
+  outline: none;
+}
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 var(--mido-border-width) var(--el-color-primary) inset;
+}
+
 /* 可悬浮卡片：可点击卡面统一 hover 抬升（§8 交互反馈）*/
 .mido-hoverable {
   cursor: pointer;

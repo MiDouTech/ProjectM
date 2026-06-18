@@ -28,9 +28,7 @@
               <el-form ref="formRef" :model="form" :rules="rules" :label-width="80">
                 <el-form-item label="标题" prop="title"><el-input v-model="form.title" /></el-form-item>
                 <el-form-item label="负责人">
-                  <el-select v-model="form.assigneeId" filterable clearable placeholder="选择负责人" class="full" @change="onAssign">
-                    <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-                  </el-select>
+                  <UserSelect v-model="form.assigneeId" placeholder="选择负责人" @change="onAssign" />
                 </el-form-item>
                 <el-form-item label="优先级">
                   <el-select v-model="form.priority" clearable placeholder="选择优先级" class="full">
@@ -93,9 +91,7 @@
       <el-form :label-width="64">
         <el-form-item label="标题"><el-input v-model="subForm.title" /></el-form-item>
         <el-form-item label="负责人">
-          <el-select v-model="subForm.assigneeId" filterable clearable placeholder="选择负责人" class="full">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="subForm.assigneeId" placeholder="选择负责人" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -115,6 +111,7 @@ import CommentThread from '@/components/CommentThread.vue'
 import ActivityTimeline from '@/components/ActivityTimeline.vue'
 import AttachmentPanel from '@/components/AttachmentPanel.vue'
 import WorkHourPanel from '@/components/WorkHourPanel.vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { userName as nameOf } from '@/utils/display'
 

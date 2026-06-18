@@ -81,6 +81,9 @@ public class ProjectInitService {
                 : identityProvider.loadById(project.getLeaderId()).map(u -> u.getJobLevel()).orElse(null);
 
         Map<String, Object> formData = new LinkedHashMap<>();
+        // 业务展示快照：供审批「待我审批」列表与详情直接展示项目名/编号，无需审批侧反查项目
+        formData.put("projectName", project.getName());
+        formData.put("projectCode", project.getCode());
         formData.put("objective", form.objective());
         formData.put("valueHypothesis", form.valueHypothesis());
         formData.put("stakeholderDraft", form.stakeholderDraft());

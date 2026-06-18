@@ -48,8 +48,9 @@
 
       <!-- 待我审批的立项 -->
       <template v-else-if="card.type === 'approvals'">
-        <div v-for="a in items" :key="a.instanceId" class="wc__row" @click="$router.push('/approval')">
-          <span class="wc__row-main">{{ bizLabel(a.bizType) }} · {{ a.node }}</span>
+        <div v-for="a in items" :key="a.instanceId" class="wc__row"
+          @click="$router.push({ path: '/approval', query: { open: a.instanceId } })">
+          <span class="wc__row-main">{{ a.title || bizLabel(a.bizType) }}</span>
           <span class="mido-text-secondary">{{ fmt(a.submittedAt) }}</span>
         </div>
       </template>

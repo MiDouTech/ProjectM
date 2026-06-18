@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 /**
  * 待我审批条目（工作台卡）：当前用户在某 pending 实例上的未处理待办。
  * bizType/bizId 供前端定位业务对象（如立项 project_init → 项目）。
+ * title 为业务展示标题（如项目名，取自 formData，旧实例可能为空）。
  */
 public record PendingApprovalVO(
         Long instanceId,
@@ -12,5 +13,6 @@ public record PendingApprovalVO(
         Long bizId,
         String node,
         Long applicantId,
+        String title,
         LocalDateTime submittedAt) {
 }

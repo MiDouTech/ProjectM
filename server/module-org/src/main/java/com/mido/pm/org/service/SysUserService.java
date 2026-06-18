@@ -50,7 +50,10 @@ public class SysUserService {
 
         Page<SysUser> page = new Page<>(pageNo, size);
         var wrapper = Wrappers.<SysUser>lambdaQuery()
-                .like(StrUtil.isNotBlank(query.username()), SysUser::getUsername, query.username())
+                // 选人/搜索关键字同时匹配账号与姓名（中文姓名存于 name），提升选人体验
+                .and(StrUtil.isNotBlank(query.username()),
+                        w -> w.like(SysUser::getUsername, query.username())
+                                .or().like(SysUser::getName, query.username()))
                 .eq(query.deptId() != null, SysUser::getDeptId, query.deptId())
                 .eq(StrUtil.isNotBlank(query.status()), SysUser::getStatus, query.status())
                 .orderByDesc(SysUser::getId);
