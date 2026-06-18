@@ -56,17 +56,6 @@
         <router-view />
       </main>
     </div>
-
-    <!-- 右侧详情抽屉容器（design-system §4：详情一律右抽屉，禁整页跳转）-->
-    <el-drawer
-      v-model="drawerVisible"
-      :size="drawerSize"
-      :with-header="true"
-      title="详情"
-      direction="rtl"
-    >
-      <el-empty description="右侧详情抽屉容器（占位）" />
-    </el-drawer>
   </div>
 </template>
 
@@ -154,10 +143,6 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibility)
   stopPoll()
 })
-
-// 全局右抽屉容器，默认关闭；详情页后续注入内容。
-const drawerVisible = ref(false)
-const drawerSize = 'var(--mido-drawer-width)'
 
 function onUserCommand(command) {
   if (command === 'logout') {

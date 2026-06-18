@@ -22,4 +22,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        // 拆分大体积第三方库：AntV 抽成共享 chunk（Goal/Report 去重 + 路由懒加载按需），
+        // 甘特图独立；其余第三方（Vue 全家桶 + Element Plus）合并为 vendor，避免循环 chunk。
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('@antv')) return 'antv'
+          if (id.includes('frappe-gantt')) return 'gantt'
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

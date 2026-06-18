@@ -137,8 +137,11 @@ const selectedUsers = computed(() => ids.value.map((id) => cacheById.value.get(i
 
 const label = (u) => u?.name || u?.username || (u?.id ? `用户#${u.id}` : '')
 const initial = (u) => (u?.name || u?.username || '?').trim().charAt(0)
-// 头像底色：按 ID 取色盘，稳定且与 design-system 主色系协调。
-const AVATAR_COLORS = ['#3D6EFF', '#11A2C7', '#2BA471', '#7C5CFF', '#E37318', '#D54941']
+// 头像底色：按 ID 取色盘，复用 design-system 既有 token（禁裸 hex），用 var() 内联。
+const AVATAR_COLORS = [
+  'var(--el-color-primary)', 'var(--mido-cat-i)', 'var(--mido-cat-o)',
+  'var(--mido-cat-s)', 'var(--el-color-warning)', 'var(--el-color-danger)',
+]
 const avatarStyle = (u) => {
   const n = Number(u?.id) || String(u?.id || '').length
   return { backgroundColor: AVATAR_COLORS[Math.abs(n) % AVATAR_COLORS.length] }
