@@ -124,6 +124,10 @@ async function confirmAlign() {
 // 手动反写：项目任务完成率 → 按各 KR 自身量纲映射当前值（current = start + (target-start)*rate/100）
 async function syncProgress() {
   const health = await reportApi.projectHealth(props.projectId)
+  if (!health.taskTotal) {
+    ElMessage.warning('项目暂无任务，无法按完成率同步（避免把 KR 进度清回起点）')
+    return
+  }
   const rate = Number(health.completionRate) || 0
   await ElMessageBox.confirm(
     `按项目当前完成率 ${rate}% 反写 ${syncable.value.length} 个量化 KR 的进度？`,

@@ -33,7 +33,8 @@
         </el-menu-item>
       </el-menu>
 
-      <section class="pw__content">
+      <!-- 按 projectId 设 key：切换到另一个项目时强制重挂面板，避免内嵌面板沿用上个项目的数据 -->
+      <section class="pw__content" :key="projectId">
         <ProjectOverviewPane v-if="tab === 'overview'" :project="project" :project-id="projectId"
           :user-name="userName" @changed="reload" @navigate="onSelectTab" />
         <ProjectInfoPane v-else-if="tab === 'info'" :project="project" :members="members"
