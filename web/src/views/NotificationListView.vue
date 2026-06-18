@@ -17,7 +17,10 @@
         :key="n.id"
         class="nl__row"
         :class="{ 'is-unread': !n.isRead }"
+        role="button"
+        tabindex="0"
         @click="open(n)"
+        @keyup.enter="open(n)"
       >
         <span class="nl__dot" :class="{ 'is-on': !n.isRead }" />
         <div class="nl__main">

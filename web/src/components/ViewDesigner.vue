@@ -46,7 +46,7 @@
         <el-select v-model="s.dir" class="vd__d">
           <el-option label="升序" value="asc" /><el-option label="降序" value="desc" />
         </el-select>
-        <el-button link type="danger" :icon="Delete" @click="form.sort.splice(i, 1)" />
+        <el-button link type="danger" :icon="Delete" aria-label="删除排序条件" @click="form.sort.splice(i, 1)" />
       </div>
       <el-button link type="primary" :icon="Plus" @click="form.sort.push({ field: '', dir: 'asc' })">添加排序</el-button>
     </div>
@@ -74,7 +74,7 @@
           <el-option v-for="o in VIEW_OPS" :key="o.value" :label="o.label" :value="o.value" />
         </el-select>
         <el-input v-if="!['isNull', 'notNull'].includes(c.op)" v-model="c.value" placeholder="值" class="vd__v" />
-        <el-button link type="danger" :icon="Delete" @click="form.conditions.splice(i, 1)" />
+        <el-button link type="danger" :icon="Delete" aria-label="删除筛选条件" @click="form.conditions.splice(i, 1)" />
       </div>
       <el-button link type="primary" :icon="Plus"
         @click="form.conditions.push({ field: '', op: 'eq', value: '' })">添加条件</el-button>

@@ -13,7 +13,11 @@
       <div class="mido-topbar__actions">
         <el-button type="primary" :icon="Plus" size="small">新建</el-button>
         <el-badge :value="unread" :max="99" :hidden="!unread">
-          <el-icon class="mido-topbar__icon" @click="goNotifications"><Bell /></el-icon>
+          <el-icon class="mido-topbar__icon" role="button" tabindex="0"
+            :aria-label="unread ? `通知，${unread} 条未读` : '通知'"
+            @click="goNotifications" @keydown.enter="goNotifications" @keydown.space.prevent="goNotifications">
+            <Bell />
+          </el-icon>
         </el-badge>
         <el-dropdown @command="onUserCommand">
           <el-avatar class="mido-topbar__avatar" :src="myAvatarUrl">{{ myInitial }}</el-avatar>

@@ -18,7 +18,7 @@
         <el-select v-model="sortField" placeholder="排序字段" clearable class="pl__quick" @change="resort">
           <el-option v-for="f in SORT_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
         </el-select>
-        <el-button :icon="sortOrder === 'asc' ? SortUp : SortDown" @click="toggleOrder" />
+        <el-button :icon="sortOrder === 'asc' ? SortUp : SortDown" aria-label="切换排序方向" @click="toggleOrder" />
         <el-popover ref="filterPop" placement="bottom-end" :width="'auto'" trigger="click">
           <template #reference>
             <el-badge :value="activeFilter?.rules?.length || 0" :hidden="!activeFilter?.rules?.length">

@@ -65,7 +65,10 @@
               :key="u.id"
               class="us-row"
               :class="{ 'is-picked': picked.has(String(u.id)) }"
+              role="button"
+              tabindex="0"
               @click="toggle(u)"
+              @keyup.enter="toggle(u)"
             >
               <span class="us__avatar" :style="avatarStyle(u)">{{ initial(u) }}</span>
               <span class="us-row__main">

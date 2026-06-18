@@ -48,8 +48,8 @@
 |---|---|---|
 | `--el-text-color-primary` | `#1F2329` | 标题、正文主文本 |
 | `--el-text-color-regular` | `#51565D` | 常规正文 |
-| `--el-text-color-secondary` | `#8A8F99` | 辅助说明、占位 |
-| `--el-text-color-placeholder` | `#BBBFC4` | 输入占位 |
+| `--el-text-color-secondary` | `#646A73` | 辅助说明（白底 ≥4.5:1，过 WCAG AA） |
+| `--el-text-color-placeholder` | `#8E949C` | 输入占位（白底 ≈3:1） |
 | `--el-border-color` | `#DEE0E3` | 常规边框 |
 | `--el-border-color-light` | `#EBEDF0` | 浅分隔线 |
 | `--el-fill-color-light` | `#F5F6F7` | 区块底、表头底 |
