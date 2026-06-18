@@ -2,7 +2,7 @@ package com.mido.pm.verify.service;
 
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.project.service.ProjectService;
-import com.mido.pm.provider.message.MessageProvider;
+import com.mido.pm.stakeholder.dto.StakeholderVO;
 import com.mido.pm.stakeholder.service.StakeholderService;
 import com.mido.pm.verify.dto.ScoreSubmitDTO;
 import com.mido.pm.verify.entity.PmNpssReview;
@@ -11,12 +11,16 @@ import com.mido.pm.verify.mapper.PmNpssReviewMapper;
 import com.mido.pm.verify.mapper.PmNpssScoreMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -33,7 +37,6 @@ class NpssReviewServiceTest {
     @Mock private PmNpssScoreMapper scoreMapper;
     @Mock private ProjectService projectService;
     @Mock private StakeholderService stakeholderService;
-    @Mock private MessageProvider messageProvider;
     @Mock private DomainEventPublisher eventPublisher;
     @InjectMocks private NpssReviewService service;
 
@@ -66,6 +69,22 @@ class NpssReviewServiceTest {
         org.junit.jupiter.api.Assertions.assertEquals(1L, id);
         verify(projectService, never()).transition(any(), any());
         verify(reviewMapper, never()).insert(any(PmNpssReview.class));
+    }
+
+    @Test
+    void startReviewEmitsEventWithStakeholderRecipients() {
+        when(reviewMapper.selectList(any())).thenReturn(java.util.List.of()); // 无进行中轮次
+        when(stakeholderService.list(100L)).thenReturn(java.util.List.of(
+                new StakeholderVO(1L, 100L, 8L, null, "owner", "internal", 3, 3, new BigDecimal("0.5")),
+                new StakeholderVO(2L, 100L, 9L, null, "user", "internal", 2, 2, new BigDecimal("0.5")),
+                new StakeholderVO(3L, 100L, null, "外部客户", "client", "external", 1, 3, new BigDecimal("0.0"))));
+
+        service.startReview(100L);
+
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("npss.review.started"), captor.capture());
+        // 仅带 userId 的干系人进收件人列表（外部无账号者不通知）
+        assertEquals(List.of(8L, 9L), captor.getValue().get("recipientUserIds"));
     }
 
     @Test

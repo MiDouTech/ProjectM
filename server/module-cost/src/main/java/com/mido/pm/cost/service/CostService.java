@@ -153,6 +153,7 @@ public class CostService {
         payload.put("costId", costId);
         payload.put("cumulativeActual", cumulative);
         payload.put("budget", budget);
+        payload.put("leaderId", project.leaderId()); // 预警收件人=项目负责人，监听器据此通知
         eventPublisher.publish(CostEvents.EXCEEDED_BUDGET, payload);
         eventPublisher.publish(CostEvents.PROJECT_BUDGET_EXCEEDED, payload);
     }

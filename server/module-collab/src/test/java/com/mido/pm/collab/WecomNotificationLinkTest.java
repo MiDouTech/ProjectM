@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -47,6 +48,32 @@ class WecomNotificationLinkTest {
         verify(notificationMapper).insert(any(PmNotification.class));
         // 企微：被指派人收到（Mock 预演推送，不外呼）
         verify(wecom).send(100L, "任务指派", "你被指派了任务 #55");
+    }
+
+    @Test
+    void npssReviewStartedNotifiesEachRecipientBothChannels() {
+        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+
+        listenerWith(wecom).onDomainEvent(new DomainEventMessage(
+                "npss.review.started",
+                Map.of("reviewId", 3L, "projectId", 100L, "recipientUserIds", List.of(8L, 9L)), 1L));
+
+        // 两名干系人：站内信各一条 + 企微各一条（npss.review.started 命中 inapp+wecom）
+        verify(notificationMapper, times(2)).insert(any(PmNotification.class));
+        verify(wecom).send(8L, "价值验收待打分", "项目价值验收已发起，请为项目交付价值打分（0-10）。");
+        verify(wecom).send(9L, "价值验收待打分", "项目价值验收已发起，请为项目交付价值打分（0-10）。");
+    }
+
+    @Test
+    void budgetExceededNotifiesLeaderBothChannels() {
+        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+
+        listenerWith(wecom).onDomainEvent(new DomainEventMessage(
+                "project.budget.exceeded",
+                Map.of("projectId", 42L, "leaderId", 7L, "budget", 1000, "cumulativeActual", 1200), 1L));
+
+        verify(notificationMapper).insert(any(PmNotification.class));
+        verify(wecom).send(7L, "预算预警", "项目 #42 实际成本已超预算，请关注。");
     }
 
     @Test

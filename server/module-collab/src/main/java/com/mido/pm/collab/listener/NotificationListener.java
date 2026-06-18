@@ -51,6 +51,26 @@ public class NotificationListener {
             }
             case "approval.approved" -> notifyApplicant(eventType, payload, "立项审批", "你的立项审批已全部通过");
             case "approval.rejected" -> notifyApplicant(eventType, payload, "立项审批", "你的立项审批被驳回");
+            case "npss.review.started" -> {
+                // 收件干系人由事件携带（recipientUserIds），逐个多通道通知去打分
+                if (payload.get("recipientUserIds") instanceof List<?> recipients) {
+                    for (Object r : recipients) {
+                        Long uid = asLong(r);
+                        if (uid != null) {
+                            notify(eventType, uid, "价值验收待打分",
+                                    "项目价值验收已发起，请为项目交付价值打分（0-10）。");
+                        }
+                    }
+                }
+            }
+            case "project.budget.exceeded" -> {
+                // 预算预警 → 通知项目负责人（仅此事件通知，避免与 cost.exceeded.budget 重复）
+                Long leader = asLong(payload.get("leaderId"));
+                if (leader != null) {
+                    notify(eventType, leader, "预算预警",
+                            "项目 #" + payload.get("projectId") + " 实际成本已超预算，请关注。");
+                }
+            }
             default -> {
                 // 其余事件暂不通知（审批人通知需事件携带审批人 ID，后续增强）
             }

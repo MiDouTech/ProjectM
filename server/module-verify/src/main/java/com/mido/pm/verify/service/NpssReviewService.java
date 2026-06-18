@@ -7,7 +7,6 @@ import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.project.domain.ProjectStatus;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
 import com.mido.pm.project.service.ProjectService;
-import com.mido.pm.provider.message.MessageProvider;
 import com.mido.pm.stakeholder.dto.StakeholderVO;
 import com.mido.pm.stakeholder.service.StakeholderService;
 import com.mido.pm.verify.domain.NpssCalculator;
@@ -25,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,23 +44,22 @@ public class NpssReviewService {
     private final PmNpssScoreMapper scoreMapper;
     private final ProjectService projectService;
     private final StakeholderService stakeholderService;
-    private final MessageProvider messageProvider;
     private final DomainEventPublisher eventPublisher;
 
     public NpssReviewService(PmNpssReviewMapper reviewMapper, PmNpssScoreMapper scoreMapper,
                              ProjectService projectService, StakeholderService stakeholderService,
-                             MessageProvider messageProvider, DomainEventPublisher eventPublisher) {
+                             DomainEventPublisher eventPublisher) {
         this.reviewMapper = reviewMapper;
         this.scoreMapper = scoreMapper;
         this.projectService = projectService;
         this.stakeholderService = stakeholderService;
-        this.messageProvider = messageProvider;
         this.eventPublisher = eventPublisher;
     }
 
     /**
      * 发起价值验收（npss-rule §2）：项目 已结案→价值验收中 → 建 review(pending) → 为每个干系人建评分待办
-     * → 经 MessageProvider 通知 → 发 npss.review.started。
+     * → 发 npss.review.started（携带收件干系人 userId，由通知监听器多通道通知，含企微）。
+     * 不在此直接推送：业务不直连消息通道，统一经领域事件 + NotificationListener 路由。
      */
     @Transactional(rollbackFor = Exception.class)
     public Long startReview(Long projectId) {
@@ -82,6 +81,7 @@ public class NpssReviewService {
         reviewMapper.insert(review);
 
         List<StakeholderVO> stakeholders = stakeholderService.list(projectId);
+        List<Long> recipientUserIds = new ArrayList<>();
         for (StakeholderVO s : stakeholders) {
             PmNpssScore todo = new PmNpssScore();
             todo.setReviewId(review.getId());
@@ -89,8 +89,7 @@ public class NpssReviewService {
             todo.setWeight(s.npssWeight());
             scoreMapper.insert(todo); // score 留空=待打分
             if (s.userId() != null) {
-                messageProvider.send(s.userId(), "价值验收待打分",
-                        "项目价值验收已发起，请为项目交付价值打分（0-10）。");
+                recipientUserIds.add(s.userId());
             }
         }
 
@@ -98,6 +97,7 @@ public class NpssReviewService {
         payload.put("reviewId", review.getId());
         payload.put("projectId", projectId);
         payload.put("stakeholderCount", stakeholders.size());
+        payload.put("recipientUserIds", recipientUserIds); // 收件干系人，监听器据此多通道通知
         eventPublisher.publish(NpssEvents.REVIEW_STARTED, payload);
         return review.getId();
     }
