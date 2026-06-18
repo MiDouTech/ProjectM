@@ -31,7 +31,9 @@ CREATE TABLE pm_project (
   status VARCHAR(32), workflow_id BIGINT,
   start_date DATE, end_date DATE,
   budget DECIMAL(14,2), actual_cost DECIMAL(14,2),
-  value_review_due_date DATE, pmo_registered_at DATETIME, archived TINYINT DEFAULT 0,
+  value_review_due_date DATE,
+  requires_npss TINYINT DEFAULT 1,         -- V14 追加：是否走NPSS价值验收 1是/0否（仅O·定向整改/专项督办默认0）；非NPSS项目结案即终止
+  pmo_registered_at DATETIME, archived TINYINT DEFAULT 0,
   -- + 公共字段
   KEY idx_tenant(tenant_id), KEY idx_cat(category), KEY idx_review(value_review_due_date)
 );

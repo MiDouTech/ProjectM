@@ -58,7 +58,7 @@ public class ProjectTemplateService {
         Long projectId = projectService.create(new ProjectCreateDTO(
                 dto.name(), template.getCategory(), subCategory,
                 dto.leaderId(), dto.budget(), template.getId(),
-                template.getDescription(), dto.startDate(), dto.endDate()));
+                template.getDescription(), dto.startDate(), dto.endDate(), null));
 
         skeletonProvisioner.provision(projectId, config);
         return new ProjectFromTemplateVO(projectId, config);

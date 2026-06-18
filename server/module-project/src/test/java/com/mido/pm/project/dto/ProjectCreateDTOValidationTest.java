@@ -32,10 +32,10 @@ class ProjectCreateDTOValidationTest {
 
     @Test
     void leaderIdRequiredOnBlankCreate() {
-        ProjectCreateDTO missing = new ProjectCreateDTO("项目A", "O", null, null, null, null, null, null, null);
+        ProjectCreateDTO missing = new ProjectCreateDTO("项目A", "O", null, null, null, null, null, null, null, null);
         assertTrue(hasLeaderIdViolation(validator.validate(missing)), "缺负责人应校验失败");
 
-        ProjectCreateDTO ok = new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null);
+        ProjectCreateDTO ok = new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null, null);
         assertFalse(hasLeaderIdViolation(validator.validate(ok)), "有负责人应通过");
     }
 

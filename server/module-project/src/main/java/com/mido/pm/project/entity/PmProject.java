@@ -32,6 +32,8 @@ public class PmProject extends BaseEntity {
     private BigDecimal actualCost;
     /** NPSS 应启动日（结案+6~12月） */
     private LocalDate valueReviewDueDate;
+    /** 是否需要 NPSS 价值验收（1=是/0=否）：非 NPSS 项目结案即终止，不被定时唤醒价值验收 */
+    private Integer requiresNpss;
     private LocalDateTime pmoRegisteredAt;
     private Integer archived;
 
@@ -65,6 +67,8 @@ public class PmProject extends BaseEntity {
     public void setActualCost(BigDecimal actualCost) { this.actualCost = actualCost; }
     public LocalDate getValueReviewDueDate() { return valueReviewDueDate; }
     public void setValueReviewDueDate(LocalDate valueReviewDueDate) { this.valueReviewDueDate = valueReviewDueDate; }
+    public Integer getRequiresNpss() { return requiresNpss; }
+    public void setRequiresNpss(Integer requiresNpss) { this.requiresNpss = requiresNpss; }
     public LocalDateTime getPmoRegisteredAt() { return pmoRegisteredAt; }
     public void setPmoRegisteredAt(LocalDateTime pmoRegisteredAt) { this.pmoRegisteredAt = pmoRegisteredAt; }
     public Integer getArchived() { return archived; }
