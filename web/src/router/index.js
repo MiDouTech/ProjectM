@@ -21,9 +21,11 @@ const routes = [
     redirect: '/workbench',
     children: [
       { path: 'workbench', component: () => import('@/views/Workbench.vue') },
+      { path: 'notifications', component: () => import('@/views/NotificationListView.vue') },
       { path: 'project', component: () => import('@/views/project/ProjectListView.vue') },
       { path: 'project/:projectId', component: () => import('@/views/project/ProjectWorkspaceView.vue') },
       { path: 'project/:projectId/tasks', component: () => import('@/views/task/TaskWorkspaceView.vue') },
+      { path: 'project/:projectId/task/:taskId', component: () => import('@/views/task/TaskDetailView.vue') },
       { path: 'project/:projectId/stakeholders', component: () => import('@/views/stakeholder/StakeholderView.vue') },
       { path: 'goal', component: () => import('@/views/Goal.vue') },
       { path: 'approval', component: () => import('@/views/approval/ApprovalView.vue') },

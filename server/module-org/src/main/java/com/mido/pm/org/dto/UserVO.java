@@ -8,6 +8,7 @@ public record UserVO(
         String phone,
         String username,
         String name,
+        String avatar,
         Long deptId,
         String jobLevel,
         String status,

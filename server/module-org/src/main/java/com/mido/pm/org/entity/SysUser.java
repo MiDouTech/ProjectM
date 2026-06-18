@@ -13,6 +13,8 @@ public class SysUser extends BaseEntity {
     /** 手机号：登录账号（全局唯一），手机号/用户名双登录 */
     private String phone;
     private String name;
+    /** 头像：附件 ID（经 /attachments/{id}/download-url 取限时图片地址），可空 */
+    private String avatar;
     private String password;
     private Long deptId;
     /** 职级（如 L1/L2/L3），立项职级 guard 依赖 */
@@ -41,6 +43,14 @@ public class SysUser extends BaseEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     public String getPassword() {

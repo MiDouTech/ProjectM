@@ -10,9 +10,7 @@
     </el-form-item>
 
     <el-form-item label="项目负责人" prop="leaderId">
-      <el-select v-model="form.leaderId" filterable clearable placeholder="选择负责人" class="full">
-        <el-option v-for="u in users" :key="u.id" :label="`${u.name}（${u.jobLevel || '—'}）`" :value="u.id" />
-      </el-select>
+      <UserSelect v-model="form.leaderId" placeholder="选择负责人" />
       <div class="mido-text-secondary">{{ schema.leaderHint }}</div>
     </el-form-item>
 
@@ -33,8 +31,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { fetchMembers } from '@/api/org'
+import { computed, reactive, ref } from 'vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { PROJECT_CATEGORIES } from '@/api/project'
 
 const props = defineProps({
@@ -42,7 +40,6 @@ const props = defineProps({
 })
 
 const formRef = ref()
-const users = ref([])
 const form = reactive({ objective: '', leaderId: null, budget: null, valueHypothesis: '', stakeholderDraft: '' })
 
 const catLabel = computed(() =>

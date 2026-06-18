@@ -12,11 +12,15 @@
       <div class="mido-topbar__spacer" />
       <div class="mido-topbar__actions">
         <el-button type="primary" :icon="Plus" size="small">新建</el-button>
-        <el-badge :is-dot="true">
-          <el-icon class="mido-topbar__icon"><Bell /></el-icon>
+        <el-badge :value="unread" :max="99" :hidden="!unread">
+          <el-icon class="mido-topbar__icon" role="button" tabindex="0"
+            :aria-label="unread ? `通知，${unread} 条未读` : '通知'"
+            @click="goNotifications" @keydown.enter="goNotifications" @keydown.space.prevent="goNotifications">
+            <Bell />
+          </el-icon>
         </el-badge>
         <el-dropdown @command="onUserCommand">
-          <el-avatar class="mido-topbar__avatar">M</el-avatar>
+          <el-avatar class="mido-topbar__avatar" :src="myAvatarUrl">{{ myInitial }}</el-avatar>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
@@ -52,31 +56,73 @@
         <router-view />
       </main>
     </div>
-
-    <!-- 右侧详情抽屉容器（design-system §4：详情一律右抽屉，禁整页跳转）-->
-    <el-drawer
-      v-model="drawerVisible"
-      :size="drawerSize"
-      :with-header="true"
-      title="详情"
-      direction="rtl"
-    >
-      <el-empty description="右侧详情抽屉容器（占位）" />
-    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus, Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
+import { notificationApi } from '@/api/collab'
+import { userApi } from '@/api/org'
+import { attachmentApi } from '@/api/attachment'
 
 const route = useRoute()
 const router = useRouter()
 // 高亮顶层导航（嵌套子路由如 /admin/members 也命中 /admin）
 const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'workbench'))
+
+// 顶栏未读数：进入应用 / 路由切换时刷新，并定时轮询；页面不可见时暂停以省资源。
+const unread = ref(0)
+const POLL_MS = 30000
+let pollTimer = null
+async function loadUnread() {
+  try {
+    unread.value = await notificationApi.unreadCount()
+  } catch {
+    unread.value = 0
+  }
+}
+function goNotifications() {
+  router.push('/notifications')
+}
+
+// 当前登录用户头像（顶栏）：有头像取限时 URL，否则回落姓名首字
+const myAvatarUrl = ref('')
+const myInitial = ref('M')
+async function loadMe() {
+  const uid = useUserStore().userId
+  if (!uid) return
+  try {
+    const me = await userApi.get(uid)
+    myInitial.value = (me.name || me.username || 'M').charAt(0)
+    myAvatarUrl.value = me.avatar ? await attachmentApi.downloadUrl(me.avatar) : ''
+  } catch {
+    myAvatarUrl.value = ''
+  }
+}
+function startPoll() {
+  stopPoll()
+  pollTimer = setInterval(loadUnread, POLL_MS)
+}
+function stopPoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+// 标签页可见性：可见则刷新并轮询，隐藏则停轮询
+function onVisibility() {
+  if (document.hidden) {
+    stopPoll()
+  } else {
+    loadUnread()
+    startPoll()
+  }
+}
+watch(() => route.path, loadUnread)
 
 // 响应式导航：<1280 自动收起为图标态（design-system §9），亦可手动切换
 const NARROW = 1280
@@ -87,12 +133,16 @@ function syncByWidth() {
 onMounted(() => {
   syncByWidth()
   window.addEventListener('resize', syncByWidth)
+  document.addEventListener('visibilitychange', onVisibility)
+  loadUnread()
+  startPoll()
+  loadMe()
 })
-onUnmounted(() => window.removeEventListener('resize', syncByWidth))
-
-// 全局右抽屉容器，默认关闭；详情页后续注入内容。
-const drawerVisible = ref(false)
-const drawerSize = 'var(--mido-drawer-width)'
+onUnmounted(() => {
+  window.removeEventListener('resize', syncByWidth)
+  document.removeEventListener('visibilitychange', onVisibility)
+  stopPoll()
+})
 
 function onUserCommand(command) {
   if (command === 'logout') {

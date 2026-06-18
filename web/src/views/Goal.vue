@@ -14,7 +14,7 @@
     <!-- 列表/树：量化指标行内编辑 -->
     <el-card v-show="tab === 'list'" shadow="never" v-loading="loading">
       <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }" default-expand-all
-        @row-click="openDetail">
+        class="is-clickable" @row-click="openDetail">
         <el-table-column label="目标" min-width="240">
           <template #default="{ row }">
             <el-tag size="small" :type="row.type === 'objective' ? 'primary' : 'success'" disable-transitions>
@@ -66,9 +66,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="负责人">
-          <el-select v-model="form.ownerId" filterable clearable placeholder="选择负责人">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="form.ownerId" placeholder="选择负责人" />
         </el-form-item>
         <el-form-item label="周期"><el-input v-model="form.period" placeholder="如 2026Q1" /></el-form-item>
         <el-form-item label="单位"><el-input v-model="form.metricUnit" placeholder="如 万元 / %" /></el-form-item>
@@ -127,6 +125,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import GoalAlignTree from '@/components/GoalAlignTree.vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { goalApi, GOAL_TYPES, ALIGN_TARGET_TYPES } from '@/api/goal'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'

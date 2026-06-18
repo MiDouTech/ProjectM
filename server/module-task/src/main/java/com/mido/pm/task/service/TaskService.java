@@ -236,7 +236,8 @@ public class TaskService {
         Long oldAssignee = task.getAssigneeId();
         task.setAssigneeId(assigneeId);
         taskMapper.updateById(task);
-        eventPublisher.publish(TaskEvents.ASSIGNED, payload("taskId", id, "assigneeId", assigneeId));
+        eventPublisher.publish(TaskEvents.ASSIGNED,
+                payload("taskId", id, "projectId", task.getProjectId(), "assigneeId", assigneeId));
         auditLogService.record(AuditActions.TARGET_TASK, id, AuditActions.ASSIGNED,
                 fromTo(oldAssignee, assigneeId));
     }

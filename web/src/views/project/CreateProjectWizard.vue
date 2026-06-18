@@ -42,9 +42,7 @@
           <el-input v-else v-model="form.subCategory" placeholder="可选（覆盖模板默认）" />
         </el-form-item>
         <el-form-item label="负责人" prop="leaderId">
-          <el-select v-model="form.leaderId" filterable clearable placeholder="选择负责人" class="full">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <UserSelect v-model="form.leaderId" placeholder="选择负责人" />
         </el-form-item>
         <el-form-item label="预算(元)">
           <el-input-number v-model="form.budget" :min="0" :step="1000" :controls="false" class="full" />
@@ -83,6 +81,7 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CategoryBadge from '@/components/CategoryBadge.vue'
+import UserSelect from '@/components/UserSelect.vue'
 import { projectApi, templateApi, PROJECT_CATEGORIES, O_SUB_CATEGORIES } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 
@@ -114,7 +113,7 @@ const rules = {
 const pickedTpl = computed(() => templates.value.find((t) => t.id === picked.value))
 const pickedName = computed(() => (picked.value === 'blank' ? '空白项目' : pickedTpl.value?.name || '—'))
 const effectiveCategory = computed(() => (picked.value === 'blank' ? form.category : pickedTpl.value?.category || form.category))
-const userName = (id) => users.value.find((u) => u.id === id)?.name || (id ? `用户#${id}` : '—')
+const userName = (id) => users.value.find((u) => String(u.id) === String(id))?.name || (id ? `用户#${id}` : '—')
 
 async function onOpen() {
   step.value = 0

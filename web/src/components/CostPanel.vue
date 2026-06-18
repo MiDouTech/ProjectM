@@ -22,16 +22,16 @@
     </div>
 
     <el-table :data="rows" size="small">
-      <el-table-column v-if="col('title').visible" prop="title" label="标题" min-width="140" show-overflow-tooltip />
-      <el-table-column v-if="col('account').visible" prop="account" label="科目" width="90" />
-      <el-table-column v-if="col('budgetAmount').visible" label="预算" width="110" align="right">
+      <el-table-column v-if="col('title').visible" prop="title" label="标题" min-width="140" show-overflow-tooltip sortable />
+      <el-table-column v-if="col('account').visible" prop="account" label="科目" width="90" sortable />
+      <el-table-column v-if="col('budgetAmount').visible" label="预算" width="110" align="right" sortable :sort-by="(row) => row.budgetAmount">
         <template #default="{ row }"><span class="mido-mono">{{ money(row.budgetAmount) }}</span></template>
       </el-table-column>
-      <el-table-column v-if="col('actualAmount').visible" label="执行" width="110" align="right">
+      <el-table-column v-if="col('actualAmount').visible" label="执行" width="110" align="right" sortable :sort-by="(row) => row.actualAmount">
         <template #default="{ row }"><span class="mido-mono">{{ money(row.actualAmount) }}</span></template>
       </el-table-column>
-      <el-table-column v-if="col('occurDate').visible" prop="occurDate" label="发生日" width="120" />
-      <el-table-column v-if="col('payDate').visible" prop="payDate" label="付款日" width="120" />
+      <el-table-column v-if="col('occurDate').visible" prop="occurDate" label="发生日" width="120" sortable />
+      <el-table-column v-if="col('payDate').visible" prop="payDate" label="付款日" width="120" sortable />
       <el-table-column v-if="col('status').visible" label="状态" width="90">
         <template #default="{ row }"><StatusTag :status="row.status" /></template>
       </el-table-column>

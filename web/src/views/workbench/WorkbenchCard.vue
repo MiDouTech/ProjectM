@@ -8,8 +8,8 @@
           <el-badge v-if="count" :value="count" :max="99" type="primary" />
         </div>
         <div class="wc__ops">
-          <el-button link :icon="Refresh" @click="load" />
-          <el-button link :icon="Close" @click="$emit('remove', card.id)" />
+          <el-button link :icon="Refresh" aria-label="刷新" @click="load" />
+          <el-button link :icon="Close" aria-label="关闭卡片" @click="$emit('remove', card.id)" />
         </div>
       </div>
     </template>
@@ -17,7 +17,8 @@
     <div v-loading="loading" class="wc__body">
       <!-- 我参与的项目 -->
       <template v-if="card.type === 'projects'">
-        <div v-for="p in items" :key="p.id" class="wc__row" @click="$router.push('/project')">
+        <div v-for="p in items" :key="p.id" class="wc__row" role="button" tabindex="0"
+          @click="$router.push('/project')" @keyup.enter="$router.push('/project')">
           <CategoryBadge :category="p.category" :show-label="false" />
           <span class="wc__row-main">{{ p.name }}</span>
           <StatusTag :status="p.status" />
@@ -26,7 +27,8 @@
 
       <!-- 我负责的任务 -->
       <template v-else-if="card.type === 'tasks'">
-        <div v-for="t in items" :key="t.id" class="wc__row" @click="$router.push(`/project/${t.projectId}/tasks`)">
+        <div v-for="t in items" :key="t.id" class="wc__row" role="button" tabindex="0"
+          @click="$router.push(`/project/${t.projectId}/tasks`)" @keyup.enter="$router.push(`/project/${t.projectId}/tasks`)">
           <span class="wc__row-main">{{ t.title }}</span>
           <StatusTag v-if="overdue(t)" status="逾期" />
           <StatusTag :status="t.status" />
@@ -37,19 +39,25 @@
       <template v-else-if="card.type === 'notifications'">
         <div class="wc__bar">
           <span class="mido-text-secondary">{{ items.length ? `${items.length} 条未读` : '' }}</span>
-          <el-button v-if="items.length" link type="primary" @click="markAll">全部已读</el-button>
+          <span>
+            <el-button link type="primary" @click="$router.push('/notifications')">查看全部</el-button>
+            <el-button v-if="items.length" link type="primary" @click="markAll">全部已读</el-button>
+          </span>
         </div>
-        <div v-for="n in items" :key="n.id" class="wc__row">
+        <div v-for="n in items" :key="n.id" class="wc__row" role="button" tabindex="0"
+          @click="openNotification(n)" @keyup.enter="openNotification(n)">
           <span class="wc__row-main">{{ n.title }}</span>
           <span class="mido-text-secondary">{{ fmt(n.createTime) }}</span>
-          <el-button link type="primary" @click="read(n)">已读</el-button>
+          <el-button link type="primary" @click.stop="read(n)">已读</el-button>
         </div>
       </template>
 
       <!-- 待我审批的立项 -->
       <template v-else-if="card.type === 'approvals'">
-        <div v-for="a in items" :key="a.instanceId" class="wc__row" @click="$router.push('/approval')">
-          <span class="wc__row-main">{{ bizLabel(a.bizType) }} · {{ a.node }}</span>
+        <div v-for="a in items" :key="a.instanceId" class="wc__row" role="button" tabindex="0"
+          @click="$router.push({ path: '/approval', query: { open: a.instanceId } })"
+          @keyup.enter="$router.push({ path: '/approval', query: { open: a.instanceId } })">
+          <span class="wc__row-main">{{ a.title || bizLabel(a.bizType) }}</span>
           <span class="mido-text-secondary">{{ fmt(a.submittedAt) }}</span>
         </div>
       </template>
@@ -61,6 +69,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Rank, Refresh, Close } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -68,7 +77,9 @@ import { useUserStore } from '@/store/user'
 import { projectApi, approvalApi } from '@/api/project'
 import { taskApi } from '@/api/task'
 import { notificationApi } from '@/api/collab'
-import { isTaskOverdue, formatDateTime } from '@/utils/display'
+import { isTaskOverdue, formatDateTime, notificationRoute } from '@/utils/display'
+
+const router = useRouter()
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -108,6 +119,13 @@ async function load() {
 async function read(n) {
   await notificationApi.markRead(n.id)
   load()
+}
+// 点击通知：标记已读并按 bizType/link 跳转到对应详情；无法定位则仅刷新
+async function openNotification(n) {
+  try { await notificationApi.markRead(n.id) } catch { /* 忽略：跳转优先 */ }
+  const to = notificationRoute(n)
+  if (to) router.push(to)
+  else load()
 }
 async function markAll() {
   await notificationApi.markAllRead()
