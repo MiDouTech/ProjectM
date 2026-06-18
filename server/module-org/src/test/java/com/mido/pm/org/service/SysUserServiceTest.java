@@ -42,7 +42,7 @@ class SysUserServiceTest {
         when(userMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
         lenient().when(passwordEncoder.encode("pwd")).thenReturn("ENC");
 
-        service().create(new UserCreateDTO("13800138000", "  ", "张三", "pwd", 1L, "L1", "active"));
+        service().create(new UserCreateDTO("13800138000", "  ", "张三", "pwd", 1L, "L1", null, "active"));
 
         ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
         verify(userMapper).insert(captor.capture());
@@ -58,6 +58,6 @@ class SysUserServiceTest {
         when(userMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         assertThrows(BizException.class, () -> service()
-                .create(new UserCreateDTO("13800138000", "zhangsan", "张三", "pwd", 1L, "L1", "active")));
+                .create(new UserCreateDTO("13800138000", "zhangsan", "张三", "pwd", 1L, "L1", null, "active")));
     }
 }

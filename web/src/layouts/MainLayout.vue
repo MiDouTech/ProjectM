@@ -16,7 +16,7 @@
           <el-icon class="mido-topbar__icon" @click="goNotifications"><Bell /></el-icon>
         </el-badge>
         <el-dropdown @command="onUserCommand">
-          <el-avatar class="mido-topbar__avatar">M</el-avatar>
+          <el-avatar class="mido-topbar__avatar" :src="myAvatarUrl">{{ myInitial }}</el-avatar>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
@@ -73,6 +73,8 @@ import { Plus, Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
 import { notificationApi } from '@/api/collab'
+import { userApi } from '@/api/org'
+import { attachmentApi } from '@/api/attachment'
 
 const route = useRoute()
 const router = useRouter()
@@ -92,6 +94,21 @@ async function loadUnread() {
 }
 function goNotifications() {
   router.push('/notifications')
+}
+
+// 当前登录用户头像（顶栏）：有头像取限时 URL，否则回落姓名首字
+const myAvatarUrl = ref('')
+const myInitial = ref('M')
+async function loadMe() {
+  const uid = useUserStore().userId
+  if (!uid) return
+  try {
+    const me = await userApi.get(uid)
+    myInitial.value = (me.name || me.username || 'M').charAt(0)
+    myAvatarUrl.value = me.avatar ? await attachmentApi.downloadUrl(me.avatar) : ''
+  } catch {
+    myAvatarUrl.value = ''
+  }
 }
 function startPoll() {
   stopPoll()
@@ -126,6 +143,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', onVisibility)
   loadUnread()
   startPoll()
+  loadMe()
 })
 onUnmounted(() => {
   window.removeEventListener('resize', syncByWidth)

@@ -88,6 +88,7 @@ public class SysUserService {
         user.setPhone(dto.phone());
         user.setUsername(username);
         user.setName(dto.name());
+        user.setAvatar(dto.avatar());
         user.setPassword(passwordEncoder.encode(dto.password()));
         user.setDeptId(dto.deptId());
         user.setJobLevel(dto.jobLevel());
@@ -99,6 +100,7 @@ public class SysUserService {
     public void update(Long id, UserUpdateDTO dto) {
         SysUser user = requireExists(id);
         user.setName(dto.name());
+        user.setAvatar(dto.avatar());
         user.setDeptId(dto.deptId());
         user.setJobLevel(dto.jobLevel());
         user.setStatus(dto.status());
@@ -135,7 +137,7 @@ public class SysUserService {
     }
 
     private UserVO toVO(SysUser u) {
-        return new UserVO(u.getId(), u.getPhone(), u.getUsername(), u.getName(), u.getDeptId(),
-                u.getJobLevel(), u.getStatus(), u.getCreateTime());
+        return new UserVO(u.getId(), u.getPhone(), u.getUsername(), u.getName(), u.getAvatar(),
+                u.getDeptId(), u.getJobLevel(), u.getStatus(), u.getCreateTime());
     }
 }

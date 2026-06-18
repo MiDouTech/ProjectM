@@ -9,6 +9,11 @@
     </div>
 
     <el-table v-loading="loading" :data="rows" stripe>
+      <el-table-column label="头像" width="70">
+        <template #default="{ row }">
+          <el-avatar :size="32" :src="avatarUrls[row.avatar]">{{ (row.name || '?').charAt(0) }}</el-avatar>
+        </template>
+      </el-table-column>
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="name" label="姓名" />
@@ -39,6 +44,9 @@
           <el-input v-model="form.username" :disabled="editing" placeholder="选填，缺省取手机号" />
         </el-form-item>
         <el-form-item label="姓名" prop="name"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="头像">
+          <AvatarUpload v-model="form.avatar" :user-id="form.id || 0" :name="form.name" />
+        </el-form-item>
         <el-form-item v-if="!editing" label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password />
         </el-form-item>
@@ -82,13 +90,16 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import AvatarUpload from '@/components/AvatarUpload.vue'
 import { userApi, roleApi, deptApi } from '@/api/org'
+import { attachmentApi } from '@/api/attachment'
 
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref([])
 const roles = ref([])
 const deptTree = ref([])
+const avatarUrls = ref({}) // 头像附件ID → 限时预签名URL（列表展示用，按 ID 去重解析）
 const keyword = ref('')
 const jobLevels = ['L1', 'L2', 'L3', 'L4']
 const treeProps = { label: 'name', children: 'children' }
@@ -96,7 +107,7 @@ const treeProps = { label: 'name', children: 'children' }
 const drawer = ref(false)
 const editing = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, phone: '', username: '', name: '', password: '', deptId: null, jobLevel: '', status: 'active' })
+const form = reactive({ id: null, phone: '', username: '', name: '', avatar: null, password: '', deptId: null, jobLevel: '', status: 'active' })
 const rules = {
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
@@ -123,19 +134,27 @@ async function load() {
   try {
     const res = await userApi.query({ page: 1, size: 100, username: keyword.value || undefined })
     rows.value = res.list || []
+    resolveAvatars()
   } finally {
     loading.value = false
   }
 }
+// 解析当前页头像 URL（按附件 ID 去重，仅解析有头像的成员）
+async function resolveAvatars() {
+  const ids = [...new Set(rows.value.map((r) => r.avatar).filter(Boolean))].filter((id) => !avatarUrls.value[id])
+  await Promise.all(ids.map(async (id) => {
+    try { avatarUrls.value[id] = await attachmentApi.downloadUrl(id) } catch { /* 忽略单个失败 */ }
+  }))
+}
 
 function openCreate() {
   editing.value = false
-  Object.assign(form, { id: null, phone: '', username: '', name: '', password: '', deptId: null, jobLevel: '', status: 'active' })
+  Object.assign(form, { id: null, phone: '', username: '', name: '', avatar: null, password: '', deptId: null, jobLevel: '', status: 'active' })
   drawer.value = true
 }
 function openEdit(row) {
   editing.value = true
-  Object.assign(form, { id: row.id, phone: row.phone, username: row.username, name: row.name, password: '', deptId: row.deptId, jobLevel: row.jobLevel, status: row.status })
+  Object.assign(form, { id: row.id, phone: row.phone, username: row.username, name: row.name, avatar: row.avatar, password: '', deptId: row.deptId, jobLevel: row.jobLevel, status: row.status })
   drawer.value = true
 }
 async function save() {
@@ -143,9 +162,9 @@ async function save() {
   saving.value = true
   try {
     if (editing.value) {
-      await userApi.update(form.id, { name: form.name, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
+      await userApi.update(form.id, { name: form.name, avatar: form.avatar, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
     } else {
-      await userApi.create({ phone: form.phone, username: form.username || undefined, name: form.name, password: form.password, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
+      await userApi.create({ phone: form.phone, username: form.username || undefined, name: form.name, avatar: form.avatar, password: form.password, deptId: form.deptId, jobLevel: form.jobLevel, status: form.status })
     }
     ElMessage.success('保存成功')
     drawer.value = false

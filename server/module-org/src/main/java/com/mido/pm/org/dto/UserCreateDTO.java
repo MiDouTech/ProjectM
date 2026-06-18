@@ -14,5 +14,6 @@ public record UserCreateDTO(
         @NotBlank(message = "密码不能为空") String password,
         Long deptId,
         String jobLevel,
+        String avatar,
         String status) {
 }
