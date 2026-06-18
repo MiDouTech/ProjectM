@@ -90,6 +90,20 @@ class WecomNotificationLinkTest {
     }
 
     @Test
+    void nodeApprovedNotifiesNextApproversBothChannels() {
+        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+
+        listenerWith(wecom).onDomainEvent(new DomainEventMessage(
+                "approval.node.approved",
+                Map.of("instanceId", 5L, "node", "n1", "approverId", 100L,
+                        "nextNode", "n2", "nextApproverIds", List.of(200L, 300L)), 1L));
+
+        verify(notificationMapper, times(2)).insert(any(PmNotification.class));
+        verify(wecom).send(200L, "待审批", "上一节点已通过，有一条立项审批待你处理。");
+        verify(wecom).send(300L, "待审批", "上一节点已通过，有一条立项审批待你处理。");
+    }
+
+    @Test
     void commentMentionStaysInAppOnly() {
         WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
 

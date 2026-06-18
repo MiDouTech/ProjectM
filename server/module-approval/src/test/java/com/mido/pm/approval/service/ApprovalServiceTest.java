@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +41,10 @@ class ApprovalServiceTest {
 
     private static final String SINGLE_NODE =
             "{\"nodes\":[{\"key\":\"n1\",\"name\":\"审批\",\"approvers\":[100],\"mode\":\"or\"}]}";
+    private static final String TWO_NODE =
+            "{\"nodes\":["
+            + "{\"key\":\"n1\",\"name\":\"一审\",\"approvers\":[100],\"mode\":\"or\"},"
+            + "{\"key\":\"n2\",\"name\":\"二审\",\"approvers\":[200,300],\"mode\":\"or\"}]}";
 
     @Mock private ApprovalFlowMapper flowMapper;
     @Mock private ApprovalInstanceMapper instanceMapper;
@@ -120,6 +125,34 @@ class ApprovalServiceTest {
         assertEquals(ApprovalInstance.STATUS_APPROVED, inst.getStatus());
         verify(eventPublisher).publish(eq("approval.node.approved"), any());
         verify(eventPublisher).publish(eq("approval.approved"), any());
+    }
+
+    @Test
+    void approveFirstNodeCarriesNextApproversAndAdvances() {
+        login(100);
+        ApprovalInstance inst = pendingInstance();
+        ApprovalFlow twoNode = flow();
+        twoNode.setDefinition(TWO_NODE);
+        when(instanceMapper.selectById(1L)).thenReturn(inst);
+        when(flowMapper.selectById(10L)).thenReturn(twoNode);
+        ApprovalTask todo = new ApprovalTask();
+        todo.setInstanceId(1L);
+        todo.setNode("n1");
+        todo.setApproverId(100L);
+        when(taskMapper.selectOne(any())).thenReturn(todo);
+        ApprovalTask approved = new ApprovalTask();
+        approved.setApproverId(100L);
+        when(taskMapper.selectList(any())).thenReturn(List.of(approved));
+
+        service.act(1L, new ActDTO("approve", "ok"));
+
+        // 推进到 n2、为其建待办、事件携带下一节点审批人
+        assertEquals("n2", inst.getCurrentNode());
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.node.approved"), captor.capture());
+        assertEquals(List.of(200L, 300L), captor.getValue().get("nextApproverIds"));
+        assertEquals("n2", captor.getValue().get("nextNode"));
+        verify(eventPublisher, never()).publish(eq("approval.approved"), any());
     }
 
     @Test

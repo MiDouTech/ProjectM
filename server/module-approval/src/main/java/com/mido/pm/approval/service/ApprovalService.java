@@ -154,12 +154,16 @@ public class ApprovalService {
             return; // 会签未齐，等待其余审批人
         }
 
-        eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
-                "instanceId", instanceId, "node", current.key(), "approverId", approverId));
-
         int nextIndex = active.indexOf(current) + 1;
-        if (nextIndex < active.size()) {
-            FlowNode next = active.get(nextIndex);
+        FlowNode next = nextIndex < active.size() ? active.get(nextIndex) : null;
+
+        // 携带下一节点审批人，供通知监听器多通道通知"轮到你审批"（无下一节点则为空）
+        eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
+                "instanceId", instanceId, "node", current.key(), "approverId", approverId,
+                "nextNode", next == null ? null : next.key(),
+                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers()));
+
+        if (next != null) {
             guardRegistry.run(next, ctx);
             createTasks(instanceId, next);
             instance.setCurrentNode(next.key());

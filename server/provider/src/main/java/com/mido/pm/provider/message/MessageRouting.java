@@ -14,6 +14,7 @@ public final class MessageRouting {
     private static final Set<String> ALSO_WECOM = Set.of(
             "task.assigned",            // 被指派任务，需立即知晓
             "approval.submitted",       // 待审批人尽快处理
+            "approval.node.approved",   // 轮到下一节点审批人处理
             "approval.approved",        // 申请人关心结果
             "approval.rejected",        // 申请人需重新提交
             "npss.review.started",      // 干系人需去打分

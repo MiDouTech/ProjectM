@@ -17,6 +17,8 @@ class MessageRoutingTest {
                 MessageRouting.channelsFor("task.assigned"));
         assertEquals(Set.of(MessageProvider.CHANNEL_INAPP, MessageProvider.CHANNEL_WECOM),
                 MessageRouting.channelsFor("project.budget.exceeded"));
+        assertEquals(Set.of(MessageProvider.CHANNEL_INAPP, MessageProvider.CHANNEL_WECOM),
+                MessageRouting.channelsFor("approval.node.approved"));
     }
 
     @Test
