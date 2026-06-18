@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import { projectApi, approvalApi, MANUAL_TRANSITIONS } from '@/api/project'
@@ -59,18 +59,17 @@ const approverText = computed(() => {
   const names = pending.map((id) => props.userName(id)).join('、')
   const nodeName = a.currentNodeName || '审批'
   if (!names) return `${nodeName}：等待系统处理`
-  if (a.currentMode === 'and') {
+  if (String(a.currentMode).toLowerCase() === 'and') {
     const total = pending.length + (a.approvedApproverIds?.length || 0)
     return `${nodeName} · 待 ${names} 审批（会签 ${a.approvedApproverIds?.length || 0}/${total}）`
   }
   return `${nodeName} · 待 ${names} 审批（或签）`
 })
 
-onMounted(async () => {
-  if (props.project.status === '审批中') {
-    approval.value = await projectApi.currentApproval(props.project.id)
-  }
-})
+// 监听状态而非仅 onMounted：组件被复用（无 :key）时，草稿→审批中也能及时拉取
+watch(() => props.project.status, async (s) => {
+  approval.value = s === '审批中' ? await projectApi.currentApproval(props.project.id) : null
+}, { immediate: true })
 
 // 撤回：仅审批中、实例 pending、且当前用户为发起人（applicantId 经全局序列化为字符串）
 const canWithdraw = computed(() =>

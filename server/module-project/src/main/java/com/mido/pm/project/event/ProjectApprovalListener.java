@@ -1,5 +1,6 @@
 package com.mido.pm.project.event;
 
+import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventMessage;
 import com.mido.pm.project.domain.ProjectStatus;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
@@ -50,12 +51,19 @@ public class ProjectApprovalListener {
             return;
         }
         Long projectId = num.longValue();
-        if (approved) {
-            log.info("立项审批通过，驱动项目注册：projectId={}", projectId);
-            projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.REGISTERED.getCode(), true));
-        } else {
-            log.info("立项审批{}，项目回退草稿：projectId={}", message.eventType(), projectId);
-            projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.DRAFT.getCode(), null));
+        // AFTER_COMMIT：审批已提交，此处流转失败无法回滚审批，故显式 warn 而非静默吞掉
+        // （项目若已非「审批中」会被状态机拒绝，记录便于排查，不再隐性丢失）
+        try {
+            if (approved) {
+                log.info("立项审批通过，驱动项目注册：projectId={}", projectId);
+                projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.REGISTERED.getCode(), true));
+            } else {
+                log.info("立项审批{}，项目回退草稿：projectId={}", message.eventType(), projectId);
+                projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.DRAFT.getCode(), null));
+            }
+        } catch (BizException e) {
+            log.warn("审批结果驱动项目流转被拒（项目状态可能已变更）：projectId={}, event={}, err={}",
+                    projectId, message.eventType(), e.getMessage());
         }
     }
 }

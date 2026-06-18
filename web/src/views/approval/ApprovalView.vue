@@ -49,7 +49,7 @@
                 </el-form-item>
               </el-form>
               <div class="apv__actions">
-                <el-button plain :loading="acting" @click="transferVisible = true">转交</el-button>
+                <el-button plain :disabled="acting" @click="transferVisible = true">转交</el-button>
                 <el-button type="danger" plain :loading="acting" @click="act('reject')">驳回</el-button>
                 <el-button type="primary" :loading="acting" @click="act('approve')">通过</el-button>
               </div>
@@ -74,7 +74,7 @@
       </el-form>
       <template #footer>
         <el-button @click="transferVisible = false">取消</el-button>
-        <el-button type="primary" :loading="acting" :disabled="!transferTo" @click="doTransfer">确认转交</el-button>
+        <el-button type="primary" :loading="transferring" :disabled="!transferTo" @click="doTransfer">确认转交</el-button>
       </template>
     </el-dialog>
   </div>
@@ -96,6 +96,7 @@ const current = ref(null)
 const recent = ref([])
 const stepsRef = ref()
 const transferVisible = ref(false)
+const transferring = ref(false)
 const transferTo = ref('')
 const transferComment = ref('')
 
@@ -132,7 +133,7 @@ async function act(action) {
   }
 }
 async function doTransfer() {
-  acting.value = true
+  transferring.value = true
   try {
     await approvalApi.transfer(current.value.id, {
       toUserId: transferTo.value, comment: transferComment.value || null,
@@ -144,7 +145,7 @@ async function doTransfer() {
     await loadInstance(current.value.id)
     stepsRef.value?.reload()
   } finally {
-    acting.value = false
+    transferring.value = false
   }
 }
 </script>

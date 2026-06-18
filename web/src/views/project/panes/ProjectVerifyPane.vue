@@ -36,6 +36,7 @@ import { stakeholderApi } from '@/api/stakeholder'
 const props = defineProps({
   project: { type: Object, default: () => ({}) },
   projectId: { type: [Number, String], default: null },
+  userName: { type: Function, default: (id) => (id ? `用户#${id}` : '—') },
 })
 
 const loading = ref(false)
@@ -48,7 +49,7 @@ const money = (v) => (v == null ? '—' : Number(v).toFixed(2))
 const stakeholderName = (id) => {
   const s = stakeholders.value.find((x) => String(x.id) === String(id))
   if (!s) return `干系人#${id}`
-  return s.externalName || `用户#${s.userId}`
+  return s.externalName || props.userName(s.userId)
 }
 const externalIds = computed(() =>
   stakeholders.value.filter((s) => !s.userId).map((s) => s.id))

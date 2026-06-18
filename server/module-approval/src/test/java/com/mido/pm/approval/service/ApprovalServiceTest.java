@@ -224,18 +224,25 @@ class ApprovalServiceTest {
     }
 
     @Test
-    void withdrawByApplicantMarksWithdrawnAndPublishes() {
+    void withdrawByApplicantMarksWithdrawnAndCarriesApprovers() {
         login(7);
         ApprovalInstance inst = pendingInstance();
         inst.setApplicantId(7L);
         inst.setBizType("project_init");
         inst.setBizId(1L);
         when(instanceMapper.selectById(1L)).thenReturn(inst);
+        // 当前节点待办审批人 → 撤回事件须携带，供通知监听器通知其无需处理
+        ApprovalTask pending = new ApprovalTask();
+        pending.setApproverId(55L);
+        pending.setNode("n1");
+        when(taskMapper.selectList(any())).thenReturn(List.of(pending));
 
         service.withdraw(1L, new WithdrawDTO("不做了"));
 
         assertEquals(ApprovalInstance.STATUS_WITHDRAWN, inst.getStatus());
-        verify(eventPublisher).publish(eq("approval.withdrawn"), any());
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.withdrawn"), captor.capture());
+        assertEquals(List.of(55L), captor.getValue().get("approverIds"));
     }
 
     @Test
@@ -267,6 +274,7 @@ class ApprovalServiceTest {
         inst.setBizType("project_init");
         inst.setBizId(7L);
         when(instanceMapper.selectById(1L)).thenReturn(inst);
+        when(flowMapper.selectById(10L)).thenReturn(flow());
         ApprovalTask todo = new ApprovalTask();
         todo.setInstanceId(1L);
         todo.setNode("n1");
@@ -293,9 +301,25 @@ class ApprovalServiceTest {
     }
 
     @Test
+    void transferToExistingApproverRejected() {
+        login(100);
+        when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+        when(flowMapper.selectById(10L)).thenReturn(flow());
+        ApprovalTask mine = new ApprovalTask();
+        mine.setNode("n1");
+        mine.setApproverId(100L);
+        when(taskMapper.selectOne(any())).thenReturn(mine);
+        when(taskMapper.selectCount(any())).thenReturn(1L); // 受让人在该节点已有待办
+
+        assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(200L, null)));
+        verify(eventPublisher, never()).publish(eq("approval.transferred"), any());
+    }
+
+    @Test
     void transferWithoutTodoForbidden() {
         login(100);
         when(instanceMapper.selectById(1L)).thenReturn(pendingInstance());
+        when(flowMapper.selectById(10L)).thenReturn(flow());
         when(taskMapper.selectOne(any())).thenReturn(null);
 
         assertThrows(BizException.class, () -> service.transfer(1L, new TransferDTO(200L, null)));
