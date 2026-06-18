@@ -96,7 +96,8 @@ public class ApprovalService {
                 "instanceId", instance.getId(), "flowId", flow.getId(),
                 "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                 "applicantId", instance.getApplicantId(),
-                "approverIds", first.approvers() == null ? List.of() : first.approvers()));
+                "approverIds", first.approvers() == null ? List.of() : first.approvers(),
+                "ccIds", first.cc() == null ? List.of() : first.cc()));
         return instance.getId();
     }
 
@@ -159,7 +160,8 @@ public class ApprovalService {
         eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
                 "instanceId", instanceId, "node", current.key(), "approverId", approverId,
                 "nextNode", next == null ? null : next.key(),
-                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers()));
+                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers(),
+                "nextCcIds", next == null || next.cc() == null ? List.of() : next.cc()));
 
         if (next != null) {
             guardRegistry.run(next, ctx);

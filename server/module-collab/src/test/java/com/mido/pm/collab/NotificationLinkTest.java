@@ -56,4 +56,14 @@ class NotificationLinkTest {
 
         verify(notificationMapper, times(2)).insert(any(PmNotification.class));
     }
+
+    @Test
+    void approvalSubmittedNotifiesApproversAndCc() {
+        listener().onDomainEvent(new DomainEventMessage(
+                "approval.submitted",
+                Map.of("instanceId", 1L, "approverIds", List.of(100L), "ccIds", List.of(200L, 300L)), 1L));
+
+        // 1 审批人 + 2 知会人 各一条站内信
+        verify(notificationMapper, times(3)).insert(any(PmNotification.class));
+    }
 }

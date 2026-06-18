@@ -51,10 +51,15 @@ public class NotificationListener {
             }
             case "approval.approved" -> notifyApplicant(eventType, payload, "立项审批", "你的立项审批已全部通过");
             case "approval.rejected" -> notifyApplicant(eventType, payload, "立项审批", "你的立项审批被驳回");
-            case "approval.submitted" -> notifyApprovers(eventType, payload.get("approverIds"),
-                    "待审批", "有一条立项审批待你处理。");
-            case "approval.node.approved" -> notifyApprovers(eventType, payload.get("nextApproverIds"),
-                    "待审批", "上一节点已通过，有一条立项审批待你处理。");
+            case "approval.submitted" -> {
+                notifyApprovers(eventType, payload.get("approverIds"), "待审批", "有一条立项审批待你处理。");
+                notifyApprovers(eventType, payload.get("ccIds"), "审批知会", "有一条立项审批已发起，知会你知悉。");
+            }
+            case "approval.node.approved" -> {
+                notifyApprovers(eventType, payload.get("nextApproverIds"), "待审批",
+                        "上一节点已通过，有一条立项审批待你处理。");
+                notifyApprovers(eventType, payload.get("nextCcIds"), "审批知会", "审批已进入新节点，知会你知悉。");
+            }
             case "approval.transferred" -> {
                 Long toUser = asLong(payload.get("toUserId"));
                 if (toUser != null) {
