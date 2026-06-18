@@ -24,6 +24,11 @@ public class InAppMessageProvider implements MessageProvider {
     }
 
     @Override
+    public String channel() {
+        return CHANNEL_INAPP;
+    }
+
+    @Override
     public void send(Long userId, String title, String content) {
         if (userId == null) {
             return;

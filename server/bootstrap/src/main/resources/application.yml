@@ -62,6 +62,14 @@ mido:
     access-key: ${MIDO_MINIO_ACCESS_KEY:mido}
     secret-key: ${MIDO_MINIO_SECRET_KEY:mido12345}
     bucket: ${MIDO_MINIO_BUCKET:mido-pm}
+  # 企微（凭证一律走环境变量注入，禁硬编码；仓库内不放真实值）
+  wecom:
+    corp-id: ${MIDO_WECOM_CORP_ID:}
+    message:
+      # 是否真发企微应用消息；默认关，关闭时走 Mock（仅日志，不外呼）便于预演
+      enabled: ${MIDO_WECOM_MSG_ENABLED:false}
+      secret: ${MIDO_WECOM_MSG_SECRET:}
+      agent-id: ${MIDO_WECOM_MSG_AGENT_ID:}
 
 # Swagger / OpenAPI 3.0
 springdoc:
