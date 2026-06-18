@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -93,7 +94,10 @@ class ApprovalServiceTest {
         verify(guardRegistry).run(any(), any());
         verify(instanceMapper).insert(any(ApprovalInstance.class));
         verify(taskMapper).insert(any(ApprovalTask.class));
-        verify(eventPublisher).publish(eq("approval.submitted"), any());
+        // 事件携带首节点审批人，供通知监听器多通道通知
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("approval.submitted"), captor.capture());
+        assertEquals(List.of(100L), captor.getValue().get("approverIds"));
     }
 
     @Test

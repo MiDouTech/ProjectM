@@ -51,6 +51,17 @@ public class NotificationListener {
             }
             case "approval.approved" -> notifyApplicant(eventType, payload, "立项审批", "你的立项审批已全部通过");
             case "approval.rejected" -> notifyApplicant(eventType, payload, "立项审批", "你的立项审批被驳回");
+            case "approval.submitted" -> {
+                // 首节点审批人由事件携带（approverIds），逐个多通道通知有待办待处理
+                if (payload.get("approverIds") instanceof List<?> approvers) {
+                    for (Object a : approvers) {
+                        Long uid = asLong(a);
+                        if (uid != null) {
+                            notify(eventType, uid, "待审批", "有一条立项审批待你处理。");
+                        }
+                    }
+                }
+            }
             case "npss.review.started" -> {
                 // 收件干系人由事件携带（recipientUserIds），逐个多通道通知去打分
                 if (payload.get("recipientUserIds") instanceof List<?> recipients) {
@@ -72,7 +83,7 @@ public class NotificationListener {
                 }
             }
             default -> {
-                // 其余事件暂不通知（审批人通知需事件携带审批人 ID，后续增强）
+                // 其余事件暂不通知（需要时按"事件携带收件人 ID"模式补分支）
             }
         }
     }

@@ -93,7 +93,8 @@ public class ApprovalService {
         eventPublisher.publish(ApprovalEvents.SUBMITTED, payload(
                 "instanceId", instance.getId(), "flowId", flow.getId(),
                 "bizType", instance.getBizType(), "bizId", instance.getBizId(),
-                "applicantId", instance.getApplicantId()));
+                "applicantId", instance.getApplicantId(),
+                "approverIds", first.approvers() == null ? List.of() : first.approvers()));
         return instance.getId();
     }
 
