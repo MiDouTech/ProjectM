@@ -1,7 +1,7 @@
 <template>
   <!-- 通用弹窗式选人器（design-system §5.2）：
        触发区类 el-select 外观；点击打开对话框，左侧组织架构树、右侧成员列表（搜索 + 分页），底部已选区。
-       v-model 契约与 UserPicker 一致：单选 String、多选 Array<String>；雪花 ID 以字符串透传防精度丢失。 -->
+       v-model 契约：单选 String、多选 Array<String>；雪花 ID 以字符串透传防精度丢失。 -->
   <div class="us" :class="{ 'is-disabled': disabled }">
     <div class="us__trigger" tabindex="0" @click="open" @keydown.enter.prevent="open">
       <template v-if="hasValue">

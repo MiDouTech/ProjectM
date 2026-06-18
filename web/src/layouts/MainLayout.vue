@@ -79,8 +79,10 @@ const router = useRouter()
 // 高亮顶层导航（嵌套子路由如 /admin/members 也命中 /admin）
 const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'workbench'))
 
-// 顶栏未读数：进入应用与路由切换时刷新（轻量，不做长轮询）
+// 顶栏未读数：进入应用 / 路由切换时刷新，并定时轮询；页面不可见时暂停以省资源。
 const unread = ref(0)
+const POLL_MS = 30000
+let pollTimer = null
 async function loadUnread() {
   try {
     unread.value = await notificationApi.unreadCount()
@@ -90,6 +92,25 @@ async function loadUnread() {
 }
 function goNotifications() {
   router.push('/notifications')
+}
+function startPoll() {
+  stopPoll()
+  pollTimer = setInterval(loadUnread, POLL_MS)
+}
+function stopPoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+// 标签页可见性：可见则刷新并轮询，隐藏则停轮询
+function onVisibility() {
+  if (document.hidden) {
+    stopPoll()
+  } else {
+    loadUnread()
+    startPoll()
+  }
 }
 watch(() => route.path, loadUnread)
 
@@ -102,9 +123,15 @@ function syncByWidth() {
 onMounted(() => {
   syncByWidth()
   window.addEventListener('resize', syncByWidth)
+  document.addEventListener('visibilitychange', onVisibility)
   loadUnread()
+  startPoll()
 })
-onUnmounted(() => window.removeEventListener('resize', syncByWidth))
+onUnmounted(() => {
+  window.removeEventListener('resize', syncByWidth)
+  document.removeEventListener('visibilitychange', onVisibility)
+  stopPoll()
+})
 
 // 全局右抽屉容器，默认关闭；详情页后续注入内容。
 const drawerVisible = ref(false)
