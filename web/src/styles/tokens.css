@@ -30,7 +30,7 @@
   --el-bg-color: #FFFFFF;
   --el-bg-color-page: #F2F3F5;
   --mido-nav-bg: #1D2B45;
-  /* 深色导航配套（§4 派生，待回写 design-system 登记） */
+  /* 深色导航配套（design-system §1.3）*/
   --mido-nav-text: #C9D1E0;
   --mido-nav-text-active: #FFFFFF;
   --mido-nav-active-bg: #2A3B5C;
@@ -69,7 +69,16 @@
   --mido-radius-lg: 8px;
 
   --mido-shadow-card: 0 1px 3px rgba(31, 35, 41, .08);
+  --mido-shadow-hover: 0 4px 12px rgba(31, 35, 41, .10);
   --mido-shadow-pop: 0 6px 24px rgba(31, 35, 41, .12);
+
+  /* ===== §3 动效（micro-interaction：150–300ms / ease-out）===== */
+  --mido-duration-fast: 120ms;
+  --mido-duration: 200ms;
+  --mido-ease: cubic-bezier(.4, 0, .2, 1);
+
+  /* ===== §3 聚焦环（键盘可达，a11y）===== */
+  --mido-focus-ring: 0 0 0 2px var(--el-color-primary-light-7);
 
   --mido-z-nav: 1000;
   --mido-z-drawer: 2000;

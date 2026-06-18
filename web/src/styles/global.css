@@ -44,7 +44,35 @@ body {
   color: var(--el-text-color-secondary);
 }
 
-/* 数字/金额/编号等宽（§2）*/
+/* 数字/金额/编号等宽（§2）：等宽数字防止数据列跳动 */
 .mido-mono {
   font-family: var(--mido-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 键盘可达：统一聚焦环（仅键盘焦点显示，鼠标点击不触发；a11y §9）*/
+:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+/* 可悬浮卡片：可点击卡面统一 hover 抬升（§8 交互反馈）*/
+.mido-hoverable {
+  cursor: pointer;
+  transition: box-shadow var(--mido-duration) var(--mido-ease),
+    transform var(--mido-duration) var(--mido-ease);
+}
+.mido-hoverable:hover {
+  box-shadow: var(--mido-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* 尊重用户减少动效偏好（a11y reduced-motion）*/
+@media (prefers-reduced-motion: reduce) {
+  .mido-hoverable {
+    transition: none;
+  }
+  .mido-hoverable:hover {
+    transform: none;
+  }
 }

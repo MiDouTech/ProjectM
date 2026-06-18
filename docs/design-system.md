@@ -56,6 +56,9 @@
 | `--el-bg-color` | `#FFFFFF` | 卡片/内容区底 |
 | `--el-bg-color-page` | `#F2F3F5` | 页面底 |
 | `--mido-nav-bg` | `#1D2B45` | 左侧主导航深色底（Worktile 式） |
+| `--mido-nav-text` | `#C9D1E0` | 深色导航项文字 |
+| `--mido-nav-text-active` | `#FFFFFF` | 深色导航选中项文字 |
+| `--mido-nav-active-bg` | `#2A3B5C` | 深色导航选中/hover 底色（active 另加 3px 主色左强调条）|
 
 ### 1.4 项目类型色（S/I/O 业务专用，强识别）
 
@@ -89,7 +92,7 @@
 | 字号 Secondary | `13px / 400 / 行高20` | 辅助 |
 | 字号 Caption | `12px / 400 / 行高18` | 标注、时间戳 |
 
-> 数字（金额、预算、NPSS 分、编号）一律用 `--mido-font-mono` + 等宽，便于对齐与扫读。
+> 数字（金额、预算、NPSS 分、编号）一律用 `.mido-mono`（`--mido-font-mono` + `font-variant-numeric: tabular-nums`），等宽数字防止数据列宽度跳动、便于对齐扫读。
 
 ---
 
@@ -100,8 +103,15 @@
 | 间距基数 | `--mido-space-1 … 6` | 4 / 8 / 12 / 16 / 24 / 32 px（4 的倍数） |
 | 圆角 | `--mido-radius-sm / md / lg` | 4 / 6 / 8 px |
 | 卡片阴影 | `--mido-shadow-card` | `0 1px 3px rgba(31,35,41,.08)` |
+| 悬浮阴影 | `--mido-shadow-hover` | `0 4px 12px rgba(31,35,41,.10)`（可点击卡 hover 抬升）|
 | 浮层阴影 | `--mido-shadow-pop` | `0 6px 24px rgba(31,35,41,.12)` |
+| 动效时长 | `--mido-duration-fast / --mido-duration` | `120ms / 200ms`（micro-interaction 150–300ms）|
+| 动效缓动 | `--mido-ease` | `cubic-bezier(.4,0,.2,1)`（入场 ease-out）|
+| 聚焦环 | `--mido-focus-ring` | `0 0 0 2px var(--el-color-primary-light-7)`；全局 `:focus-visible` 用 2px 主色描边 |
+| 布局尺寸 | `--mido-topbar-height / --mido-nav-width(-collapsed) / --mido-drawer-width / --mido-login-card-width / --mido-admin-nav-width` | 48 / 200(64) / 480 / 360 / 180 px |
 | 层级 z-index | nav 1000 / 抽屉 2000 / 弹窗 2100 / 全局通知 3000 | 固定，禁随意取值 |
+
+> 交互元素（按钮/卡片/导航/行）状态切换统一走 `--mido-duration` + `--mido-ease`；可点击卡片加 `.mido-hoverable`（hover 抬升，自动尊重 `prefers-reduced-motion`）。
 
 ---
 

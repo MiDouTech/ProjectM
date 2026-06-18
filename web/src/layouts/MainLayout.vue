@@ -156,11 +156,15 @@ function onUserCommand(command) {
 /* 深色导航的 Element Plus 菜单换肤（仅用 tokens）*/
 .mido-nav__menu :deep(.el-menu-item) {
   color: var(--mido-nav-text);
+  transition: background-color var(--mido-duration) var(--mido-ease),
+    color var(--mido-duration) var(--mido-ease);
 }
 
+/* active：底色 + 3px 主色左强调条（Worktile 式，识别更利落）*/
 .mido-nav__menu :deep(.el-menu-item.is-active) {
   color: var(--mido-nav-text-active);
   background-color: var(--mido-nav-active-bg);
+  box-shadow: inset var(--mido-space-1) 0 0 var(--el-color-primary);
 }
 
 .mido-nav__menu :deep(.el-menu-item:hover) {
