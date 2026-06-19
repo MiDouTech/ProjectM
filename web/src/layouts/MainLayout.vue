@@ -6,13 +6,14 @@
         <el-icon class="mido-topbar__toggle" @click="collapsed = !collapsed">
           <component :is="collapsed ? Expand : Fold" />
         </el-icon>
-        <el-icon class="mido-topbar__logo"><Grid /></el-icon>
+        <img v-if="logoOk" class="mido-topbar__logo" src="/logo_竖_蓝色.png"
+          alt="米多 · 通用项目管理系统" @error="logoOk = false" />
+        <el-icon v-else class="mido-topbar__logo-fallback"><Grid /></el-icon>
         <span v-show="!collapsed" class="mido-h2">米多项目管理</span>
       </div>
       <div class="mido-topbar__spacer" />
       <div class="mido-topbar__actions">
-        <el-button type="primary" :icon="Plus" size="small">新建</el-button>
-        <el-badge :value="unread" :max="99" :hidden="!unread">
+        <el-badge :value="unread" :max="99" :hidden="!unread" class="mido-topbar__bell">
           <el-icon class="mido-topbar__icon" role="button" tabindex="0"
             :aria-label="unread ? `通知，${unread} 条未读` : '通知'"
             @click="goNotifications" @keydown.enter="goNotifications" @keydown.space.prevent="goNotifications">
@@ -62,7 +63,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus, Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
+import { Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
 import { notificationApi } from '@/api/collab'
@@ -124,6 +125,9 @@ function onVisibility() {
 }
 watch(() => route.path, loadUnread)
 
+// 顶栏 logo：缺图时优雅回落到 Grid 图标
+const logoOk = ref(true)
+
 // 响应式导航：<1280 自动收起为图标态（design-system §9），亦可手动切换
 const NARROW = 1280
 const collapsed = ref(false)
@@ -182,7 +186,14 @@ function onUserCommand(command) {
   cursor: pointer;
 }
 
+/* 顶栏 logo：限高自适应，竖版图按顶栏行高收纳 */
 .mido-topbar__logo {
+  height: var(--mido-space-6);
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+.mido-topbar__logo-fallback {
   font-size: var(--mido-font-size-h1);
 }
 
@@ -196,7 +207,14 @@ function onUserCommand(command) {
   gap: var(--mido-space-4);
 }
 
+/* 通知铃铛：el-badge 默认 inline-block 基线对齐会让图标偏上，改 flex 垂直居中 */
+.mido-topbar__bell {
+  display: flex;
+  align-items: center;
+}
+
 .mido-topbar__icon {
+  display: flex;
   font-size: var(--mido-font-size-h2);
   color: var(--el-text-color-regular);
   cursor: pointer;

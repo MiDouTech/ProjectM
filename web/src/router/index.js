@@ -16,6 +16,7 @@ export const navItems = [
 
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
+  { path: '/share/:token', name: 'publicDoc', component: () => import('@/views/PublicDocView.vue') },
   {
     path: '/',
     component: MainLayout,
@@ -58,6 +59,10 @@ const router = createRouter({
 // 认证守卫：未登录跳登录页
 router.beforeEach((to) => {
   const userStore = useUserStore()
+  // 公开分享页：匿名可访问，跳过登录校验
+  if (to.name === 'publicDoc') {
+    return true
+  }
   if (to.path !== '/login' && !userStore.token) {
     return { path: '/login' }
   }

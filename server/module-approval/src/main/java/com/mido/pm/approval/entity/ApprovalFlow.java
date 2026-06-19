@@ -10,12 +10,15 @@ import com.mido.pm.common.entity.BaseEntity;
 public class ApprovalFlow extends BaseEntity {
 
     private String name;
+    private String displayName;
     private String bizType;
     private String mode;
     private String definition;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public String getDisplayName() { return displayName; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
     public String getBizType() { return bizType; }
     public void setBizType(String bizType) { this.bizType = bizType; }
     public String getMode() { return mode; }

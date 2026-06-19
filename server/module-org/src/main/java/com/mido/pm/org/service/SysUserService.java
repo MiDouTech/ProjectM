@@ -112,6 +112,16 @@ public class SysUserService {
         userMapper.deleteById(id);
     }
 
+    /** 用户的角色 id 集合（供跨域权限解析，如文档 ACL）。 */
+    public List<Long> roleIdsOf(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return userRoleMapper.selectList(Wrappers.<SysUserRole>lambdaQuery()
+                        .eq(SysUserRole::getUserId, userId))
+                .stream().map(SysUserRole::getRoleId).toList();
+    }
+
     /** 重设用户的角色集合（先清后插）。 */
     @Transactional(rollbackFor = Exception.class)
     public void assignRoles(Long userId, List<Long> roleIds) {
