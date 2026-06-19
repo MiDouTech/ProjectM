@@ -22,9 +22,13 @@
       <el-card v-if="activeId" shadow="never" class="doc__tree" v-loading="treeLoading">
         <div class="doc__tree-head">
           <h3 class="mido-h2">知识库</h3>
-          <span>
+          <span class="doc__tree-actions">
             <el-button link type="primary" :icon="Folder" @click="addNode('folder', null)">目录</el-button>
             <el-button link type="primary" :icon="Document" @click="addNode('doc', null)">文档</el-button>
+            <el-upload :show-file-list="false" :http-request="uploadFile" :disabled="uploading">
+              <el-button link type="primary" :icon="Upload" :loading="uploading">文件</el-button>
+            </el-upload>
+            <el-button link :icon="Delete" title="回收站" @click="openRecycle" />
           </span>
         </div>
         <el-tree v-if="tree.length" :data="tree" node-key="id" :props="treeProps" draggable
@@ -33,7 +37,7 @@
           <template #default="{ data }">
             <span class="doc__node">
               <el-icon class="doc__node-icon">
-                <Folder v-if="data.type === 'folder'" /><Document v-else />
+                <Folder v-if="data.type === 'folder'" /><Paperclip v-else-if="data.type === 'file'" /><Document v-else />
               </el-icon>
               <span class="doc__node-label">{{ data.title }}</span>
               <span class="doc__node-ops">
@@ -58,6 +62,7 @@
           </div>
           <DocEditor v-model="content" />
         </template>
+        <FilePreview v-else-if="current && current.type === 'file'" :url="fileUrl" :name="current.title" />
         <el-empty v-else-if="current" description="目录节点：在左侧选择或新建文档" :image-size="80" />
         <el-empty v-else description="从左侧选择或新建一篇文档" :image-size="80" />
       </el-card>
@@ -90,15 +95,40 @@
         </div>
       </div>
     </el-drawer>
+
+    <!-- 回收站抽屉 -->
+    <el-drawer v-model="recycleOpen" title="回收站" :size="420">
+      <el-table :data="recycleItems" size="small">
+        <el-table-column label="名称" min-width="160">
+          <template #default="{ row }">
+            <el-icon class="doc__node-icon">
+              <Folder v-if="row.type === 'folder'" /><Paperclip v-else-if="row.type === 'file'" /><Document v-else />
+            </el-icon>
+            <span class="doc__recycle-name">{{ row.title }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="删除时间" width="120">
+          <template #default="{ row }">{{ fmtTime(row.trashedTime) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="restore(row)">恢复</el-button>
+            <el-button link type="danger" @click="purge(row)">彻底删除</el-button>
+          </template>
+        </el-table-column>
+        <template #empty><el-empty description="回收站为空" :image-size="60" /></template>
+      </el-table>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Folder, Document, Plus, EditPen, Delete, Check, Clock } from '@element-plus/icons-vue'
+import { Folder, Document, Plus, EditPen, Delete, Check, Clock, Upload, Paperclip } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import DocEditor from '@/components/DocEditor.vue'
+import FilePreview from '@/components/FilePreview.vue'
 import { projectApi } from '@/api/project'
 import { docApi } from '@/api/doc'
 
@@ -114,6 +144,8 @@ const tree = ref([])
 const current = ref(null) // 当前选中节点详情（DocDetailVO）
 const title = ref('')
 const content = ref(null) // Tiptap JSON 对象
+const fileUrl = ref('') // file 节点的预签名预览 URL
+const uploading = ref(false)
 
 const fmtTime = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
 
@@ -136,8 +168,18 @@ function selectProject(id) {
 
 // ===== 节点操作 =====
 async function openNode(data) {
-  if (data.type !== 'doc') {
+  if (data.type === 'folder') {
     current.value = { id: data.id, type: 'folder', title: data.title }
+    return
+  }
+  if (data.type === 'file') {
+    docLoading.value = true
+    try {
+      fileUrl.value = await docApi.downloadUrl(data.id)
+      current.value = { id: data.id, type: 'file', title: data.title }
+    } finally {
+      docLoading.value = false
+    }
     return
   }
   docLoading.value = true
@@ -148,6 +190,19 @@ async function openNode(data) {
     content.value = d.content ? JSON.parse(d.content) : null
   } finally {
     docLoading.value = false
+  }
+}
+
+// 上传文件到当前选中目录（否则到根）
+async function uploadFile({ file }) {
+  uploading.value = true
+  try {
+    const parentId = current.value && current.value.type === 'folder' ? current.value.id : 0
+    await docApi.upload(activeId.value, parentId, file)
+    ElMessage.success('已上传')
+    await loadTree()
+  } finally {
+    uploading.value = false
   }
 }
 
@@ -186,15 +241,40 @@ async function renameNode(data) {
 async function deleteNode(data) {
   try {
     await ElMessageBox.confirm(
-      data.type === 'folder' ? '删除目录将一并删除其下所有文档，确认？' : `确认删除文档「${data.title}」？`,
-      '删除确认', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' })
+      data.type === 'folder' ? '移入回收站将一并回收其下所有内容，确认？' : `将「${data.title}」移入回收站？`,
+      '移入回收站', { type: 'warning', confirmButtonText: '移入回收站', cancelButtonText: '取消' })
     await docApi.remove(data.id)
-    ElMessage.success('已删除')
+    ElMessage.success('已移入回收站')
     if (current.value && current.value.id === data.id) {
       current.value = null
       content.value = null
     }
     await loadTree()
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  }
+}
+
+// ===== 回收站 =====
+const recycleOpen = ref(false)
+const recycleItems = ref([])
+async function openRecycle() {
+  recycleItems.value = await docApi.recycle(activeId.value) || []
+  recycleOpen.value = true
+}
+async function restore(row) {
+  await docApi.restore(row.id)
+  ElMessage.success('已恢复')
+  recycleItems.value = await docApi.recycle(activeId.value) || []
+  await loadTree()
+}
+async function purge(row) {
+  try {
+    await ElMessageBox.confirm(`彻底删除「${row.title}」后不可恢复，确认？`, '彻底删除',
+      { type: 'warning', confirmButtonText: '彻底删除', cancelButtonText: '取消' })
+    await docApi.purge(row.id)
+    ElMessage.success('已彻底删除')
+    recycleItems.value = await docApi.recycle(activeId.value) || []
   } catch (e) {
     if (e !== 'cancel') throw e
   }
@@ -315,6 +395,14 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-2);
+}
+.doc__tree-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mido-space-1);
+}
+.doc__recycle-name {
+  margin-left: var(--mido-space-1);
 }
 .doc__main {
   flex: 1;
