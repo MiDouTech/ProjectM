@@ -1,7 +1,7 @@
 <template>
   <div class="mido-page doc">
     <h1 class="mido-h1">文档中心</h1>
-    <p class="mido-text-secondary doc__sub">汇总我参与的各项目文件（项目文档 + 任务/费用附件）。</p>
+    <p class="mido-text-secondary doc__sub">按项目维护知识库：在线文档、目录、版本历史。</p>
 
     <div class="doc__body" v-loading="projLoading">
       <!-- 左：我参与的项目 -->
@@ -18,79 +18,267 @@
         <el-empty v-else description="你尚未参与任何项目" :image-size="60" />
       </el-card>
 
-      <!-- 右：选中项目的文件 -->
-      <el-card shadow="never" class="doc__main" v-loading="fileLoading">
-        <h3 class="mido-h2">{{ activeName || '项目文件' }}（{{ files.length }}）</h3>
-        <el-table v-if="activeId" :data="files" size="small">
-          <el-table-column label="文件" min-width="220">
-            <template #default="{ row }">{{ row.name }}</template>
-          </el-table-column>
-          <el-table-column label="来源" width="110">
-            <template #default="{ row }">{{ sourceLabel(row.entityType) }}</template>
-          </el-table-column>
-          <el-table-column label="大小" width="100" align="right">
-            <template #default="{ row }"><span class="mido-mono">{{ fmtSize(row.size) }}</span></template>
-          </el-table-column>
-          <el-table-column label="上传时间" width="120">
-            <template #default="{ row }">{{ fmtDate(row.createTime) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="80">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="download(row)">下载</el-button>
-            </template>
-          </el-table-column>
-          <template #empty><el-empty description="该项目暂无文件" :image-size="60" /></template>
-        </el-table>
-        <el-empty v-else description="从左侧选择一个项目查看其文件" :image-size="60" />
+      <!-- 中：知识库目录树 -->
+      <el-card v-if="activeId" shadow="never" class="doc__tree" v-loading="treeLoading">
+        <div class="doc__tree-head">
+          <h3 class="mido-h2">知识库</h3>
+          <span>
+            <el-button link type="primary" :icon="Folder" @click="addNode('folder', null)">目录</el-button>
+            <el-button link type="primary" :icon="Document" @click="addNode('doc', null)">文档</el-button>
+          </span>
+        </div>
+        <el-tree v-if="tree.length" :data="tree" node-key="id" :props="treeProps" draggable
+          :expand-on-click-node="false" :allow-drop="allowDrop" highlight-current
+          :current-node-key="current?.id" @node-click="openNode" @node-drop="onDrop">
+          <template #default="{ data }">
+            <span class="doc__node">
+              <el-icon class="doc__node-icon">
+                <Folder v-if="data.type === 'folder'" /><Document v-else />
+              </el-icon>
+              <span class="doc__node-label">{{ data.title }}</span>
+              <span class="doc__node-ops">
+                <el-button v-if="data.type === 'folder'" link :icon="Plus" title="在此新建"
+                  @click.stop="addNode('doc', data)" />
+                <el-button link :icon="EditPen" title="重命名" @click.stop="renameNode(data)" />
+                <el-button link :icon="Delete" title="删除" @click.stop="deleteNode(data)" />
+              </span>
+            </span>
+          </template>
+        </el-tree>
+        <el-empty v-else description="暂无文档，点上方新建" :image-size="60" />
+      </el-card>
+
+      <!-- 右：文档编辑 -->
+      <el-card v-if="activeId" shadow="never" class="doc__main" v-loading="docLoading">
+        <template v-if="current && current.type === 'doc'">
+          <div class="doc__editor-head">
+            <el-input v-model="title" class="doc__title" placeholder="文档标题" />
+            <el-button :icon="Clock" @click="openHistory">历史</el-button>
+            <el-button type="primary" :icon="Check" :loading="saving" @click="save">保存</el-button>
+          </div>
+          <DocEditor v-model="content" />
+        </template>
+        <el-empty v-else-if="current" description="目录节点：在左侧选择或新建文档" :image-size="80" />
+        <el-empty v-else description="从左侧选择或新建一篇文档" :image-size="80" />
       </el-card>
     </div>
+
+    <!-- 版本历史抽屉 -->
+    <el-drawer v-model="historyOpen" title="版本历史" :size="hasPreview ? 720 : 420">
+      <div class="doc__history">
+        <el-table :data="versions" size="small" class="doc__history-list">
+          <el-table-column label="版本" width="70">
+            <template #default="{ row }">v{{ row.versionNo }}</template>
+          </el-table-column>
+          <el-table-column label="说明" min-width="120">
+            <template #default="{ row }">{{ row.changeNote || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="时间" width="120">
+            <template #default="{ row }">{{ fmtTime(row.createTime) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="preview(row)">预览</el-button>
+              <el-button link type="primary" @click="rollback(row)">回滚</el-button>
+            </template>
+          </el-table-column>
+          <template #empty><el-empty description="暂无历史版本" :image-size="60" /></template>
+        </el-table>
+        <div v-if="hasPreview" class="doc__history-preview">
+          <h4 class="mido-h2">预览 v{{ previewVersion?.versionNo }}</h4>
+          <DocEditor :model-value="previewContent" :editable="false" />
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Folder, Document, Plus, EditPen, Delete, Check, Clock } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
+import DocEditor from '@/components/DocEditor.vue'
 import { projectApi } from '@/api/project'
-import { attachmentApi } from '@/api/attachment'
+import { docApi } from '@/api/doc'
+
+const treeProps = { label: 'title', children: 'children' }
 
 const projLoading = ref(false)
-const fileLoading = ref(false)
+const treeLoading = ref(false)
+const docLoading = ref(false)
+const saving = ref(false)
 const projects = ref([])
-const files = ref([])
 const activeId = ref(null)
-const activeName = ref('')
+const tree = ref([])
+const current = ref(null) // 当前选中节点详情（DocDetailVO）
+const title = ref('')
+const content = ref(null) // Tiptap JSON 对象
 
-// 附件来源（entityType）→ 中文
-const SOURCE_LABEL = { project: '项目文档', task: '任务附件', cost: '费用附件' }
-const sourceLabel = (t) => SOURCE_LABEL[t] || t
-const fmtDate = (v) => (v ? String(v).slice(0, 10) : '—')
-const fmtSize = (b) => {
-  if (b == null) return '—'
-  if (b < 1024) return `${b} B`
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-  return `${(b / 1024 / 1024).toFixed(1)} MB`
-}
+const fmtTime = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
 
-async function loadFiles(id) {
-  fileLoading.value = true
+// ===== 项目 / 树 =====
+async function loadTree() {
+  treeLoading.value = true
   try {
-    files.value = await attachmentApi.listByProject(id) || []
+    tree.value = await docApi.tree(activeId.value) || []
   } finally {
-    fileLoading.value = false
+    treeLoading.value = false
   }
 }
 function selectProject(id) {
-  const p = projects.value.find((x) => String(x.id) === String(id))
-  activeId.value = id
-  activeName.value = p ? p.name : ''
-  loadFiles(id)
+  activeId.value = Number(id)
+  current.value = null
+  title.value = ''
+  content.value = null
+  loadTree()
 }
 
-async function download(row) {
-  const url = await attachmentApi.downloadUrl(row.id)
-  if (url) window.open(url, '_blank')
-  else ElMessage.error('获取下载链接失败')
+// ===== 节点操作 =====
+async function openNode(data) {
+  if (data.type !== 'doc') {
+    current.value = { id: data.id, type: 'folder', title: data.title }
+    return
+  }
+  docLoading.value = true
+  try {
+    const d = await docApi.get(data.id)
+    current.value = d
+    title.value = d.title
+    content.value = d.content ? JSON.parse(d.content) : null
+  } finally {
+    docLoading.value = false
+  }
+}
+
+async function addNode(type, parent) {
+  const label = type === 'folder' ? '目录' : '文档'
+  try {
+    const { value } = await ElMessageBox.prompt(`请输入${label}名称`, `新建${label}`, {
+      confirmButtonText: '创建', cancelButtonText: '取消',
+      inputValidator: (v) => (v && v.trim() ? true : '名称不能为空'),
+    })
+    const id = await docApi.create({
+      projectId: activeId.value, parentId: parent ? parent.id : 0, type, title: value.trim(),
+    })
+    ElMessage.success('已创建')
+    await loadTree()
+    if (type === 'doc') openNode({ id, type: 'doc' })
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  }
+}
+
+async function renameNode(data) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新名称', '重命名', {
+      confirmButtonText: '保存', cancelButtonText: '取消', inputValue: data.title,
+      inputValidator: (v) => (v && v.trim() ? true : '名称不能为空'),
+    })
+    await docApi.rename(data.id, { title: value.trim(), icon: data.icon })
+    if (current.value && current.value.id === data.id) title.value = value.trim()
+    await loadTree()
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  }
+}
+
+async function deleteNode(data) {
+  try {
+    await ElMessageBox.confirm(
+      data.type === 'folder' ? '删除目录将一并删除其下所有文档，确认？' : `确认删除文档「${data.title}」？`,
+      '删除确认', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' })
+    await docApi.remove(data.id)
+    ElMessage.success('已删除')
+    if (current.value && current.value.id === data.id) {
+      current.value = null
+      content.value = null
+    }
+    await loadTree()
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  }
+}
+
+// 拖拽：仅允许放入目录内部；放到文档上只能同级前后
+function allowDrop(dragging, drop, type) {
+  if (type === 'inner') return drop.data.type === 'folder'
+  return true
+}
+async function onDrop(dragging, drop, dropType) {
+  const node = dragging.data
+  let parentId = 0
+  let siblings = tree.value
+  if (dropType === 'inner') {
+    parentId = drop.data.id
+    siblings = drop.data.children || []
+  } else if (drop.parent && drop.parent.level > 0) {
+    parentId = drop.parent.data.id
+    siblings = drop.parent.data.children || []
+  }
+  const sortNo = Math.max(0, siblings.findIndex((s) => s.id === node.id))
+  try {
+    await docApi.move(node.id, { parentId, sortNo })
+  } catch (e) {
+    await loadTree() // 失败回滚视图
+    throw e
+  }
+}
+
+// ===== 保存正文 =====
+function extractText(node) {
+  if (!node) return ''
+  if (node.text) return node.text
+  if (Array.isArray(node.content)) return node.content.map(extractText).join(node.type === 'paragraph' ? '' : ' ')
+  return ''
+}
+async function save() {
+  if (!current.value || current.value.type !== 'doc') return
+  saving.value = true
+  try {
+    await docApi.saveContent(current.value.id, {
+      title: title.value.trim() || current.value.title,
+      content: content.value ? JSON.stringify(content.value) : null,
+      contentText: extractText(content.value).slice(0, 2000),
+    })
+    ElMessage.success('已保存')
+    await loadTree()
+  } finally {
+    saving.value = false
+  }
+}
+
+// ===== 版本历史 =====
+const historyOpen = ref(false)
+const versions = ref([])
+const previewVersion = ref(null)
+const previewContent = ref(null)
+const hasPreview = ref(false)
+async function openHistory() {
+  if (!current.value) return
+  previewVersion.value = null
+  hasPreview.value = false
+  versions.value = await docApi.versions(current.value.id) || []
+  historyOpen.value = true
+}
+async function preview(row) {
+  const v = await docApi.versionContent(row.id)
+  previewVersion.value = row
+  previewContent.value = v.content ? JSON.parse(v.content) : null
+  hasPreview.value = true
+}
+async function rollback(row) {
+  try {
+    await ElMessageBox.confirm(`确认回滚到 v${row.versionNo}？将作为新版本追加，不影响历史。`, '回滚确认',
+      { type: 'warning', confirmButtonText: '回滚', cancelButtonText: '取消' })
+    await docApi.rollback(current.value.id, row.id)
+    ElMessage.success('已回滚')
+    historyOpen.value = false
+    await openNode({ id: current.value.id, type: 'doc' })
+    await loadTree()
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  }
 }
 
 onMounted(async () => {
@@ -111,11 +299,22 @@ onMounted(async () => {
 .doc__body {
   display: flex;
   gap: var(--mido-space-4);
-  align-items: flex-start;
+  align-items: stretch;
+  min-height: 60vh;
 }
 .doc__side {
+  width: var(--mido-admin-nav-width);
+  flex: none;
+}
+.doc__tree {
   width: var(--mido-drawer-width);
   flex: none;
+}
+.doc__tree-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--mido-space-2);
 }
 .doc__main {
   flex: 1;
@@ -130,5 +329,43 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.doc__node {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  width: 100%;
+}
+.doc__node-icon {
+  color: var(--el-text-color-secondary);
+}
+.doc__node-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc__node-ops {
+  display: none;
+}
+.doc__node:hover .doc__node-ops {
+  display: inline-flex;
+}
+.doc__editor-head {
+  display: flex;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-3);
+}
+.doc__title {
+  flex: 1;
+}
+.doc__history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-4);
+}
+.doc__history-preview {
+  border-top: var(--mido-border-width) solid var(--el-border-color-light);
+  padding-top: var(--mido-space-3);
 }
 </style>
