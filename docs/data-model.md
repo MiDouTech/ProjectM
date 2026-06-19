@@ -89,11 +89,15 @@ CREATE TABLE pm_goal (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, title VARCHAR(256), type VARCHAR(16),
   parent_id BIGINT DEFAULT 0, owner_id BIGINT, period VARCHAR(32),
   metric_unit VARCHAR(16), metric_start DECIMAL(14,2), metric_target DECIMAL(14,2),
-  metric_current DECIMAL(14,2), progress DECIMAL(5,2) DEFAULT 0, KEY idx_tenant(tenant_id)
+  metric_current DECIMAL(14,2), progress DECIMAL(5,2) DEFAULT 0,
+  auto_rollup TINYINT DEFAULT 0,           -- V20：KR 进度是否自动汇总对齐项目任务完成率
+  KEY idx_tenant(tenant_id)
 );
 CREATE TABLE pm_goal_alignment (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, goal_id BIGINT,
-  target_type VARCHAR(16), target_id BIGINT, KEY idx_goal(goal_id), KEY idx_target(target_type,target_id)
+  target_type VARCHAR(16), target_id BIGINT,
+  weight DECIMAL(5,2) DEFAULT 1,           -- V20：对齐贡献权重(多项目汇总到一个 KR 加权)
+  KEY idx_goal(goal_id), KEY idx_target(target_type,target_id)
 );
 
 -- ========== 干系人 + NPSS 验收域 ==========

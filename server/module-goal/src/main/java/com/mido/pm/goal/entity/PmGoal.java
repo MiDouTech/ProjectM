@@ -22,6 +22,8 @@ public class PmGoal extends BaseEntity {
     private BigDecimal metricTarget;
     private BigDecimal metricCurrent;
     private BigDecimal progress;
+    /** KR 进度是否自动汇总对齐项目完成率：1 是 / 0 否 */
+    private Integer autoRollup;
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -43,4 +45,6 @@ public class PmGoal extends BaseEntity {
     public void setMetricCurrent(BigDecimal metricCurrent) { this.metricCurrent = metricCurrent; }
     public BigDecimal getProgress() { return progress; }
     public void setProgress(BigDecimal progress) { this.progress = progress; }
+    public Integer getAutoRollup() { return autoRollup; }
+    public void setAutoRollup(Integer autoRollup) { this.autoRollup = autoRollup; }
 }

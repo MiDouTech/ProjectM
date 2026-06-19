@@ -14,5 +14,6 @@ public record GoalVO(
         BigDecimal metricStart,
         BigDecimal metricTarget,
         BigDecimal metricCurrent,
-        BigDecimal progress) {
+        BigDecimal progress,
+        Integer autoRollup) {
 }

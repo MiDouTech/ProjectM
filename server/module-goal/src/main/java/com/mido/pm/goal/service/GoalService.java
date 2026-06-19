@@ -66,6 +66,7 @@ public class GoalService {
         g.setMetricTarget(dto.metricTarget());
         g.setMetricCurrent(dto.metricCurrent());
         g.setProgress(GoalProgress.compute(dto.metricStart(), dto.metricTarget(), dto.metricCurrent()));
+        g.setAutoRollup(dto.autoRollup() != null ? dto.autoRollup() : 0);
         goalMapper.insert(g);
         eventPublisher.publish(GoalEvents.CREATED, payload("goalId", g.getId(), "type", g.getType()));
         return g.getId();
@@ -82,6 +83,7 @@ public class GoalService {
         g.setMetricTarget(dto.metricTarget());
         g.setMetricCurrent(dto.metricCurrent());
         g.setProgress(GoalProgress.compute(dto.metricStart(), dto.metricTarget(), dto.metricCurrent()));
+        g.setAutoRollup(dto.autoRollup() != null ? dto.autoRollup() : 0);
         goalMapper.updateById(g);
         eventPublisher.publish(GoalEvents.UPDATED, payload("goalId", id));
     }
@@ -151,6 +153,7 @@ public class GoalService {
         a.setGoalId(goalId);
         a.setTargetType(dto.targetType());
         a.setTargetId(dto.targetId());
+        a.setWeight(dto.weight() != null ? dto.weight() : java.math.BigDecimal.ONE);
         alignmentMapper.insert(a);
         eventPublisher.publish(GoalEvents.ALIGNED,
                 payload("goalId", goalId, "targetType", dto.targetType(), "targetId", dto.targetId()));
@@ -231,10 +234,10 @@ public class GoalService {
     private GoalVO toVO(PmGoal g) {
         return new GoalVO(g.getId(), g.getTitle(), g.getType(), g.getParentId(), g.getOwnerId(),
                 g.getPeriod(), g.getMetricUnit(), g.getMetricStart(), g.getMetricTarget(),
-                g.getMetricCurrent(), g.getProgress());
+                g.getMetricCurrent(), g.getProgress(), g.getAutoRollup());
     }
 
     private AlignmentVO toVO(PmGoalAlignment a) {
-        return new AlignmentVO(a.getId(), a.getGoalId(), a.getTargetType(), a.getTargetId());
+        return new AlignmentVO(a.getId(), a.getGoalId(), a.getTargetType(), a.getTargetId(), a.getWeight());
     }
 }

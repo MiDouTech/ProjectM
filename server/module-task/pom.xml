@@ -30,5 +30,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-project</artifactId>
         </dependency>
+        <!-- 实现目标域 ProjectCompletionPort（项目任务完成率，供 KR 自动汇总），task→goal 不成环 -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-goal</artifactId>
+        </dependency>
     </dependencies>
 </project>

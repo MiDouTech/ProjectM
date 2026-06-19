@@ -255,7 +255,8 @@ public class TaskService {
         task.setStatus(to.getCode());
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.STATUS_CHANGED, payload(
-                "taskId", id, "from", from == null ? null : from.getCode(), "to", to.getCode()));
+                "taskId", id, "projectId", task.getProjectId(),
+                "from", from == null ? null : from.getCode(), "to", to.getCode()));
         auditLogService.record(AuditActions.TARGET_TASK, id, AuditActions.STATUS_CHANGED,
                 fromTo(from == null ? null : from.getCode(), to.getCode()));
     }

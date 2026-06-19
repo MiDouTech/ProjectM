@@ -77,6 +77,10 @@
             <el-input-number v-model="form.metricCurrent" :precision="2" :controls="false" placeholder="当前" />
           </div>
         </el-form-item>
+        <el-form-item v-if="form.type === 'kr'" label="自动汇总">
+          <el-switch v-model="form.autoRollup" :active-value="1" :inactive-value="0" />
+          <span class="mido-text-secondary goal__hint">开启后按对齐项目的任务完成率(加权)自动反写本 KR 进度</span>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createDialog = false">取消</el-button>
@@ -138,7 +142,7 @@ const users = ref([])
 
 const createDialog = ref(false)
 const formRef = ref()
-const form = reactive({ title: '', type: 'objective', parentId: null, ownerId: null, period: '', metricUnit: '', metricStart: null, metricTarget: null, metricCurrent: null })
+const form = reactive({ title: '', type: 'objective', parentId: null, ownerId: null, period: '', metricUnit: '', metricStart: null, metricTarget: null, metricCurrent: null, autoRollup: 0 })
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   type: [{ required: true, message: '请选择类型', trigger: 'change' }],
@@ -186,7 +190,7 @@ async function saveMetric(row, v) {
 }
 
 function openCreate() {
-  Object.assign(form, { title: '', type: 'objective', parentId: null, ownerId: null, period: '', metricUnit: '', metricStart: null, metricTarget: null, metricCurrent: null })
+  Object.assign(form, { title: '', type: 'objective', parentId: null, ownerId: null, period: '', metricUnit: '', metricStart: null, metricTarget: null, metricCurrent: null, autoRollup: 0 })
   formRef.value?.clearValidate()
   createDialog.value = true
 }
