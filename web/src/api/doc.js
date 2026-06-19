@@ -41,4 +41,10 @@ export const docApi = {
   restore: (id) => request.post(`/docs/${id}/restore`),
   // 彻底删除
   purge: (id) => request.delete(`/docs/${id}/purge`),
+
+  // —— P2：搜索 / 收藏 / 模板 ——
+  search: (projectId, keyword) => request.get('/docs/search', { params: { projectId, keyword } }),
+  toggleFavorite: (id) => request.post(`/docs/${id}/favorite`),
+  favorites: (projectId) => request.get('/docs/favorites', { params: { projectId } }),
+  templates: () => request.get('/docs/templates'),
 }

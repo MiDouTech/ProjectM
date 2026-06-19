@@ -24,14 +24,40 @@
           <h3 class="mido-h2">知识库</h3>
           <span class="doc__tree-actions">
             <el-button link type="primary" :icon="Folder" @click="addNode('folder', null)">目录</el-button>
-            <el-button link type="primary" :icon="Document" @click="addNode('doc', null)">文档</el-button>
+            <el-dropdown trigger="click" @command="addDoc">
+              <el-button link type="primary" :icon="Document">文档<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="blank">空白文档</el-dropdown-item>
+                  <el-dropdown-item v-for="t in templates" :key="t.id" :command="t.id" divided>{{ t.name }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-upload :show-file-list="false" :http-request="uploadFile" :disabled="uploading">
               <el-button link type="primary" :icon="Upload" :loading="uploading">文件</el-button>
             </el-upload>
             <el-button link :icon="Delete" title="回收站" @click="openRecycle" />
           </span>
         </div>
-        <el-tree v-if="tree.length" :data="tree" node-key="id" :props="treeProps" draggable
+        <el-input v-model="kw" class="doc__search" :prefix-icon="Search" clearable
+          placeholder="搜索标题或正文…" @input="onSearch" />
+
+        <!-- 搜索结果 -->
+        <div v-if="kw.trim()" class="doc__results">
+          <div v-for="r in results" :key="r.id" class="doc__result" @click="openNode(r)">
+            <el-icon class="doc__node-icon">
+              <Folder v-if="r.type === 'folder'" /><Paperclip v-else-if="r.type === 'file'" /><Document v-else />
+            </el-icon>
+            <span class="doc__result-main">
+              <span class="doc__node-label">{{ r.title }}</span>
+              <span v-if="r.snippet" class="mido-text-secondary doc__snippet">{{ r.snippet }}</span>
+            </span>
+          </div>
+          <el-empty v-if="!results.length" description="无匹配结果" :image-size="60" />
+        </div>
+
+        <!-- 目录树 -->
+        <el-tree v-else-if="tree.length" :data="tree" node-key="id" :props="treeProps" draggable
           :expand-on-click-node="false" :allow-drop="allowDrop" highlight-current
           :current-node-key="current?.id" @node-click="openNode" @node-drop="onDrop">
           <template #default="{ data }">
@@ -57,10 +83,25 @@
         <template v-if="current && current.type === 'doc'">
           <div class="doc__editor-head">
             <el-input v-model="title" class="doc__title" placeholder="文档标题" />
+            <el-button :icon="current.favorited ? StarFilled : Star"
+              :type="current.favorited ? 'warning' : ''" @click="toggleFav">收藏</el-button>
             <el-button :icon="Clock" @click="openHistory">历史</el-button>
+            <el-dropdown trigger="click" @command="exportDoc">
+              <el-button :icon="Download">导出<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="md">Markdown (.md)</el-dropdown-item>
+                  <el-dropdown-item command="html">HTML (.html)</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button type="primary" :icon="Check" :loading="saving" @click="save">保存</el-button>
           </div>
           <DocEditor v-model="content" />
+          <div class="doc__comments">
+            <h4 class="mido-h2">评论</h4>
+            <CommentThread entity-type="doc" :entity-id="current.id" :users="members" />
+          </div>
         </template>
         <FilePreview v-else-if="current && current.type === 'file'" :url="fileUrl" :name="current.title" />
         <el-empty v-else-if="current" description="目录节点：在左侧选择或新建文档" :image-size="80" />
@@ -125,12 +166,15 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Folder, Document, Plus, EditPen, Delete, Check, Clock, Upload, Paperclip } from '@element-plus/icons-vue'
+import { Folder, Document, Plus, EditPen, Delete, Check, Clock, Upload, Paperclip,
+  Search, Star, StarFilled, Download, ArrowDown } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import DocEditor from '@/components/DocEditor.vue'
 import FilePreview from '@/components/FilePreview.vue'
+import CommentThread from '@/components/CommentThread.vue'
 import { projectApi } from '@/api/project'
 import { docApi } from '@/api/doc'
+import { toHtml, toMarkdown, downloadText } from '@/utils/tiptap'
 
 const treeProps = { label: 'title', children: 'children' }
 
@@ -146,6 +190,10 @@ const title = ref('')
 const content = ref(null) // Tiptap JSON 对象
 const fileUrl = ref('') // file 节点的预签名预览 URL
 const uploading = ref(false)
+const templates = ref([]) // 文档模板库
+const members = ref([]) // 项目成员（评论@）
+const kw = ref('') // 搜索关键词
+const results = ref([]) // 搜索结果
 
 const fmtTime = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
 
@@ -163,7 +211,31 @@ function selectProject(id) {
   current.value = null
   title.value = ''
   content.value = null
+  kw.value = ''
+  results.value = []
   loadTree()
+  loadMembers()
+}
+async function loadMembers() {
+  try {
+    const list = await projectApi.members(activeId.value) || []
+    members.value = list.map((m) => ({ id: m.userId ?? m.id, name: m.name ?? m.userName ?? m.realName }))
+  } catch {
+    members.value = []
+  }
+}
+
+// 搜索（轻量防抖）
+let searchTimer
+function onSearch() {
+  clearTimeout(searchTimer)
+  if (!kw.value.trim()) {
+    results.value = []
+    return
+  }
+  searchTimer = setTimeout(async () => {
+    results.value = await docApi.search(activeId.value, kw.value.trim()) || []
+  }, 250)
 }
 
 // ===== 节点操作 =====
@@ -221,6 +293,44 @@ async function addNode(type, parent) {
     if (type === 'doc') openNode({ id, type: 'doc' })
   } catch (e) {
     if (e !== 'cancel') throw e
+  }
+}
+
+// 从模板/空白新建文档（顶部下拉）
+async function addDoc(command) {
+  const tpl = command === 'blank' ? null : templates.value.find((t) => t.id === command)
+  try {
+    const { value } = await ElMessageBox.prompt('请输入文档名称', `新建${tpl ? tpl.name : '文档'}`, {
+      confirmButtonText: '创建', cancelButtonText: '取消', inputValue: tpl ? tpl.name : '',
+      inputValidator: (v) => (v && v.trim() ? true : '名称不能为空'),
+    })
+    const parentId = current.value && current.value.type === 'folder' ? current.value.id : 0
+    const id = await docApi.create({ projectId: activeId.value, parentId, type: 'doc', title: value.trim() })
+    if (tpl && tpl.content) {
+      await docApi.saveContent(id, { title: value.trim(), content: tpl.content, contentText: '' })
+    }
+    ElMessage.success('已创建')
+    await loadTree()
+    openNode({ id, type: 'doc' })
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  }
+}
+
+async function toggleFav() {
+  const on = await docApi.toggleFavorite(current.value.id)
+  current.value = { ...current.value, favorited: on }
+  ElMessage.success(on ? '已收藏' : '已取消收藏')
+}
+
+function exportDoc(cmd) {
+  const name = (title.value || current.value.title || 'document').trim()
+  if (cmd === 'md') {
+    downloadText(`${name}.md`, `# ${name}\n\n${toMarkdown(content.value)}`, 'text/markdown')
+  } else {
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${name}</title></head>`
+      + `<body>${toHtml(content.value)}</body></html>`
+    downloadText(`${name}.html`, html, 'text/html')
   }
 }
 
@@ -364,6 +474,7 @@ async function rollback(row) {
 onMounted(async () => {
   projLoading.value = true
   try {
+    docApi.templates().then((t) => { templates.value = t || [] }).catch(() => {})
     projects.value = await projectApi.mine() || []
     if (projects.value.length) selectProject(projects.value[0].id)
   } finally {
@@ -403,6 +514,40 @@ onMounted(async () => {
 }
 .doc__recycle-name {
   margin-left: var(--mido-space-1);
+}
+.doc__search {
+  margin-bottom: var(--mido-space-2);
+}
+.doc__results {
+  display: flex;
+  flex-direction: column;
+}
+.doc__result {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-2);
+  border-radius: var(--mido-radius-sm);
+  cursor: pointer;
+}
+.doc__result:hover {
+  background-color: var(--el-fill-color-light);
+}
+.doc__result-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.doc__snippet {
+  font-size: var(--mido-font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc__comments {
+  margin-top: var(--mido-space-5);
+  border-top: var(--mido-border-width) solid var(--el-border-color-light);
+  padding-top: var(--mido-space-3);
 }
 .doc__main {
   flex: 1;
