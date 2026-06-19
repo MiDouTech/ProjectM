@@ -1,6 +1,7 @@
 package com.mido.pm.goal.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.change.service.ChangeService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
@@ -43,13 +44,16 @@ public class GoalService {
     private final PmGoalAlignmentMapper alignmentMapper;
     private final DomainEventPublisher eventPublisher;
     private final GoalRollupService rollupService;
+    private final ChangeService changeService;
 
     public GoalService(PmGoalMapper goalMapper, PmGoalAlignmentMapper alignmentMapper,
-                       DomainEventPublisher eventPublisher, GoalRollupService rollupService) {
+                       DomainEventPublisher eventPublisher, GoalRollupService rollupService,
+                       ChangeService changeService) {
         this.goalMapper = goalMapper;
         this.alignmentMapper = alignmentMapper;
         this.eventPublisher = eventPublisher;
         this.rollupService = rollupService;
+        this.changeService = changeService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -77,6 +81,10 @@ public class GoalService {
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, GoalUpdateDTO dto) {
         PmGoal g = requireGoal(id);
+        // 受控变更冻结：有进行中的变更单时，禁止直接编辑基线（防绕过审批流）；进度(updateMetric) 不受限
+        if (changeService.hasPending(GoalChangeService.BIZ_TYPE, id)) {
+            throw new BizException(ErrorCode.CONFLICT, "该目标有进行中的变更单，请走变更流程或先撤回后再编辑");
+        }
         g.setTitle(dto.title());
         g.setOwnerId(dto.ownerId());
         g.setPeriod(dto.period());

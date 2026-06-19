@@ -46,11 +46,19 @@
 |---|---|---|
 | `approval.submitted` | 提交立项申请 | 消息(通知审批人) |
 | `approval.node.approved` | 单节点通过 | 消息(通知下一节点) |
-| `approval.approved` | 全流程通过 | 项目(置已注册)、消息(通知申请人) |
-| `approval.rejected` | 驳回 | 消息(通知申请人) |
-| `approval.withdrawn` | 发起人撤回(审批中) | 项目(回草稿)、消息(通知审批人) |
+| `approval.approved` | 全流程通过 | 项目(置已注册)、变更(应用变更 bizType=change)、消息(通知申请人) |
+| `approval.rejected` | 驳回 | 项目(回草稿)、变更(置驳回)、消息(通知申请人) |
+| `approval.withdrawn` | 发起人撤回(审批中) | 项目(回草稿)、变更(置撤回)、消息(通知审批人) |
 | `approval.transferred` | 审批人转交待办 | 消息(通知受让人) |
 | `approval.node.skipped` | 节点审批人解析为空，自动跳过 | 消息(告警PMO/管理员) |
+
+## 3.1 变更域 change.*（通用变更中心）
+> 受控变更：改业务基线须走变更单，复用审批引擎(bizType=change)。被改实体域经 ChangeApplier 端口回写，变更域不反向依赖业务域。
+| 事件 | 触发 | 订阅方 |
+|---|---|---|
+| `change.requested` | 提交变更单(必审/免审) | 消息(通知审批人)、活动流 |
+| `change.applied` | 变更生效(回写被改实体) | 被改域(联动)、报表、活动流 |
+| `change.rejected` | 变更驳回/撤回，未生效 | 消息(通知发起人)、活动流 |
 
 ## 4. 干系人/验收域 stakeholder.* / npss.*
 | 事件 | 触发 | 订阅方 |

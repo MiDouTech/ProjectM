@@ -30,8 +30,9 @@ server/
   common/        通用：响应包装/异常/分页/多租户拦截器/事件Outbox/Provider接口
   module/
     project/   task/   goal/   stakeholder/   verify(npss)/
-    approval/  cost/   collab/ doc/  report/   org(rbac)/
+    approval/  change/ cost/   collab/ doc/  report/   org(rbac)/
     ai/        (智能层,独立,只订阅事件,默认不启用)
+    # change=通用变更中心：受控变更单+审批编排，被改域经 ChangeApplier 端口回写，change 不反向依赖业务域
   provider/      identity/ sso/ approval/ message —— 四 Provider，local 实现先行，wecom 实现预留
 ```
 每个 module 内分层：`controller / service / domain / mapper / entity / dto / event`。**跨域只能通过 Service 接口或领域事件，禁止跨域直接查表。**
