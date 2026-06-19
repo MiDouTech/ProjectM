@@ -36,6 +36,8 @@ const STATUS_TYPE = {
   未发生: 'info', 已发生: 'success', 被退回: 'danger',
   // 项目健康度（报表，待回写 design-system §1.5 登记）
   健康: 'success', 关注: 'warning', 风险: 'danger',
+  // 变更单状态（pm_change_request，待回写 design-system §1.5 登记）
+  已生效: 'success', 已驳回: 'danger', 已撤回: 'info',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')
