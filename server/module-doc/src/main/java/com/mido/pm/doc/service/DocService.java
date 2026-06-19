@@ -12,9 +12,15 @@ import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
 import com.mido.pm.doc.dto.DocSaveDTO;
+import com.mido.pm.doc.dto.DocSearchVO;
+import com.mido.pm.doc.dto.DocTemplateVO;
 import com.mido.pm.doc.dto.DocTrashVO;
 import com.mido.pm.doc.dto.DocVersionVO;
 import com.mido.pm.doc.entity.PmDoc;
+import com.mido.pm.doc.entity.PmDocFavorite;
+import com.mido.pm.doc.entity.PmDocTemplate;
+import com.mido.pm.doc.mapper.PmDocFavoriteMapper;
+import com.mido.pm.doc.mapper.PmDocTemplateMapper;
 import org.springframework.web.multipart.MultipartFile;
 import com.mido.pm.doc.entity.PmDocVersion;
 import com.mido.pm.doc.event.DocEvents;
@@ -43,13 +49,18 @@ public class DocService {
     private final PmDocVersionMapper versionMapper;
     private final DomainEventPublisher eventPublisher;
     private final AttachmentService attachmentService;
+    private final PmDocFavoriteMapper favoriteMapper;
+    private final PmDocTemplateMapper templateMapper;
 
     public DocService(PmDocMapper docMapper, PmDocVersionMapper versionMapper,
-                      DomainEventPublisher eventPublisher, AttachmentService attachmentService) {
+                      DomainEventPublisher eventPublisher, AttachmentService attachmentService,
+                      PmDocFavoriteMapper favoriteMapper, PmDocTemplateMapper templateMapper) {
         this.docMapper = docMapper;
         this.versionMapper = versionMapper;
         this.eventPublisher = eventPublisher;
         this.attachmentService = attachmentService;
+        this.favoriteMapper = favoriteMapper;
+        this.templateMapper = templateMapper;
     }
 
     // ===== 目录树 =====
@@ -85,7 +96,7 @@ public class DocService {
         PmDocVersion ver = d.getCurrentVersionId() == null ? null : versionMapper.selectById(d.getCurrentVersionId());
         return new DocDetailVO(d.getId(), d.getProjectId(), d.getParentId(), d.getType(), d.getTitle(), d.getIcon(),
                 d.getCurrentVersionId(), ver == null ? null : ver.getVersionNo(),
-                ver == null ? null : ver.getContent(), d.getUpdateBy(), d.getUpdateTime());
+                ver == null ? null : ver.getContent(), isFavorited(id), d.getUpdateBy(), d.getUpdateTime());
     }
 
     // ===== 节点 CRUD =====
@@ -272,6 +283,95 @@ public class DocService {
         docMapper.updateById(d);
         eventPublisher.publish(DocEvents.VERSION_CREATED, payload(d, "versionNo", ver.getVersionNo()));
         return toVersionVO(ver, true);
+    }
+
+    // ===== 全文搜索 =====
+
+    /** 项目内搜索：命中标题或当前版本正文纯文本（未回收节点）。内存过滤，足够 MVP。 */
+    public List<DocSearchVO> search(Long projectId, String keyword) {
+        String kw = keyword == null ? "" : keyword.trim().toLowerCase();
+        if (kw.isEmpty()) {
+            return List.of();
+        }
+        List<PmDoc> docs = docMapper.selectList(Wrappers.<PmDoc>lambdaQuery()
+                .eq(PmDoc::getProjectId, projectId).eq(PmDoc::getTrashed, 0));
+        List<DocSearchVO> result = new ArrayList<>();
+        for (PmDoc d : docs) {
+            boolean titleHit = d.getTitle() != null && d.getTitle().toLowerCase().contains(kw);
+            String snippet = null;
+            if (!titleHit && PmDoc.TYPE_DOC.equals(d.getType()) && d.getCurrentVersionId() != null) {
+                PmDocVersion v = versionMapper.selectById(d.getCurrentVersionId());
+                String text = v == null ? null : v.getContentText();
+                if (text != null && text.toLowerCase().contains(kw)) {
+                    snippet = snippet(text, kw);
+                }
+            }
+            if (titleHit || snippet != null) {
+                result.add(new DocSearchVO(d.getId(), d.getType(), d.getTitle(), snippet));
+            }
+        }
+        return result;
+    }
+
+    private String snippet(String text, String kw) {
+        int i = text.toLowerCase().indexOf(kw);
+        int from = Math.max(0, i - 20);
+        int to = Math.min(text.length(), i + kw.length() + 40);
+        return (from > 0 ? "…" : "") + text.substring(from, to) + (to < text.length() ? "…" : "");
+    }
+
+    // ===== 收藏 =====
+
+    /** 切换收藏，返回切换后的收藏状态。 */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean toggleFavorite(Long docId) {
+        requireDoc(docId);
+        Long uid = currentUserId();
+        PmDocFavorite exist = favoriteMapper.selectOne(Wrappers.<PmDocFavorite>lambdaQuery()
+                .eq(PmDocFavorite::getUserId, uid).eq(PmDocFavorite::getDocId, docId).last("limit 1"));
+        if (exist != null) {
+            favoriteMapper.deleteById(exist.getId());
+            return false;
+        }
+        PmDocFavorite f = new PmDocFavorite();
+        f.setUserId(uid);
+        f.setDocId(docId);
+        f.setCreateBy(uid);
+        f.setUpdateBy(uid);
+        favoriteMapper.insert(f);
+        return true;
+    }
+
+    /** 当前用户在该项目下收藏的（未回收）文档。 */
+    public List<DocSearchVO> favorites(Long projectId) {
+        List<Long> docIds = favoriteMapper.selectList(Wrappers.<PmDocFavorite>lambdaQuery()
+                        .eq(PmDocFavorite::getUserId, currentUserId()))
+                .stream().map(PmDocFavorite::getDocId).toList();
+        if (docIds.isEmpty()) {
+            return List.of();
+        }
+        return docMapper.selectList(Wrappers.<PmDoc>lambdaQuery()
+                        .eq(PmDoc::getProjectId, projectId).eq(PmDoc::getTrashed, 0)
+                        .in(PmDoc::getId, docIds))
+                .stream().map(d -> new DocSearchVO(d.getId(), d.getType(), d.getTitle(), null)).toList();
+    }
+
+    private boolean isFavorited(Long docId) {
+        Long uid = currentUserId();
+        if (uid == null) {
+            return false;
+        }
+        return favoriteMapper.selectCount(Wrappers.<PmDocFavorite>lambdaQuery()
+                .eq(PmDocFavorite::getUserId, uid).eq(PmDocFavorite::getDocId, docId)) > 0;
+    }
+
+    // ===== 模板 =====
+
+    /** 模板库（按 sortNo 升序）。 */
+    public List<DocTemplateVO> templates() {
+        return templateMapper.selectList(Wrappers.<PmDocTemplate>lambdaQuery()
+                        .orderByAsc(PmDocTemplate::getSortNo).orderByAsc(PmDocTemplate::getId))
+                .stream().map(t -> new DocTemplateVO(t.getId(), t.getName(), t.getContent())).toList();
     }
 
     // ===== 内部 =====

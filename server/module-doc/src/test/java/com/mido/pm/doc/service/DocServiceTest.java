@@ -39,6 +39,8 @@ class DocServiceTest {
     @Mock private PmDocVersionMapper versionMapper;
     @Mock private DomainEventPublisher eventPublisher;
     @Mock private AttachmentService attachmentService;
+    @Mock private com.mido.pm.doc.mapper.PmDocFavoriteMapper favoriteMapper;
+    @Mock private com.mido.pm.doc.mapper.PmDocTemplateMapper templateMapper;
     @InjectMocks private DocService service;
 
     private PmDoc doc(long id, String type) {
@@ -130,5 +132,27 @@ class DocServiceTest {
 
         verify(docMapper).updateById(any(PmDoc.class)); // 置 trashed=1
         verify(eventPublisher).publish(eq("doc.deleted"), any());
+    }
+
+    @Test
+    void toggleFavoriteInsertsWhenAbsent() {
+        when(docMapper.selectById(1L)).thenReturn(doc(1L, PmDoc.TYPE_DOC));
+        when(favoriteMapper.selectOne(any())).thenReturn(null);
+
+        boolean on = service.toggleFavorite(1L);
+
+        org.junit.jupiter.api.Assertions.assertTrue(on);
+        verify(favoriteMapper).insert(any(com.mido.pm.doc.entity.PmDocFavorite.class));
+    }
+
+    @Test
+    void searchMatchesTitle() {
+        PmDoc d = doc(1L, PmDoc.TYPE_DOC); // title 设计说明
+        when(docMapper.selectList(any())).thenReturn(List.of(d));
+
+        var hits = service.search(7L, "设计");
+
+        assertEquals(1, hits.size());
+        assertEquals(1L, hits.get(0).id());
     }
 }

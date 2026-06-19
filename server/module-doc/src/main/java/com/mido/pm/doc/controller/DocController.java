@@ -7,6 +7,8 @@ import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
 import com.mido.pm.doc.dto.DocSaveDTO;
+import com.mido.pm.doc.dto.DocSearchVO;
+import com.mido.pm.doc.dto.DocTemplateVO;
 import com.mido.pm.doc.dto.DocTrashVO;
 import com.mido.pm.doc.dto.DocVersionVO;
 import com.mido.pm.doc.service.DocService;
@@ -132,5 +134,29 @@ public class DocController {
     @PostMapping("/{id}/rollback/{versionId}")
     public R<DocVersionVO> rollback(@PathVariable Long id, @PathVariable Long versionId) {
         return R.ok(docService.rollback(id, versionId));
+    }
+
+    /** 项目内全文搜索（标题 + 正文）。 */
+    @GetMapping("/search")
+    public R<List<DocSearchVO>> search(@RequestParam Long projectId, @RequestParam String keyword) {
+        return R.ok(docService.search(projectId, keyword));
+    }
+
+    /** 切换收藏，返回切换后状态。 */
+    @PostMapping("/{id}/favorite")
+    public R<Boolean> toggleFavorite(@PathVariable Long id) {
+        return R.ok(docService.toggleFavorite(id));
+    }
+
+    /** 我在该项目的收藏。 */
+    @GetMapping("/favorites")
+    public R<List<DocSearchVO>> favorites(@RequestParam Long projectId) {
+        return R.ok(docService.favorites(projectId));
+    }
+
+    /** 文档模板库。 */
+    @GetMapping("/templates")
+    public R<List<DocTemplateVO>> templates() {
+        return R.ok(docService.templates());
     }
 }

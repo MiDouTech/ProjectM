@@ -13,6 +13,7 @@ public record DocDetailVO(
         Long currentVersionId,
         Integer versionNo,
         String content,
+        Boolean favorited,
         Long updateBy,
         LocalDateTime updateTime) {
 }
