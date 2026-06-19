@@ -68,7 +68,7 @@ class DocServiceTest {
         when(docMapper.selectById(1L)).thenReturn(doc(1L, PmDoc.TYPE_DOC));
         when(versionMapper.selectList(any())).thenReturn(List.of()); // 无历史 → 版本号 1
 
-        DocVersionVO vo = service.saveContent(1L, new DocSaveDTO("标题", "{\"type\":\"doc\"}", "纯文本", "首存"));
+        DocVersionVO vo = service.saveContent(1L, new DocSaveDTO("标题", "{\"type\":\"doc\"}", "纯文本", "首存", null));
 
         assertEquals(1, vo.versionNo());
         verify(versionMapper).insert(any(PmDocVersion.class));
@@ -77,10 +77,20 @@ class DocServiceTest {
     }
 
     @Test
+    void saveContentRejectsStaleBaseVersion() {
+        PmDoc d = doc(1L, PmDoc.TYPE_DOC);
+        d.setCurrentVersionId(5L); // 当前已是 v5
+        when(docMapper.selectById(1L)).thenReturn(d);
+        // 客户端基于 v3 保存 → 冲突
+        assertThrows(BizException.class,
+                () -> service.saveContent(1L, new DocSaveDTO("t", "c", null, null, 3L)));
+    }
+
+    @Test
     void saveContentRejectsFolder() {
         when(docMapper.selectById(2L)).thenReturn(doc(2L, PmDoc.TYPE_FOLDER));
         assertThrows(BizException.class,
-                () -> service.saveContent(2L, new DocSaveDTO(null, "x", null, null)));
+                () -> service.saveContent(2L, new DocSaveDTO(null, "x", null, null, null)));
     }
 
     @Test

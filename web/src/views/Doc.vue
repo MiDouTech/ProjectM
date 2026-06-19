@@ -194,6 +194,7 @@ const templates = ref([]) // 文档模板库
 const members = ref([]) // 项目成员（评论@）
 const kw = ref('') // 搜索关键词
 const results = ref([]) // 搜索结果
+const baseVersionId = ref(null) // 载入时的版本，乐观防冲突
 
 const fmtTime = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
 
@@ -260,6 +261,7 @@ async function openNode(data) {
     current.value = d
     title.value = d.title
     content.value = d.content ? JSON.parse(d.content) : null
+    baseVersionId.value = d.currentVersionId || null
   } finally {
     docLoading.value = false
   }
@@ -426,11 +428,14 @@ async function save() {
   if (!current.value || current.value.type !== 'doc') return
   saving.value = true
   try {
-    await docApi.saveContent(current.value.id, {
+    const ver = await docApi.saveContent(current.value.id, {
       title: title.value.trim() || current.value.title,
       content: content.value ? JSON.stringify(content.value) : null,
       contentText: extractText(content.value).slice(0, 2000),
+      baseVersionId: baseVersionId.value,
     })
+    baseVersionId.value = ver?.id || baseVersionId.value
+    current.value = { ...current.value, currentVersionId: baseVersionId.value }
     ElMessage.success('已保存')
     await loadTree()
   } finally {

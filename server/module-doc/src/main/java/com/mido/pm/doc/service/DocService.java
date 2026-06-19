@@ -239,6 +239,10 @@ public class DocService {
         if (!PmDoc.TYPE_DOC.equals(d.getType())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "目录节点不能保存正文");
         }
+        // 轻量防冲突：客户端载入版本与当前版本不一致，说明他人已更新，拒绝覆盖
+        if (dto.baseVersionId() != null && !dto.baseVersionId().equals(d.getCurrentVersionId())) {
+            throw new BizException(ErrorCode.CONFLICT, "文档已被他人更新，请刷新后重试");
+        }
         String title = dto.title() != null && !dto.title().isBlank() ? dto.title().trim() : d.getTitle();
         PmDocVersion ver = newVersion(d, title, dto.content(), dto.contentText(), dto.changeNote());
         d.setTitle(title);
