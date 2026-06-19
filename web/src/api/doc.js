@@ -47,4 +47,14 @@ export const docApi = {
   toggleFavorite: (id) => request.post(`/docs/${id}/favorite`),
   favorites: (projectId) => request.get('/docs/favorites', { params: { projectId } }),
   templates: () => request.get('/docs/templates'),
+
+  // —— P3：权限 ACL / 分享 ——
+  listAcl: (id) => request.get(`/docs/${id}/acl`),
+  grantAcl: (id, data) => request.post(`/docs/${id}/acl`, data),
+  revokeAcl: (aclId) => request.delete(`/docs/acl/${aclId}`),
+  getShare: (id) => request.get(`/docs/${id}/share`),
+  createShare: (id, expireTime) => request.post(`/docs/${id}/share`, null, { params: expireTime ? { expireTime } : {} }),
+  disableShare: (id) => request.delete(`/docs/${id}/share`),
+  // 公开只读（匿名）：token → { title, content }
+  publicView: (token) => request.get(`/public/docs/${token}`),
 }

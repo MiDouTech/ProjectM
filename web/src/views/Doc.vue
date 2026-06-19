@@ -86,6 +86,8 @@
             <el-button :icon="current.favorited ? StarFilled : Star"
               :type="current.favorited ? 'warning' : ''" @click="toggleFav">收藏</el-button>
             <el-button :icon="Clock" @click="openHistory">历史</el-button>
+            <el-button :icon="Lock" @click="openAcl">权限</el-button>
+            <el-button :icon="Share" @click="openShare">分享</el-button>
             <el-dropdown trigger="click" @command="exportDoc">
               <el-button :icon="Download">导出<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
               <template #dropdown>
@@ -160,19 +162,74 @@
         <template #empty><el-empty description="回收站为空" :image-size="60" /></template>
       </el-table>
     </el-drawer>
+
+    <!-- 权限 ACL 抽屉 -->
+    <el-drawer v-model="aclOpen" title="文档权限" :size="460">
+      <div class="doc__acl-add">
+        <el-select v-model="aclForm.principalType" class="doc__acl-w">
+          <el-option label="成员" value="user" />
+          <el-option label="角色" value="role" />
+        </el-select>
+        <el-select v-model="aclForm.principalId" filterable placeholder="选择" class="doc__acl-w">
+          <el-option v-for="o in aclForm.principalType === 'user' ? members : roles"
+            :key="o.id" :label="o.name" :value="o.id" />
+        </el-select>
+        <el-select v-model="aclForm.permission" class="doc__acl-w">
+          <el-option label="可读" value="read" />
+          <el-option label="可写" value="write" />
+          <el-option label="管理" value="admin" />
+        </el-select>
+        <el-button type="primary" :icon="Plus" @click="grantAcl">授权</el-button>
+      </div>
+      <el-table :data="aclList" size="small">
+        <el-table-column label="主体">
+          <template #default="{ row }">
+            {{ row.principalType === 'user' ? '成员' : '角色' }}：{{ principalName(row) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="权限" width="80">
+          <template #default="{ row }">{{ permLabel(row.permission) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button link type="danger" @click="revokeAcl(row)">撤销</el-button>
+          </template>
+        </el-table-column>
+        <template #empty><el-empty description="未设置，默认项目成员可读写" :image-size="60" /></template>
+      </el-table>
+    </el-drawer>
+
+    <!-- 分享抽屉 -->
+    <el-drawer v-model="shareOpen" title="公开分享" :size="460">
+      <template v-if="share && share.enabled">
+        <el-alert type="success" :closable="false" title="任何人通过链接可只读访问，请谨慎分享" class="doc__share-tip" />
+        <el-input :model-value="shareUrl" readonly class="doc__share-url">
+          <template #append><el-button :icon="CopyDocument" @click="copyShare">复制</el-button></template>
+        </el-input>
+        <p v-if="share.expireTime" class="mido-text-secondary">过期时间：{{ fmtTime(share.expireTime) }}</p>
+        <el-button type="danger" plain @click="stopShare">停用链接</el-button>
+      </template>
+      <template v-else>
+        <p class="mido-text-secondary">生成公开只读链接，免登录即可查看本文档。</p>
+        <el-date-picker v-model="shareExpire" type="datetime" placeholder="过期时间（可选，空=永久）"
+          value-format="YYYY-MM-DDTHH:mm:ss" class="doc__share-exp" />
+        <el-button type="primary" :icon="Share" @click="makeShare">生成链接</el-button>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Folder, Document, Plus, EditPen, Delete, Check, Clock, Upload, Paperclip,
-  Search, Star, StarFilled, Download, ArrowDown } from '@element-plus/icons-vue'
+  Search, Star, StarFilled, Download, ArrowDown, Lock, Share, CopyDocument } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import DocEditor from '@/components/DocEditor.vue'
 import FilePreview from '@/components/FilePreview.vue'
 import CommentThread from '@/components/CommentThread.vue'
 import { projectApi } from '@/api/project'
+import { roleApi } from '@/api/org'
 import { docApi } from '@/api/doc'
 import { toHtml, toMarkdown, downloadText } from '@/utils/tiptap'
 
@@ -191,7 +248,8 @@ const content = ref(null) // Tiptap JSON 对象
 const fileUrl = ref('') // file 节点的预签名预览 URL
 const uploading = ref(false)
 const templates = ref([]) // 文档模板库
-const members = ref([]) // 项目成员（评论@）
+const members = ref([]) // 项目成员（评论@/授权）
+const roles = ref([]) // 角色（授权）
 const kw = ref('') // 搜索关键词
 const results = ref([]) // 搜索结果
 const baseVersionId = ref(null) // 载入时的版本，乐观防冲突
@@ -476,10 +534,67 @@ async function rollback(row) {
   }
 }
 
+// ===== 权限 ACL =====
+const aclOpen = ref(false)
+const aclList = ref([])
+const aclForm = ref({ principalType: 'user', principalId: null, permission: 'read' })
+const permLabel = (p) => ({ read: '可读', write: '可写', admin: '管理' }[p] || p)
+function principalName(row) {
+  const pool = row.principalType === 'user' ? members.value : roles.value
+  return pool.find((o) => o.id === row.principalId)?.name || row.principalId
+}
+async function openAcl() {
+  aclForm.value = { principalType: 'user', principalId: null, permission: 'read' }
+  aclList.value = await docApi.listAcl(current.value.id) || []
+  aclOpen.value = true
+}
+async function grantAcl() {
+  if (!aclForm.value.principalId) {
+    ElMessage.warning('请选择授权对象')
+    return
+  }
+  await docApi.grantAcl(current.value.id, { ...aclForm.value })
+  ElMessage.success('已授权')
+  aclList.value = await docApi.listAcl(current.value.id) || []
+}
+async function revokeAcl(row) {
+  await docApi.revokeAcl(row.id)
+  aclList.value = await docApi.listAcl(current.value.id) || []
+}
+
+// ===== 分享 =====
+const shareOpen = ref(false)
+const share = ref(null)
+const shareExpire = ref(null)
+const shareUrl = computed(() => (share.value ? `${location.origin}/share/${share.value.token}` : ''))
+async function openShare() {
+  shareExpire.value = null
+  share.value = await docApi.getShare(current.value.id)
+  shareOpen.value = true
+}
+async function makeShare() {
+  share.value = await docApi.createShare(current.value.id, shareExpire.value)
+  ElMessage.success('已生成分享链接')
+}
+async function stopShare() {
+  await docApi.disableShare(current.value.id)
+  share.value = null
+  ElMessage.success('已停用')
+}
+async function copyShare() {
+  try {
+    await navigator.clipboard.writeText(shareUrl.value)
+    ElMessage.success('链接已复制')
+  } catch {
+    ElMessage.warning('复制失败，请手动复制')
+  }
+}
+
 onMounted(async () => {
   projLoading.value = true
   try {
     docApi.templates().then((t) => { templates.value = t || [] }).catch(() => {})
+    roleApi.list().then((r) => { roles.value = r || [] }).catch(() => {})
     projects.value = await projectApi.mine() || []
     if (projects.value.length) selectProject(projects.value[0].id)
   } finally {
@@ -553,6 +668,23 @@ onMounted(async () => {
   margin-top: var(--mido-space-5);
   border-top: var(--mido-border-width) solid var(--el-border-color-light);
   padding-top: var(--mido-space-3);
+}
+.doc__acl-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-3);
+}
+.doc__acl-w {
+  width: 120px;
+}
+.doc__share-tip,
+.doc__share-url,
+.doc__share-exp {
+  margin-bottom: var(--mido-space-3);
+}
+.doc__share-exp {
+  width: 100%;
 }
 .doc__main {
   flex: 1;
