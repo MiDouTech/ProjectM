@@ -40,6 +40,7 @@ const routes = [
           { path: 'roles', component: () => import('@/views/admin/RoleManage.vue') },
           { path: 'depts', component: () => import('@/views/admin/DeptTree.vue') },
           { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
+          { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
           { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
         ],
       },

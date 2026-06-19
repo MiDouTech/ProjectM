@@ -9,12 +9,11 @@ import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.security.JobLevelRule;
 import com.mido.pm.common.security.UserContext;
-import com.mido.pm.project.domain.JobLevelGuard;
-import com.mido.pm.project.domain.NpssPolicy;
-import com.mido.pm.project.domain.ProjectCategory;
 import com.mido.pm.project.domain.ProjectStateMachine;
 import com.mido.pm.project.domain.ProjectStatus;
+import com.mido.pm.project.entity.PmProjectType;
 import com.mido.pm.project.dto.ProjectCreateDTO;
 import com.mido.pm.project.dto.ProjectQueryDTO;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
@@ -69,15 +68,18 @@ public class ProjectService {
     private final DomainEventPublisher eventPublisher;
     private final IdentityProvider identityProvider;
     private final AuditLogService auditLogService;
+    private final ProjectTypeResolver projectTypeResolver;
 
     public ProjectService(PmProjectMapper projectMapper, PmProjectMemberMapper memberMapper,
                           DomainEventPublisher eventPublisher,
-                          IdentityProvider identityProvider, AuditLogService auditLogService) {
+                          IdentityProvider identityProvider, AuditLogService auditLogService,
+                          ProjectTypeResolver projectTypeResolver) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
         this.identityProvider = identityProvider;
         this.auditLogService = auditLogService;
+        this.projectTypeResolver = projectTypeResolver;
     }
 
     /**
@@ -103,10 +105,8 @@ public class ProjectService {
 
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectCreateDTO dto) {
-        ProjectCategory category = ProjectCategory.fromCode(dto.category());
-        if (category == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "非法项目类型: " + dto.category());
-        }
+        // 校验项目类型存在（取代硬编码枚举 S/I/O），并据其属性决定默认是否走 NPSS
+        PmProjectType type = projectTypeResolver.require(dto.category(), dto.subCategory());
         PmProject p = new PmProject();
         p.setName(dto.name());
         p.setCategory(dto.category());
@@ -120,9 +120,9 @@ public class ProjectService {
         p.setEndDate(dto.endDate());
         p.setStatus(ProjectStatus.DRAFT.getCode());
         p.setArchived(0);
-        // 是否走 NPSS：显式指定优先，否则按类型默认（仅 O·定向整改/专项督办 默认否）
+        // 是否走 NPSS：显式指定优先，否则按项目类型属性 requires_npss 默认（取代 NpssPolicy 硬编码）
         boolean requiresNpss = dto.requiresNpss() != null ? dto.requiresNpss()
-                : NpssPolicy.defaultRequiresNpss(dto.category(), dto.subCategory());
+                : !Integer.valueOf(0).equals(type.getRequiresNpss());
         p.setRequiresNpss(requiresNpss ? 1 : 0);
         projectMapper.insert(p);
 
@@ -232,8 +232,9 @@ public class ProjectService {
             if (!Boolean.TRUE.equals(dto.approvalPassed())) {
                 throw new BizException(ErrorCode.FORBIDDEN, "项目须经立项审批通过方可注册");
             }
-            // 职级 guard（npss-rule §8）
-            JobLevelGuard.assertLeaderQualified(ProjectCategory.fromCode(p.getCategory()), leaderJobLevel(p));
+            // 职级 guard：门槛取自项目类型 min_job_level（取代硬编码 S/O）
+            PmProjectType type = projectTypeResolver.require(p.getCategory(), p.getSubCategory());
+            JobLevelRule.assertQualified(type.getMinJobLevel(), leaderJobLevel(p));
         }
 
         // 3) 副作用

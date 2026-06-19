@@ -6,8 +6,8 @@ import com.mido.pm.common.security.JobLevelRule;
 import org.springframework.stereotype.Component;
 
 /**
- * 职级节点 guard（npss-rule §8）：S 类 Leader 必须 L3+、O 类 L2+，不满足直接拒绝。
- * 复用 common {@link JobLevelRule}（与项目状态机注册 guard 同一事实源）。
+ * 职级节点 guard：按项目类型配置的最低门槛 min_job_level 校验 Leader 职级，不满足直接拒绝。
+ * 门槛由提交方放入审批上下文（取代原按 category 硬编码），复用 common {@link JobLevelRule}，单一事实源。
  */
 @Component
 public class JobLevelNodeGuard implements NodeGuard {
@@ -21,6 +21,6 @@ public class JobLevelNodeGuard implements NodeGuard {
 
     @Override
     public void check(FlowNode node, ApprovalContext ctx) {
-        JobLevelRule.assertQualified(ctx.category(), ctx.jobLevel());
+        JobLevelRule.assertQualified(ctx.minJobLevel(), ctx.jobLevel());
     }
 }

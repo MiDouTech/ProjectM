@@ -1,9 +1,7 @@
 package com.mido.pm.project.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.SubmitDTO;
-import com.mido.pm.approval.service.ApprovalFlowService;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
@@ -11,10 +9,8 @@ import com.mido.pm.project.domain.ProjectStatus;
 import com.mido.pm.project.dto.InitiationFormDTO;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
 import com.mido.pm.project.entity.PmProject;
-import com.mido.pm.project.entity.PmProjectTemplate;
+import com.mido.pm.project.entity.PmProjectType;
 import com.mido.pm.project.mapper.PmProjectMapper;
-import com.mido.pm.project.mapper.PmProjectTemplateMapper;
-import com.mido.pm.project.template.TemplateConfig;
 import com.mido.pm.provider.identity.IdentityProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 立项审批业务：基于通用审批引擎，按模板默认审批流提交立项申请，并驱动项目 草稿→审批中。
+ * 立项审批业务：基于通用审批引擎，按「项目类型」绑定的默认审批流提交立项申请，并驱动项目 草稿→审批中。
+ * 审批流由项目类型属性 default_flow_id 决定（取代原模板 config.approvalFlow 字符串解析 + 类型 if-else 兜底）。
  * 审批全流程通过后由 {@link com.mido.pm.project.event.ProjectApprovalListener} 监听 approval.approved
  * 驱动 审批中→已注册（事件解耦，审批不直写项目表）。
  */
@@ -34,27 +31,22 @@ public class ProjectInitService {
     public static final String BIZ_TYPE = "project_init";
 
     private final PmProjectMapper projectMapper;
-    private final PmProjectTemplateMapper templateMapper;
     private final ProjectService projectService;
     private final ApprovalService approvalService;
-    private final ApprovalFlowService approvalFlowService;
     private final IdentityProvider identityProvider;
-    private final ObjectMapper objectMapper;
+    private final ProjectTypeResolver projectTypeResolver;
 
-    public ProjectInitService(PmProjectMapper projectMapper, PmProjectTemplateMapper templateMapper,
-                              ProjectService projectService, ApprovalService approvalService,
-                              ApprovalFlowService approvalFlowService, IdentityProvider identityProvider,
-                              ObjectMapper objectMapper) {
+    public ProjectInitService(PmProjectMapper projectMapper, ProjectService projectService,
+                              ApprovalService approvalService, IdentityProvider identityProvider,
+                              ProjectTypeResolver projectTypeResolver) {
         this.projectMapper = projectMapper;
-        this.templateMapper = templateMapper;
         this.projectService = projectService;
         this.approvalService = approvalService;
-        this.approvalFlowService = approvalFlowService;
         this.identityProvider = identityProvider;
-        this.objectMapper = objectMapper;
+        this.projectTypeResolver = projectTypeResolver;
     }
 
-    /** 提交立项审批：解析默认流 → 提交审批引擎（首节点职级 guard）→ 项目 草稿→审批中。返回审批实例 ID。 */
+    /** 提交立项审批：解析类型→其绑定的默认流 → 提交审批引擎（首节点职级 guard）→ 项目 草稿→审批中。返回审批实例 ID。 */
     @Transactional(rollbackFor = Exception.class)
     public Long submitApproval(Long projectId, InitiationFormDTO form) {
         PmProject project = projectMapper.selectById(projectId);
@@ -75,8 +67,12 @@ public class ProjectInitService {
             projectMapper.updateById(project);
         }
 
-        String flowKey = resolveFlowKey(project);
-        Long flowId = approvalFlowService.resolveFlowId(flowKey);
+        // 项目类型 → 绑定的默认审批流 + 职级门槛（去硬编码：均读类型属性）
+        PmProjectType type = projectTypeResolver.require(project.getCategory(), project.getSubCategory());
+        Long flowId = type.getDefaultFlowId();
+        if (flowId == null) {
+            throw new BizException(ErrorCode.CONFLICT, "项目类型「" + type.getName() + "」未绑定审批流");
+        }
         String leaderJobLevel = project.getLeaderId() == null ? null
                 : identityProvider.loadById(project.getLeaderId()).map(u -> u.getJobLevel()).orElse(null);
 
@@ -93,6 +89,7 @@ public class ProjectInitService {
         formData.put("category", project.getCategory());
         formData.put("amount", budget);
         formData.put("jobLevel", leaderJobLevel);
+        formData.put("minJobLevel", type.getMinJobLevel());
 
         Long instanceId = approvalService.submit(new SubmitDTO(flowId, BIZ_TYPE, projectId, formData));
         projectService.transition(projectId, new ProjectTransitionDTO(ProjectStatus.APPROVING.getCode(), null));
@@ -102,42 +99,5 @@ public class ProjectInitService {
     /** 当前立项审批实例（含「待谁审批」），未提交过则返回 null。 */
     public InstanceVO currentApproval(Long projectId) {
         return approvalService.findCurrentInstance(BIZ_TYPE, projectId);
-    }
-
-    /** 解析默认审批流标识：优先模板 config.approvalFlow，否则按类型/子类回落。 */
-    private String resolveFlowKey(PmProject project) {
-        if (project.getTemplateId() != null) {
-            PmProjectTemplate template = templateMapper.selectById(project.getTemplateId());
-            if (template != null && template.getConfig() != null) {
-                try {
-                    String key = objectMapper.readValue(template.getConfig(), TemplateConfig.class).approvalFlow();
-                    if (key != null && !key.isBlank()) {
-                        return key;
-                    }
-                } catch (Exception ignored) {
-                    // 解析失败回落默认
-                }
-            }
-        }
-        return defaultFlowKey(project);
-    }
-
-    private String defaultFlowKey(PmProject project) {
-        String category = project.getCategory();
-        if ("S".equals(category)) {
-            return "S_STANDARD";
-        }
-        if ("I".equals(category)) {
-            return "I_POC";
-        }
-        // O
-        String sub = project.getSubCategory();
-        if ("定向整改".equals(sub)) {
-            return "O_RECTIFY";
-        }
-        if ("专项督办".equals(sub)) {
-            return "O_SUPERVISE";
-        }
-        return "O_NORMAL";
     }
 }
