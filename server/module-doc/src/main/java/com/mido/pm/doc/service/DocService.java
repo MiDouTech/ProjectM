@@ -106,7 +106,8 @@ public class DocService {
         PmDocVersion ver = d.getCurrentVersionId() == null ? null : versionMapper.selectById(d.getCurrentVersionId());
         return new DocDetailVO(d.getId(), d.getProjectId(), d.getParentId(), d.getType(), d.getTitle(), d.getIcon(),
                 d.getCurrentVersionId(), ver == null ? null : ver.getVersionNo(),
-                ver == null ? null : ver.getContent(), isFavorited(id), d.getUpdateBy(), d.getUpdateTime());
+                ver == null ? null : ver.getContent(), isFavorited(id), aclService.permissionOf(id),
+                d.getUpdateBy(), d.getUpdateTime());
     }
 
     // ===== 节点 CRUD =====
@@ -316,12 +317,17 @@ public class DocService {
 
     // ===== 全文搜索 =====
 
-    /** 项目内搜索：命中标题或当前版本正文纯文本（未回收节点）。内存过滤，足够 MVP。 */
+    /**
+     * 项目内搜索：多关键词以空格分隔，按 AND 命中（全部词命中标题，或全部命中正文）。未回收 + 可读节点。
+     * 内存过滤，足够 MVP；ES 留阶段二。
+     */
     public List<DocSearchVO> search(Long projectId, String keyword) {
-        String kw = keyword == null ? "" : keyword.trim().toLowerCase();
-        if (kw.isEmpty()) {
+        String raw = keyword == null ? "" : keyword.trim();
+        if (raw.isEmpty()) {
             return List.of();
         }
+        List<String> terms = java.util.Arrays.stream(raw.toLowerCase().split("\\s+"))
+                .filter(t -> !t.isEmpty()).distinct().toList();
         List<PmDoc> docs = docMapper.selectList(Wrappers.<PmDoc>lambdaQuery()
                 .eq(PmDoc::getProjectId, projectId).eq(PmDoc::getTrashed, 0));
         Set<Long> readable = aclService.readableDocIds(docs);
@@ -330,13 +336,17 @@ public class DocService {
             if (!readable.contains(d.getId())) {
                 continue;
             }
-            boolean titleHit = d.getTitle() != null && d.getTitle().toLowerCase().contains(kw);
+            String title = d.getTitle() == null ? "" : d.getTitle().toLowerCase();
+            boolean titleHit = terms.stream().allMatch(title::contains);
             String snippet = null;
             if (!titleHit && PmDoc.TYPE_DOC.equals(d.getType()) && d.getCurrentVersionId() != null) {
                 PmDocVersion v = versionMapper.selectById(d.getCurrentVersionId());
                 String text = v == null ? null : v.getContentText();
-                if (text != null && text.toLowerCase().contains(kw)) {
-                    snippet = snippet(text, kw);
+                if (text != null) {
+                    String lower = text.toLowerCase();
+                    if (terms.stream().allMatch(lower::contains)) {
+                        snippet = snippet(text, terms.get(0));
+                    }
                 }
             }
             if (titleHit || snippet != null) {
@@ -346,10 +356,13 @@ public class DocService {
         return result;
     }
 
-    private String snippet(String text, String kw) {
-        int i = text.toLowerCase().indexOf(kw);
+    private String snippet(String text, String term) {
+        int i = text.toLowerCase().indexOf(term);
+        if (i < 0) {
+            return text.length() > 60 ? text.substring(0, 60) + "…" : text;
+        }
         int from = Math.max(0, i - 20);
-        int to = Math.min(text.length(), i + kw.length() + 40);
+        int to = Math.min(text.length(), i + term.length() + 40);
         return (from > 0 ? "…" : "") + text.substring(from, to) + (to < text.length() ? "…" : "");
     }
 

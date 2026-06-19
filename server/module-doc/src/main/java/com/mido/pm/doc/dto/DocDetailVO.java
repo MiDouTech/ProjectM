@@ -14,6 +14,7 @@ public record DocDetailVO(
         Integer versionNo,
         String content,
         Boolean favorited,
+        String permission,
         Long updateBy,
         LocalDateTime updateTime) {
 }

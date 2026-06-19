@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.security.UserContext;
+import com.mido.pm.common.tenant.TenantContext;
 import com.mido.pm.doc.dto.DocAclGrantDTO;
 import com.mido.pm.doc.dto.DocAclVO;
 import com.mido.pm.doc.dto.DocShareVO;
@@ -237,20 +238,40 @@ public class DocAclService {
         }
     }
 
-    /** 匿名按 token 读取（公开只读，无鉴权）。校验启用与过期。 */
+    /** 匿名按 token 读取（公开只读，无鉴权）。跳过租户过滤定位 share，再按其租户加载文档。 */
     public PublicDocVO getByToken(String token) {
-        PmDocShare s = shareMapper.selectOne(Wrappers.<PmDocShare>lambdaQuery()
-                .eq(PmDocShare::getToken, token).last("limit 1"));
+        PmDocShare s = shareMapper.selectByTokenGlobal(token);
         if (s == null || !Integer.valueOf(1).equals(s.getEnabled())
                 || (s.getExpireTime() != null && s.getExpireTime().isBefore(LocalDateTime.now()))) {
             throw new BizException(ErrorCode.NOT_FOUND, "分享链接无效或已过期");
         }
-        PmDoc d = docMapper.selectById(s.getDocId());
-        if (d == null || Integer.valueOf(1).equals(d.getTrashed())) {
-            throw new BizException(ErrorCode.NOT_FOUND, "文档不存在");
+        Long prev = TenantContext.get();
+        try {
+            TenantContext.set(s.getTenantId()); // 按分享所属租户加载文档（支持多租户公开链接）
+            PmDoc d = docMapper.selectById(s.getDocId());
+            if (d == null || Integer.valueOf(1).equals(d.getTrashed())) {
+                throw new BizException(ErrorCode.NOT_FOUND, "文档不存在");
+            }
+            PmDocVersion v = d.getCurrentVersionId() == null ? null
+                    : versionMapper.selectById(d.getCurrentVersionId());
+            return new PublicDocVO(d.getTitle(), v == null ? null : v.getContent());
+        } finally {
+            if (prev == null) {
+                TenantContext.clear();
+            } else {
+                TenantContext.set(prev);
+            }
         }
-        PmDocVersion v = d.getCurrentVersionId() == null ? null : versionMapper.selectById(d.getCurrentVersionId());
-        return new PublicDocVO(d.getTitle(), v == null ? null : v.getContent());
+    }
+
+    /** 当前用户对文档的有效权限标签（none/read/write/admin），供前端按钮级显隐。 */
+    public String permissionOf(Long docId) {
+        PmDoc d = docMapper.selectById(docId);
+        if (d == null) {
+            return "none";
+        }
+        int r = resolveForDoc(d);
+        return r >= ADMIN ? "admin" : r >= WRITE ? "write" : r >= READ ? "read" : "none";
     }
 
     private DocShareVO toShareVO(PmDocShare s) {
