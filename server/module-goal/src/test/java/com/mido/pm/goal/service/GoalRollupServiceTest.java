@@ -77,6 +77,23 @@ class GoalRollupServiceTest {
     }
 
     @Test
+    void contributionBreaksDownPerProject() {
+        // 各项贡献 = 完成率×权重/Σ权重；项目42=80×1/4=20，项目50=40×3/4=30，合计=加权完成率50
+        List<PmGoalAlignment> aligns = List.of(align(7L, 42L, 1), align(7L, 50L, 3));
+        when(alignmentMapper.selectList(any())).thenReturn(aligns);
+        when(goalMapper.selectById(7L)).thenReturn(kr(1));
+        when(completionPort.completionRate(42L)).thenReturn(BigDecimal.valueOf(80));
+        when(completionPort.completionRate(50L)).thenReturn(BigDecimal.valueOf(40));
+
+        var vo = service().contribution(7L);
+
+        assertEquals(0, vo.weightedRate().compareTo(BigDecimal.valueOf(50)));
+        assertEquals(2, vo.items().size());
+        assertEquals(0, vo.items().get(0).contribution().compareTo(BigDecimal.valueOf(20)));
+        assertEquals(0, vo.items().get(1).contribution().compareTo(BigDecimal.valueOf(30)));
+    }
+
+    @Test
     void nonAutoRollupKrUntouched() {
         when(alignmentMapper.selectList(any())).thenReturn(List.of(align(7L, 42L, 1)));
         when(goalMapper.selectById(7L)).thenReturn(kr(0)); // auto_rollup=0

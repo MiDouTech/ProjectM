@@ -42,12 +42,14 @@ public class GoalService {
     private final PmGoalMapper goalMapper;
     private final PmGoalAlignmentMapper alignmentMapper;
     private final DomainEventPublisher eventPublisher;
+    private final GoalRollupService rollupService;
 
     public GoalService(PmGoalMapper goalMapper, PmGoalAlignmentMapper alignmentMapper,
-                       DomainEventPublisher eventPublisher) {
+                       DomainEventPublisher eventPublisher, GoalRollupService rollupService) {
         this.goalMapper = goalMapper;
         this.alignmentMapper = alignmentMapper;
         this.eventPublisher = eventPublisher;
+        this.rollupService = rollupService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -170,6 +172,26 @@ public class GoalService {
         eventPublisher.publish(GoalEvents.UNALIGNED,
                 payload("goalId", a.getGoalId(), "targetType", a.getTargetType(),
                         "targetId", a.getTargetId(), "count", 1));
+    }
+
+    /** 调整对齐贡献权重（贡献度看板内编辑）；若 KR 开启自动汇总则即时重算其进度。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateAlignmentWeight(Long id, java.math.BigDecimal weight) {
+        PmGoalAlignment a = alignmentMapper.selectById(id);
+        if (a == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "对齐不存在");
+        }
+        if (weight == null || weight.signum() < 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "权重需为非负数");
+        }
+        a.setWeight(weight);
+        alignmentMapper.updateById(a);
+        rollupService.recomputeGoal(a.getGoalId());
+    }
+
+    /** 反向贡献度看板（委托汇总服务，只读）。 */
+    public com.mido.pm.goal.dto.GoalContributionVO contribution(Long goalId) {
+        return rollupService.contribution(goalId);
     }
 
     public List<AlignmentVO> listAlignments(Long goalId) {

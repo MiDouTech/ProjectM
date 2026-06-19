@@ -5,6 +5,8 @@ import com.mido.pm.goal.dto.AlignGraphVO;
 import com.mido.pm.goal.dto.AlignedGoalVO;
 import com.mido.pm.goal.dto.AlignmentCreateDTO;
 import com.mido.pm.goal.dto.AlignmentVO;
+import com.mido.pm.goal.dto.AlignmentWeightDTO;
+import com.mido.pm.goal.dto.GoalContributionVO;
 import com.mido.pm.goal.dto.GoalCreateDTO;
 import com.mido.pm.goal.dto.GoalMetricDTO;
 import com.mido.pm.goal.dto.GoalUpdateDTO;
@@ -82,6 +84,20 @@ public class GoalController {
     @GetMapping("/{id}/alignments")
     public R<List<AlignmentVO>> listAlignments(@PathVariable Long id) {
         return R.ok(goalService.listAlignments(id));
+    }
+
+    /** 反向贡献度看板：某 KR 各对齐项目的完成率/权重/贡献。 */
+    @GetMapping("/{id}/contribution")
+    public R<GoalContributionVO> contribution(@PathVariable Long id) {
+        return R.ok(goalService.contribution(id));
+    }
+
+    /** 调整对齐贡献权重（贡献度看板内编辑）。 */
+    @PutMapping("/alignments/{alignmentId}/weight")
+    public R<Void> updateAlignmentWeight(@PathVariable Long alignmentId,
+                                         @Valid @RequestBody AlignmentWeightDTO dto) {
+        goalService.updateAlignmentWeight(alignmentId, dto.weight());
+        return R.ok();
     }
 
     /** 反向查询：对齐到某对象（project/task）的目标（项目工作台·目标用）。 */

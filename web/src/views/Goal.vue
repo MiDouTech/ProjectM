@@ -95,6 +95,11 @@
         <el-descriptions-item label="负责人">{{ userName(current.ownerId) }}</el-descriptions-item>
         <el-descriptions-item label="周期">{{ current.period || '—' }}</el-descriptions-item>
         <el-descriptions-item label="进度">{{ num(current.progress) }}%</el-descriptions-item>
+        <el-descriptions-item v-if="current.type === 'kr'" label="自动汇总">
+          <el-tag size="small" :type="current.autoRollup === 1 ? 'success' : 'info'" disable-transitions>
+            {{ current.autoRollup === 1 ? '开（按对齐项目完成率加权反写）' : '关（手动）' }}
+          </el-tag>
+        </el-descriptions-item>
       </el-descriptions>
 
       <div class="goal__align">
@@ -107,18 +112,54 @@
           <el-button type="primary" :icon="Plus" @click="addAlign">对齐</el-button>
         </div>
         <el-table :data="alignments" size="small">
-          <el-table-column label="类型" width="80">
+          <el-table-column label="类型" width="70">
             <template #default="{ row }">{{ row.targetType === 'project' ? '项目' : '任务' }}</template>
           </el-table-column>
           <el-table-column label="对象" prop="targetId" />
-          <el-table-column label="操作" width="70">
+          <el-table-column label="权重" width="120">
+            <template #default="{ row }">
+              <el-input-number v-model="row.weight" :min="0" :step="1" :precision="2" :controls="false"
+                size="small" class="goal__w" @change="(v) => saveWeight(row, v)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="60">
             <template #default="{ row }">
               <el-button link type="danger" @click="removeAlign(row)">解除</el-button>
             </template>
           </el-table-column>
           <template #empty><el-empty description="暂无对齐" :image-size="50" /></template>
         </el-table>
-        <p class="goal__hint mido-text-secondary">项目进度→KR 为只读展示，P1 不自动反写。</p>
+        <p class="goal__hint mido-text-secondary">
+          权重用于多项目汇总到本 KR 时按贡献加权（默认 1=等权）；仅「自动汇总」开启的 KR 生效。
+        </p>
+      </div>
+
+      <!-- 反向贡献度看板：本 KR 由哪些项目支撑、各自贡献几何 -->
+      <div v-if="current.type === 'kr'" class="goal__contrib">
+        <div class="goal__contrib-head">
+          <span class="mido-h2">支撑项目贡献度</span>
+          <span v-if="contribution.items.length" class="mido-text-secondary">
+            加权完成率 {{ num(contribution.weightedRate) }}%
+          </span>
+        </div>
+        <template v-if="contribution.items.length">
+          <G2Chart :option="contribOption" :height="200" />
+          <el-table :data="contribution.items" size="small" class="goal__contrib-tb">
+            <el-table-column label="项目" min-width="120">
+              <template #default="{ row }">项目#{{ row.projectId }}</template>
+            </el-table-column>
+            <el-table-column label="完成率" width="150">
+              <template #default="{ row }"><el-progress :percentage="pct(row.completionRate)" :stroke-width="8" /></template>
+            </el-table-column>
+            <el-table-column label="权重" width="70" align="right">
+              <template #default="{ row }">{{ num(row.weight) }}</template>
+            </el-table-column>
+            <el-table-column label="贡献" width="70" align="right">
+              <template #default="{ row }"><b>{{ num(row.contribution) }}</b></template>
+            </el-table-column>
+          </el-table>
+        </template>
+        <el-empty v-else description="本 KR 暂无对齐项目" :image-size="50" />
       </div>
     </el-drawer>
   </div>
@@ -129,6 +170,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import GoalAlignTree from '@/components/GoalAlignTree.vue'
+import G2Chart from '@/components/G2Chart.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { goalApi, GOAL_TYPES, ALIGN_TARGET_TYPES } from '@/api/goal'
 import { fetchMembers } from '@/api/org'
@@ -152,6 +194,16 @@ const detailOpen = ref(false)
 const current = ref({})
 const alignments = ref([])
 const alignForm = reactive({ targetType: 'project', targetId: null })
+const contribution = ref({ weightedRate: 0, items: [] })
+
+// 贡献度条形图：每个支撑项目对加权完成率的贡献分量（Σ各项=加权完成率）
+const contribOption = computed(() => ({
+  type: 'interval',
+  data: contribution.value.items.map((i) => ({ project: `项目#${i.projectId}`, 贡献: Number(i.contribution) })),
+  encode: { x: 'project', y: '贡献', color: 'project' },
+  axis: { y: { title: '贡献(加权完成率分量)' } },
+  legend: false,
+}))
 
 const userName = (id) => nameOf(users.value, id)
 const num = (v) => (v == null ? '—' : Number(v))
@@ -218,6 +270,14 @@ async function openDetail(row) {
   current.value = row
   detailOpen.value = true
   alignments.value = await goalApi.listAlignments(row.id)
+  await loadContribution()
+}
+async function loadContribution() {
+  if (current.value.type !== 'kr') {
+    contribution.value = { weightedRate: 0, items: [] }
+    return
+  }
+  contribution.value = await goalApi.contribution(current.value.id)
 }
 async function addAlign() {
   if (!alignForm.targetId) {
@@ -227,10 +287,19 @@ async function addAlign() {
   await goalApi.addAlignment(current.value.id, { targetType: alignForm.targetType, targetId: alignForm.targetId })
   alignForm.targetId = null
   alignments.value = await goalApi.listAlignments(current.value.id)
+  await loadContribution()
+}
+async function saveWeight(row, v) {
+  if (v == null || v < 0) return
+  await goalApi.updateAlignmentWeight(row.id, v)
+  ElMessage.success('已更新权重')
+  await loadContribution()
+  load() // 进度可能因自动汇总变化，刷新列表
 }
 async function removeAlign(row) {
   await goalApi.removeAlignment(row.id)
   alignments.value = await goalApi.listAlignments(current.value.id)
+  await loadContribution()
 }
 
 onMounted(async () => {
@@ -274,5 +343,20 @@ onMounted(async () => {
 .goal__hint {
   margin-top: var(--mido-space-3);
   font-size: var(--mido-font-size-caption);
+}
+.goal__w {
+  width: calc(var(--mido-admin-nav-width) * 0.6);
+}
+.goal__contrib {
+  margin-top: var(--mido-space-5);
+}
+.goal__contrib-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--mido-space-3);
+}
+.goal__contrib-tb {
+  margin-top: var(--mido-space-3);
 }
 </style>
