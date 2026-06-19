@@ -26,6 +26,8 @@ public class PmProjectType extends BaseEntity {
     private Integer requiresNpss;
     /** 绑定的默认审批流（approval_flow.id） */
     private Long defaultFlowId;
+    /** 立项是否强制已对齐目标：1 是 / 0 否（S 类默认 1） */
+    private Integer requireGoalAlignment;
     /** 默认干系人权重模板（JSON） */
     private String stakeholderTpl;
     /** 状态：active/disabled */
@@ -50,6 +52,8 @@ public class PmProjectType extends BaseEntity {
     public void setRequiresNpss(Integer requiresNpss) { this.requiresNpss = requiresNpss; }
     public Long getDefaultFlowId() { return defaultFlowId; }
     public void setDefaultFlowId(Long defaultFlowId) { this.defaultFlowId = defaultFlowId; }
+    public Integer getRequireGoalAlignment() { return requireGoalAlignment; }
+    public void setRequireGoalAlignment(Integer requireGoalAlignment) { this.requireGoalAlignment = requireGoalAlignment; }
     public String getStakeholderTpl() { return stakeholderTpl; }
     public void setStakeholderTpl(String stakeholderTpl) { this.stakeholderTpl = stakeholderTpl; }
     public String getStatus() { return status; }

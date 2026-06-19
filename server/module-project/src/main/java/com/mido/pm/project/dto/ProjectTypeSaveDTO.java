@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
  * @param minJobLevel    立项 Leader 最低职级门槛（如 L3），空=不限
  * @param requiresNpss   默认是否走 NPSS：1 是 / 0 否（空按 1）
  * @param defaultFlowId  绑定默认审批流 id（可空，P1 接通）
+ * @param requireGoalAlignment 立项是否强制已对齐目标：1 是 / 0 否（空按 0）
  * @param stakeholderTpl 默认干系人权重模板 JSON（可空）
  * @param description    描述（可空）
  */
@@ -27,6 +28,7 @@ public record ProjectTypeSaveDTO(
         String minJobLevel,
         Integer requiresNpss,
         Long defaultFlowId,
+        Integer requireGoalAlignment,
         String stakeholderTpl,
         String description) {
 }

@@ -35,7 +35,7 @@ class ProjectTypeServiceTest {
 
     private ProjectTypeSaveDTO dto(String code) {
         return new ProjectTypeSaveDTO(code, "战略级", null, "danger", null, 10,
-                "L3", 1, 1L, null, "年度重点");
+                "L3", 1, 1L, 1, null, "年度重点");
     }
 
     @Test
@@ -57,7 +57,7 @@ class ProjectTypeServiceTest {
     void createDefaultsRequiresNpssAndSortWhenNull() {
         when(typeMapper.selectCount(any())).thenReturn(0L);
         ProjectTypeSaveDTO d = new ProjectTypeSaveDTO("X", "类型X", null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         ArgumentCaptor<PmProjectType> captor = ArgumentCaptor.forClass(PmProjectType.class);
         service().create(d);
         verify(typeMapper).insert(captor.capture());

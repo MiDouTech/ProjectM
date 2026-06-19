@@ -12,6 +12,7 @@ public record ProjectTypeVO(
         String minJobLevel,
         Integer requiresNpss,
         Long defaultFlowId,
+        Integer requireGoalAlignment,
         String stakeholderTpl,
         String status,
         String description) {

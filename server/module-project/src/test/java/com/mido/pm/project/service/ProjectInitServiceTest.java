@@ -3,6 +3,7 @@ package com.mido.pm.project.service;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.exception.BizException;
+import com.mido.pm.goal.service.GoalService;
 import com.mido.pm.project.dto.InitiationFormDTO;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
 import com.mido.pm.project.entity.PmProject;
@@ -38,13 +39,14 @@ class ProjectInitServiceTest {
     @Mock private ApprovalService approvalService;
     @Mock private IdentityProvider identityProvider;
     @Mock private ProjectTypeResolver projectTypeResolver;
+    @Mock private GoalService goalService;
 
     private ProjectInitService service;
 
     @BeforeEach
     void setUp() {
         service = new ProjectInitService(projectMapper, projectService,
-                approvalService, identityProvider, projectTypeResolver);
+                approvalService, identityProvider, projectTypeResolver, goalService);
     }
 
     private PmProject draft(String category, Long leaderId) {
@@ -89,6 +91,18 @@ class ProjectInitServiceTest {
         PmProject p = draft("S", 1L);
         when(projectMapper.selectById(1L)).thenReturn(p);
         when(projectTypeResolver.require("S", null)).thenReturn(type(null, "L3"));
+        assertThrows(BizException.class, () ->
+                service.submitApproval(1L, new InitiationFormDTO("目标", null, null, null, null)));
+    }
+
+    @Test
+    void rejectsWhenTypeRequiresGoalAlignmentButNoneAligned() {
+        PmProject p = draft("S", 1L);
+        when(projectMapper.selectById(1L)).thenReturn(p);
+        PmProjectType t = type(99L, "L3");
+        t.setRequireGoalAlignment(1);
+        when(projectTypeResolver.require("S", null)).thenReturn(t);
+        when(goalService.listGoalsByTarget("project", 1L)).thenReturn(java.util.List.of());
         assertThrows(BizException.class, () ->
                 service.submitApproval(1L, new InitiationFormDTO("目标", null, null, null, null)));
     }

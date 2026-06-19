@@ -57,6 +57,7 @@ CREATE TABLE pm_project_type (
   min_job_level VARCHAR(8),                -- 立项 Leader 最低职级门槛（空=不限）
   requires_npss TINYINT DEFAULT 1,         -- 默认是否走 NPSS
   default_flow_id BIGINT,                  -- 绑定默认审批流（approval_flow.id）
+  require_goal_alignment TINYINT DEFAULT 0,-- 立项是否强制已对齐目标(V19，S 类默认 1)
   stakeholder_tpl JSON,                    -- 默认干系人权重模板
   status VARCHAR(16) DEFAULT 'active',     -- active/disabled
   description VARCHAR(255), KEY idx_tenant(tenant_id), KEY idx_code(tenant_id,code)

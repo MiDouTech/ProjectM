@@ -5,6 +5,7 @@ import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
+import com.mido.pm.goal.service.GoalService;
 import com.mido.pm.project.domain.ProjectStatus;
 import com.mido.pm.project.dto.InitiationFormDTO;
 import com.mido.pm.project.dto.ProjectTransitionDTO;
@@ -35,15 +36,17 @@ public class ProjectInitService {
     private final ApprovalService approvalService;
     private final IdentityProvider identityProvider;
     private final ProjectTypeResolver projectTypeResolver;
+    private final GoalService goalService;
 
     public ProjectInitService(PmProjectMapper projectMapper, ProjectService projectService,
                               ApprovalService approvalService, IdentityProvider identityProvider,
-                              ProjectTypeResolver projectTypeResolver) {
+                              ProjectTypeResolver projectTypeResolver, GoalService goalService) {
         this.projectMapper = projectMapper;
         this.projectService = projectService;
         this.approvalService = approvalService;
         this.identityProvider = identityProvider;
         this.projectTypeResolver = projectTypeResolver;
+        this.goalService = goalService;
     }
 
     /** 提交立项审批：解析类型→其绑定的默认流 → 提交审批引擎（首节点职级 guard）→ 项目 草稿→审批中。返回审批实例 ID。 */
@@ -69,8 +72,14 @@ public class ProjectInitService {
             projectMapper.updateById(project);
         }
 
-        // 项目类型 → 绑定的默认审批流 + 职级门槛（去硬编码：均读类型属性）
+        // 项目类型 → 绑定的默认审批流 + 职级门槛 + 强制对齐策略（去硬编码：均读类型属性）
         PmProjectType type = projectTypeResolver.require(project.getCategory(), project.getSubCategory());
+        // 类型差异化对齐 guard：要求强制对齐的类型（如战略级 S），立项前须已对齐至少一个目标
+        if (Integer.valueOf(1).equals(type.getRequireGoalAlignment())
+                && goalService.listGoalsByTarget("project", projectId).isEmpty()) {
+            throw new BizException(ErrorCode.CONFLICT,
+                    "项目类型「" + type.getName() + "」要求立项前对齐至少一个目标(OKR)");
+        }
         Long flowId = type.getDefaultFlowId();
         if (flowId == null) {
             throw new BizException(ErrorCode.CONFLICT, "项目类型「" + type.getName() + "」未绑定审批流");

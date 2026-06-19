@@ -65,6 +65,10 @@
           <el-switch v-model="form.requiresNpss" :active-value="1" :inactive-value="0" />
           <span class="mido-text-secondary hint">默认是否走 NPSS 价值验收</span>
         </el-form-item>
+        <el-form-item label="强制对齐目标">
+          <el-switch v-model="form.requireGoalAlignment" :active-value="1" :inactive-value="0" />
+          <span class="mido-text-secondary hint">开启后该类型立项前须已对齐至少一个目标(OKR)</span>
+        </el-form-item>
         <el-form-item label="绑定审批流">
           <el-select v-model="form.defaultFlowId" clearable placeholder="选择立项审批流" class="full">
             <el-option v-for="f in flows" :key="f.id" :label="f.name" :value="f.id" />
@@ -101,7 +105,7 @@ const editing = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null, code: '', name: '', color: 'info', parentCode: '',
-  minJobLevel: '', requiresNpss: 1, defaultFlowId: null, sort: 0, description: '',
+  minJobLevel: '', requiresNpss: 1, requireGoalAlignment: 0, defaultFlowId: null, sort: 0, description: '',
 })
 const rules = {
   code: [{ required: true, message: '请输入类型码', trigger: 'blur' }],
@@ -139,8 +143,8 @@ function openEdit(row) {
   Object.assign(form, {
     id: row.id, code: row.code, name: row.name, color: row.color || 'info',
     parentCode: row.parentCode || '', minJobLevel: row.minJobLevel || '',
-    requiresNpss: row.requiresNpss ?? 1, defaultFlowId: row.defaultFlowId,
-    sort: row.sort ?? 0, description: row.description || '',
+    requiresNpss: row.requiresNpss ?? 1, requireGoalAlignment: row.requireGoalAlignment ?? 0,
+    defaultFlowId: row.defaultFlowId, sort: row.sort ?? 0, description: row.description || '',
   })
   drawer.value = true
 }
@@ -149,8 +153,8 @@ function payload() {
   return {
     code: form.code, name: form.name, parentCode: form.parentCode || null,
     color: form.color, sort: form.sort, minJobLevel: form.minJobLevel || null,
-    requiresNpss: form.requiresNpss, defaultFlowId: form.defaultFlowId,
-    description: form.description || null,
+    requiresNpss: form.requiresNpss, requireGoalAlignment: form.requireGoalAlignment,
+    defaultFlowId: form.defaultFlowId, description: form.description || null,
   }
 }
 

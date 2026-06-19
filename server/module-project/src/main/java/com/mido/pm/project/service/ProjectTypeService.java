@@ -94,6 +94,7 @@ public class ProjectTypeService {
         t.setMinJobLevel(dto.minJobLevel());
         t.setRequiresNpss(dto.requiresNpss() != null ? dto.requiresNpss() : 1);
         t.setDefaultFlowId(dto.defaultFlowId());
+        t.setRequireGoalAlignment(dto.requireGoalAlignment() != null ? dto.requireGoalAlignment() : 0);
         t.setStakeholderTpl(dto.stakeholderTpl());
         t.setDescription(dto.description());
     }
@@ -126,6 +127,7 @@ public class ProjectTypeService {
     private ProjectTypeVO toVO(PmProjectType t) {
         return new ProjectTypeVO(t.getId(), t.getCode(), t.getName(), t.getParentCode(),
                 t.getColor(), t.getIcon(), t.getSort(), t.getMinJobLevel(), t.getRequiresNpss(),
-                t.getDefaultFlowId(), t.getStakeholderTpl(), t.getStatus(), t.getDescription());
+                t.getDefaultFlowId(), t.getRequireGoalAlignment(), t.getStakeholderTpl(),
+                t.getStatus(), t.getDescription());
     }
 }
