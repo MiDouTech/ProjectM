@@ -1,7 +1,6 @@
 package com.mido.pm.change.event;
 
 import com.mido.pm.change.service.ChangeService;
-import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +45,8 @@ public class ChangeApprovalListener {
             return;
         }
         Long changeId = num.longValue();
-        // AFTER_COMMIT：审批已提交，此处失败无法回滚审批，故 warn 而非静默
+        // AFTER_COMMIT：审批已提交不可回滚，任何应用异常都不得逸出监听器（否则丢失且无重投），
+        // 统一兜底记错，便于人工/补偿处理；切勿仅捕获 BizException。
         try {
             if (approved) {
                 log.info("变更审批通过，应用变更：changeId={}", changeId);
@@ -55,9 +55,9 @@ public class ChangeApprovalListener {
                 log.info("变更审批{}，变更单终结：changeId={}", message.eventType(), changeId);
                 changeService.onApprovalClosed(changeId, rejected);
             }
-        } catch (BizException e) {
-            log.warn("变更审批结果驱动失败：changeId={}, event={}, err={}",
-                    changeId, message.eventType(), e.getMessage());
+        } catch (Exception e) {
+            log.error("变更审批结果驱动失败(变更单可能滞留 pending，需人工介入)：changeId={}, event={}",
+                    changeId, message.eventType(), e);
         }
     }
 }

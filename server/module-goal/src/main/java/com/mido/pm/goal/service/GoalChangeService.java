@@ -12,6 +12,7 @@ import com.mido.pm.goal.mapper.PmGoalMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +28,10 @@ public class GoalChangeService {
     /** 被改实体域标识（变更台账 biz_type / ChangeApplier.supports）。 */
     public static final String BIZ_TYPE = "goal";
 
+    // 注：goal_close(目标关闭)暂不支持——pm_goal 无状态列(属表结构决策)，且其不改任何基线字段，
+    //     经变更流程提交会被「无变更内容」拦截，故先不开放，待目标状态机落地再纳入。
     private static final Set<String> CHANGE_TYPES =
-            Set.of("goal_target", "goal_scope", "goal_owner", "goal_period", "goal_close");
+            Set.of("goal_target", "goal_scope", "goal_owner", "goal_period");
 
     private final PmGoalMapper goalMapper;
     private final ChangeService changeService;
@@ -84,8 +87,19 @@ public class GoalChangeService {
     }
 
     private void putIfChanged(Map<String, Object> after, String key, Object proposed, Object current) {
-        if (proposed != null && !proposed.toString().equals(current == null ? null : current.toString())) {
+        if (proposed != null && !sameValue(proposed, current)) {
             after.put(key, proposed);
         }
+    }
+
+    /** 等值判断：BigDecimal 按数值(compareTo)比较，避免 100 与 100.00 标度差异误判为变更。 */
+    private boolean sameValue(Object proposed, Object current) {
+        if (current == null) {
+            return false;
+        }
+        if (proposed instanceof BigDecimal p && current instanceof BigDecimal c) {
+            return p.compareTo(c) == 0;
+        }
+        return proposed.toString().equals(current.toString());
     }
 }

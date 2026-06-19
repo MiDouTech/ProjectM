@@ -19,5 +19,5 @@ export const CHANGE_TYPES = [
   { value: 'goal_scope', label: '范围/口径变更' },
   { value: 'goal_owner', label: '负责人变更' },
   { value: 'goal_period', label: '周期变更' },
-  { value: 'goal_close', label: '目标关闭' },
+  // goal_close(目标关闭)暂未开放：pm_goal 无状态列，待目标状态机落地再加
 ]

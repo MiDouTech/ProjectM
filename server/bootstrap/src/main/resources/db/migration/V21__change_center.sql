@@ -17,9 +17,9 @@ CREATE TABLE pm_change_request (
   approval_instance_id BIGINT COMMENT '关联审批实例(免审为空)',
   applied_at    DATETIME     COMMENT '生效时间',
   create_by     BIGINT,
-  create_time   DATETIME,
+  create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP,
   update_by     BIGINT,
-  update_time   DATETIME,
+  update_time   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   is_deleted    TINYINT      NOT NULL DEFAULT 0,
   KEY idx_biz(biz_type, biz_id),
   KEY idx_tenant_status(tenant_id, status)
@@ -33,17 +33,17 @@ CREATE TABLE pm_change_policy (
   flow_id       BIGINT       COMMENT '必审时绑定的审批流',
   enabled       TINYINT      NOT NULL DEFAULT 1,
   create_by     BIGINT,
-  create_time   DATETIME,
+  create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP,
   update_by     BIGINT,
-  update_time   DATETIME,
+  update_time   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   is_deleted    TINYINT      NOT NULL DEFAULT 0,
   KEY idx_tenant_type(tenant_id, change_type)
 ) COMMENT='变更审批策略(按类型可配)';
 
 -- 种子（默认租户 1）：重大字段必审、轻微调整免审。必审类型 flow_id 暂空，由租户在配置中心绑定审批流后方可提交。
-INSERT INTO pm_change_policy (id, tenant_id, change_type, require_approval, flow_id, enabled, create_time, is_deleted) VALUES
-  (90001, 1, 'goal_target', 1, NULL, 1, NOW(), 0),
-  (90002, 1, 'goal_scope',  1, NULL, 1, NOW(), 0),
-  (90003, 1, 'goal_close',  1, NULL, 1, NOW(), 0),
-  (90004, 1, 'goal_owner',  0, NULL, 1, NOW(), 0),
-  (90005, 1, 'goal_period', 0, NULL, 1, NOW(), 0);
+-- goal_close 暂不纳入：pm_goal 无状态列，待目标状态机落地再补策略。
+INSERT INTO pm_change_policy (id, tenant_id, change_type, require_approval, flow_id, enabled, create_time, update_time, is_deleted) VALUES
+  (90001, 1, 'goal_target', 1, NULL, 1, NOW(), NOW(), 0),
+  (90002, 1, 'goal_scope',  1, NULL, 1, NOW(), NOW(), 0),
+  (90004, 1, 'goal_owner',  0, NULL, 1, NOW(), NOW(), 0),
+  (90005, 1, 'goal_period', 0, NULL, 1, NOW(), NOW(), 0);

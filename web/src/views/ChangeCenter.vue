@@ -33,7 +33,7 @@
     </el-card>
 
     <!-- 详情右抽屉：before→after diff + 事由 + 审批进度 -->
-    <el-drawer v-model="detailOpen" :title="current.title" size="520px">
+    <el-drawer v-model="detailOpen" :title="current.title" size="var(--mido-drawer-width)">
       <el-descriptions :column="1" border>
         <el-descriptions-item label="类型">{{ changeTypeLabel(current.changeType) }}</el-descriptions-item>
         <el-descriptions-item label="对象">{{ bizLabel(current.bizType) }}#{{ current.bizId }}</el-descriptions-item>
@@ -68,7 +68,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
 import { changeApi, CHANGE_STATUS, CHANGE_TYPES } from '@/api/change'
 import { fetchMembers } from '@/api/org'
-import { userName as nameOf } from '@/utils/display'
+import { userName as nameOf, formatDateTime } from '@/utils/display'
 
 const loading = ref(false)
 const rows = ref([])
@@ -87,7 +87,7 @@ const userName = (id) => nameOf(users.value, id)
 const changeTypeLabel = (t) => CHANGE_TYPES.find((x) => x.value === t)?.label || t
 const statusLabel = (s) => CHANGE_STATUS.find((x) => x.value === s)?.label || s
 const bizLabel = (b) => (b === 'goal' ? '目标' : b)
-const fmt = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
+const fmt = (v) => formatDateTime(v) || '—'
 
 // before→after：以 after_payload 的改动字段为准，对照 before_snapshot
 const diff = computed(() => {

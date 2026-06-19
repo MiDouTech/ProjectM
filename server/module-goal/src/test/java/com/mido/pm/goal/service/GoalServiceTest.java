@@ -1,5 +1,7 @@
 package com.mido.pm.goal.service;
 
+import com.mido.pm.change.service.ChangeService;
+import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.goal.entity.PmGoal;
 import com.mido.pm.goal.event.GoalEvents;
@@ -26,7 +28,32 @@ class GoalServiceTest {
     @Mock private PmGoalMapper goalMapper;
     @Mock private PmGoalAlignmentMapper alignmentMapper;
     @Mock private DomainEventPublisher eventPublisher;
+    @Mock private GoalRollupService rollupService;
+    @Mock private ChangeService changeService;
     @InjectMocks private GoalService service;
+
+    @Test
+    void updateBlockedWhenChangePending() {
+        PmGoal g = new PmGoal();
+        g.setId(5L);
+        when(goalMapper.selectById(5L)).thenReturn(g);
+        // 受控变更冻结：有进行中变更单时，直接编辑基线必须被拒（防绕过审批）
+        when(changeService.hasPending(GoalChangeService.BIZ_TYPE, 5L)).thenReturn(true);
+
+        org.junit.jupiter.api.Assertions.assertThrows(BizException.class, () -> service.update(5L, null));
+        verify(goalMapper, never()).updateById(any(PmGoal.class));
+    }
+
+    @Test
+    void deleteBlockedWhenChangePending() {
+        PmGoal g = new PmGoal();
+        g.setId(5L);
+        when(goalMapper.selectById(5L)).thenReturn(g);
+        when(changeService.hasPending(GoalChangeService.BIZ_TYPE, 5L)).thenReturn(true);
+
+        org.junit.jupiter.api.Assertions.assertThrows(BizException.class, () -> service.delete(5L));
+        verify(goalMapper, never()).deleteById(any(Long.class));
+    }
 
     @Test
     void deleteGoalRemovesOwnAlignmentsOnly() {

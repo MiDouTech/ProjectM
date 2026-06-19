@@ -112,6 +112,10 @@ public class GoalService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         requireGoal(id);
+        // 受控变更冻结：有进行中变更单时禁止删除（否则变更通过后无目标可回写，沦为空操作并误导审计）
+        if (changeService.hasPending(GoalChangeService.BIZ_TYPE, id)) {
+            throw new BizException(ErrorCode.CONFLICT, "该目标有进行中的变更单，请先完成或撤回变更后再删除");
+        }
         goalMapper.deleteById(id);
         // 弱关联：删目标只删其对齐链，绝不级联删对齐的 project/task
         alignmentMapper.delete(Wrappers.<PmGoalAlignment>lambdaQuery()
