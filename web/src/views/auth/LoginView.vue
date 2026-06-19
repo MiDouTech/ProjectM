@@ -208,10 +208,10 @@ async function submit() {
   margin-bottom: var(--mido-space-6);
 }
 
-/* 竖版 logo 视觉高度为装饰值，就地注释 */
+/* 竖版 logo（1:1 含 midoo 字标）视觉高度为装饰值，就地注释 */
 .login__logo {
   width: auto;
-  height: 68px;
+  height: 96px;
   margin-bottom: var(--mido-space-4);
   object-fit: contain;
 }
