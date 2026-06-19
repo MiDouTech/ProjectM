@@ -7,6 +7,8 @@ import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
 import com.mido.pm.approval.entity.ApprovalFlow;
 import com.mido.pm.approval.entity.ApprovalInstance;
+import com.mido.pm.approval.domain.ApproverDirectory;
+import com.mido.pm.approval.domain.ApproverResolver;
 import com.mido.pm.approval.entity.ApprovalTask;
 import com.mido.pm.approval.guard.NodeGuardRegistry;
 import com.mido.pm.approval.mapper.ApprovalFlowMapper;
@@ -58,8 +60,20 @@ class ApprovalServiceTest {
 
     @BeforeEach
     void setUp() {
+        // USER 型审批人解析器（directory 仅角色/部门主管用，本测试用例均为指定成员，返回空即可）
+        ApproverResolver resolver = new ApproverResolver(new ApproverDirectory() {
+            @Override
+            public List<Long> usersByRole(Long roleId) {
+                return List.of();
+            }
+
+            @Override
+            public Long deptLeaderOf(Long applicantId, int levelsUp) {
+                return null;
+            }
+        });
         service = new ApprovalService(flowMapper, instanceMapper, taskMapper,
-                eventPublisher, guardRegistry, new ObjectMapper());
+                eventPublisher, guardRegistry, resolver, new ObjectMapper());
     }
 
     @AfterEach

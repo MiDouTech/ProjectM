@@ -24,5 +24,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>provider</artifactId>
         </dependency>
+        <!-- 实现审批域定义的 ApproverDirectory 端口（动态审批人解析需组织数据，org→approval 不成环） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-approval</artifactId>
+        </dependency>
     </dependencies>
 </project>

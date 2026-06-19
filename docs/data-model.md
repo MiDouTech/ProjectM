@@ -119,6 +119,9 @@ CREATE TABLE approval_form (
 CREATE TABLE approval_flow (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), biz_type VARCHAR(32),
   mode VARCHAR(16), definition JSON);
+  -- definition.nodes[]：key/name/mode(or|and 会签或签)/guard/cc/condition(条件分支) +
+  --   approverType(USER|ROLE|DEPT_HEAD|DIRECT_LEADER|APPLICANT_SELF, 缺省 USER) + approverValues(角色ID/层级)。
+  -- 类型→流程绑定的事实源为 pm_project_type.default_flow_id（项目类型调用审批流）。
 CREATE TABLE approval_instance (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, flow_id BIGINT, biz_type VARCHAR(32),
   biz_id BIGINT, status VARCHAR(16), current_node VARCHAR(64), form_data JSON, applicant_id BIGINT,
@@ -158,7 +161,8 @@ CREATE TABLE pm_attachment (id BIGINT PRIMARY KEY, tenant_id BIGINT, entity_type
 
 -- ========== 组织/权限域 ==========
 CREATE TABLE sys_user (id BIGINT PRIMARY KEY, tenant_id BIGINT, username VARCHAR(64), phone VARCHAR(20), name VARCHAR(64), password VARCHAR(128), dept_id BIGINT, job_level VARCHAR(8), status VARCHAR(16), KEY idx_uname(username), UNIQUE KEY uk_user_phone(phone)); -- phone=登录账号(全局唯一,见 V11)；手机号/用户名双登录
-CREATE TABLE sys_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), parent_id BIGINT DEFAULT 0, KEY idx_parent(parent_id));
+CREATE TABLE sys_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), parent_id BIGINT DEFAULT 0,
+  leader_id BIGINT, KEY idx_parent(parent_id));  -- leader_id(V18)=部门负责人，动态审批人「部门主管/直属上级」解析用
 CREATE TABLE sys_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), code VARCHAR(64));
 CREATE TABLE sys_user_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, role_id BIGINT, KEY idx_user(user_id));
 CREATE TABLE sys_role_perm (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, perm_code VARCHAR(64), KEY idx_role(role_id));

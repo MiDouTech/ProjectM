@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.approval.domain.ApprovalContext;
 import com.mido.pm.approval.domain.ApprovalEngine;
+import com.mido.pm.approval.domain.ApproverResolver;
 import com.mido.pm.approval.domain.FlowDefinition;
 import com.mido.pm.approval.domain.FlowNode;
 import com.mido.pm.approval.domain.NodeStatus;
@@ -53,16 +54,19 @@ public class ApprovalService {
     private final ApprovalTaskMapper taskMapper;
     private final DomainEventPublisher eventPublisher;
     private final NodeGuardRegistry guardRegistry;
+    private final ApproverResolver approverResolver;
     private final ObjectMapper objectMapper;
 
     public ApprovalService(ApprovalFlowMapper flowMapper, ApprovalInstanceMapper instanceMapper,
                            ApprovalTaskMapper taskMapper, DomainEventPublisher eventPublisher,
-                           NodeGuardRegistry guardRegistry, ObjectMapper objectMapper) {
+                           NodeGuardRegistry guardRegistry, ApproverResolver approverResolver,
+                           ObjectMapper objectMapper) {
         this.flowMapper = flowMapper;
         this.instanceMapper = instanceMapper;
         this.taskMapper = taskMapper;
         this.eventPublisher = eventPublisher;
         this.guardRegistry = guardRegistry;
+        this.approverResolver = approverResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -90,13 +94,15 @@ public class ApprovalService {
         instance.setApplicantId(currentUserId());
         instanceMapper.insert(instance);
 
-        createTasks(instance.getId(), first);
+        // 动态解析首节点审批人（USER/角色/部门主管/直属上级/发起人本人）
+        List<Long> firstApprovers = approverResolver.resolve(first, instance.getApplicantId());
+        createTasks(instance.getId(), first.key(), firstApprovers);
 
         eventPublisher.publish(ApprovalEvents.SUBMITTED, payload(
                 "instanceId", instance.getId(), "flowId", flow.getId(),
                 "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                 "applicantId", instance.getApplicantId(),
-                "approverIds", first.approvers() == null ? List.of() : first.approvers(),
+                "approverIds", firstApprovers,
                 "ccIds", first.cc() == null ? List.of() : first.cc()));
         return instance.getId();
     }
@@ -155,17 +161,20 @@ public class ApprovalService {
 
         int nextIndex = active.indexOf(current) + 1;
         FlowNode next = nextIndex < active.size() ? active.get(nextIndex) : null;
+        // 动态解析下一节点审批人（供通知 + 建待办，二者一致）
+        List<Long> nextApprovers = next == null ? List.of()
+                : approverResolver.resolve(next, instance.getApplicantId());
 
         // 携带下一节点审批人，供通知监听器多通道通知"轮到你审批"（无下一节点则为空）
         eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
                 "instanceId", instanceId, "node", current.key(), "approverId", approverId,
                 "nextNode", next == null ? null : next.key(),
-                "nextApproverIds", next == null || next.approvers() == null ? List.of() : next.approvers(),
+                "nextApproverIds", nextApprovers,
                 "nextCcIds", next == null || next.cc() == null ? List.of() : next.cc()));
 
         if (next != null) {
             guardRegistry.run(next, ctx);
-            createTasks(instanceId, next);
+            createTasks(instanceId, next.key(), nextApprovers);
             instance.setCurrentNode(next.key());
             instanceMapper.updateById(instance);
         } else {
@@ -344,12 +353,15 @@ public class ApprovalService {
         return name == null ? null : String.valueOf(name);
     }
 
-    private void createTasks(Long instanceId, FlowNode node) {
-        List<Long> approvers = node.approvers() == null ? List.of() : node.approvers();
-        for (Long approverId : approvers) {
+    /** 为节点建待办：approverIds 为已解析的具体审批人用户 ID（动态审批人解析后）。 */
+    private void createTasks(Long instanceId, String nodeKey, List<Long> approverIds) {
+        if (approverIds == null) {
+            return;
+        }
+        for (Long approverId : approverIds) {
             ApprovalTask t = new ApprovalTask();
             t.setInstanceId(instanceId);
-            t.setNode(node.key());
+            t.setNode(nodeKey);
             t.setApproverId(approverId);
             taskMapper.insert(t);
         }

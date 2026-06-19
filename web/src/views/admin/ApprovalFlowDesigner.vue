@@ -46,8 +46,27 @@
               <el-button type="danger" link :icon="Delete" @click="removeNode(index)">删除</el-button>
             </div>
             <el-form label-width="84px" label-position="left" class="afd__node-form">
-              <el-form-item label="审批人">
+              <el-form-item label="审批人类型">
+                <el-select v-model="n.approverType" class="afd__wide">
+                  <el-option v-for="t in meta.approverTypes" :key="t.value" :label="t.label" :value="t.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item v-if="n.approverType === 'USER'" label="指定成员">
                 <UserSelect v-model="n.approvers" multiple placeholder="选择审批人" class="afd__wide" />
+              </el-form-item>
+              <el-form-item v-else-if="n.approverType === 'ROLE'" label="角色">
+                <el-select v-model="n.roleIds" multiple placeholder="选择角色" class="afd__wide">
+                  <el-option v-for="r in roles" :key="r.id" :label="r.name" :value="r.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item v-else-if="n.approverType === 'DEPT_HEAD'" label="向上层级">
+                <el-input-number v-model="n.deptLevel" :min="1" :max="5" />
+                <span class="mido-text-secondary afd__hint">1=发起人部门主管，2=上级部门主管，以此类推</span>
+              </el-form-item>
+              <el-form-item v-else label="说明">
+                <span class="mido-text-secondary">
+                  {{ n.approverType === 'DIRECT_LEADER' ? '取发起人所在部门负责人' : '审批人=发起人本人' }}
+                </span>
               </el-form-item>
               <el-form-item label="签署方式">
                 <el-radio-group v-model="n.mode">
@@ -57,7 +76,7 @@
               </el-form-item>
               <el-form-item label="职级门槛">
                 <el-switch v-model="n.guardOn" />
-                <span class="mido-text-secondary afd__hint">开启则按项目类型校验 Leader 职级（S→L3+/O→L2+）</span>
+                <span class="mido-text-secondary afd__hint">开启则按项目类型配置的最低职级门槛校验 Leader</span>
               </el-form-item>
               <el-form-item label="知会人">
                 <UserSelect v-model="n.cc" multiple placeholder="可选" class="afd__wide" />
@@ -90,11 +109,13 @@ import { ElMessage } from 'element-plus'
 import { Plus, Check, Delete, Rank } from '@element-plus/icons-vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { approvalFlowApi, APPROVAL_BIZ_TYPES } from '@/api/project'
+import { roleApi } from '@/api/org'
 
 const loading = ref(false)
 const saving = ref(false)
 const flows = ref([])
-const meta = reactive({ conditionFields: [], conditionOps: [], guards: [], modes: [] })
+const roles = ref([])
+const meta = reactive({ conditionFields: [], conditionOps: [], guards: [], modes: [], approverTypes: [] })
 const nodes = ref([])
 const form = reactive({ id: null, name: '', bizType: 'project_init', mode: 'fixed' })
 
@@ -102,16 +123,21 @@ let keySeq = 0
 const bizLabel = (v) => APPROVAL_BIZ_TYPES.find((b) => b.value === v)?.label || v || '—'
 
 function blankNode() {
-  return { _k: `k${keySeq++}`, name: '', approvers: [], mode: 'or', guardOn: false, cc: [],
-    cond: { field: '', op: '', value: '' } }
+  return { _k: `k${keySeq++}`, name: '', approverType: 'USER', approvers: [], roleIds: [], deptLevel: 1,
+    mode: 'or', guardOn: false, cc: [], cond: { field: '', op: '', value: '' } }
 }
 
 // definition JSON → 可编辑节点模型
 function toModel(node) {
+  const approverType = node.approverType || 'USER'
+  const values = node.approverValues || []
   return {
     _k: `k${keySeq++}`,
     name: node.name || '',
+    approverType,
     approvers: node.approvers || [],
+    roleIds: approverType === 'ROLE' ? values : [],
+    deptLevel: approverType === 'DEPT_HEAD' ? (values[0] || 1) : 1,
     mode: node.mode || 'or',
     guardOn: node.guard === 'JOB_LEVEL',
     cc: node.cc || [],
@@ -124,10 +150,15 @@ function toModel(node) {
 // 可编辑节点模型 → definition 节点
 function toNode(n, i) {
   const hasCond = n.cond.field && n.cond.op && n.cond.value !== ''
+  let approverValues = null
+  if (n.approverType === 'ROLE') approverValues = n.roleIds
+  else if (n.approverType === 'DEPT_HEAD') approverValues = [n.deptLevel]
   return {
     key: `n${i + 1}`,
     name: n.name,
-    approvers: n.approvers,
+    approverType: n.approverType,
+    approvers: n.approverType === 'USER' ? n.approvers : [],
+    approverValues,
     mode: n.mode,
     guard: n.guardOn ? 'JOB_LEVEL' : null,
     cc: n.cc,
@@ -204,6 +235,7 @@ async function save() {
 onMounted(async () => {
   const m = await approvalFlowApi.designerMeta()
   Object.assign(meta, m)
+  roles.value = await roleApi.list()
   await loadFlows()
   if (flows.value.length) await select(flows.value[0].id)
   else newFlow()

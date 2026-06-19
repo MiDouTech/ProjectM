@@ -11,6 +11,8 @@ public class SysDept extends BaseEntity {
 
     private String name;
     private Long parentId;
+    /** 部门负责人用户 ID（V18）：动态审批人「部门主管/直属上级」解析用 */
+    private Long leaderId;
 
     public String getName() {
         return name;
@@ -26,5 +28,13 @@ public class SysDept extends BaseEntity {
 
     public void setParentId(Long parentId) {
         this.parentId = parentId;
+    }
+
+    public Long getLeaderId() {
+        return leaderId;
+    }
+
+    public void setLeaderId(Long leaderId) {
+        this.leaderId = leaderId;
     }
 }

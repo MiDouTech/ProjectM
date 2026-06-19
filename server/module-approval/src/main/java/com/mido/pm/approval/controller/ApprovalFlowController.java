@@ -37,6 +37,12 @@ public class ApprovalFlowController {
         return R.ok(Map.of(
                 "modes", List.of("or", "and"),
                 "guards", List.of("JOB_LEVEL"),
+                "approverTypes", List.of(
+                        Map.of("value", "USER", "label", "指定成员"),
+                        Map.of("value", "ROLE", "label", "角色"),
+                        Map.of("value", "DEPT_HEAD", "label", "部门主管（逐级）"),
+                        Map.of("value", "DIRECT_LEADER", "label", "发起人直属上级"),
+                        Map.of("value", "APPLICANT_SELF", "label", "发起人本人")),
                 "conditionFields", List.of("amount", "category", "jobLevel"),
                 "conditionOps", List.of("==", "!=", ">", ">=", "<", "<=")));
     }
