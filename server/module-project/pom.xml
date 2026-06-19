@@ -28,5 +28,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-approval</artifactId>
         </dependency>
+        <!-- 立项强制对齐 guard 需经 GoalService 校验项目是否已对齐目标（跨域走 Service 接口，project→goal 不成环） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-goal</artifactId>
+        </dependency>
     </dependencies>
 </project>

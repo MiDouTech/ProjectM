@@ -28,6 +28,7 @@
         <module>module-stakeholder</module>
         <module>module-verify</module>
         <module>module-approval</module>
+        <module>module-change</module>
         <module>module-cost</module>
         <module>module-collab</module>
         <module>module-doc</module>
@@ -96,6 +97,11 @@
             <dependency>
                 <groupId>com.mido.pm</groupId>
                 <artifactId>module-approval</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-change</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

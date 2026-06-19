@@ -49,10 +49,9 @@ PMO NPSS = 成功项目占比(%) − 失败项目占比(%)。
 - 奖金基数与价值系数由 PMO 另行发布，系统留配置项。
 
 ## 8. 立项职级 guard（审批节点强校验）
-- 战略级 S：Leader 必须 **L3+**，否则审批拦截。
-- 运营级 O：Leader 必须 **L2+**。
-- 创新级 I：不限职级。
-- 实现：立项审批流节点 guard 读 `sys_user.job_level` 校验，不满足直接 reject 并提示。
+- 门槛由项目类型属性 `pm_project_type.min_job_level` 决定（取代原按 S/I/O 硬编码），空=不限。
+- 内置种子默认：战略级 S → **L3+**；运营级 O → **L2+**；创新级 I → 不限。租户可改。
+- 实现：门槛在提交立项时随上下文（`minJobLevel`）传入审批引擎，节点 guard `JOB_LEVEL` 读 `sys_user.job_level` 与门槛比较；项目状态机注册 guard 共用 `JobLevelRule`（门槛制，单一事实源），不满足直接 reject 并提示。
 
 ## 9. 必备单元测试清单（AI 必须生成）
 1. 加权满意度计算正确（含归一化）。

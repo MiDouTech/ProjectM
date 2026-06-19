@@ -14,5 +14,6 @@ public record GoalCreateDTO(
         String metricUnit,
         BigDecimal metricStart,
         BigDecimal metricTarget,
-        BigDecimal metricCurrent) {
+        BigDecimal metricCurrent,
+        Integer autoRollup) {
 }

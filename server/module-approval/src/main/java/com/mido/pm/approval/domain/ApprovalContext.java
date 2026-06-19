@@ -3,7 +3,8 @@ package com.mido.pm.approval.domain;
 import java.util.Map;
 
 /**
- * 审批上下文：条件路由与节点 guard 据此判断。标准字段 amount/category/jobLevel。
+ * 审批上下文：条件路由与节点 guard 据此判断。标准字段 amount/category/jobLevel/minJobLevel。
+ * minJobLevel 为项目类型配置的最低职级门槛（取代原按 category 硬编码），供 JOB_LEVEL guard 使用。
  */
 public final class ApprovalContext {
 
@@ -17,6 +18,11 @@ public final class ApprovalContext {
         return attrs.get(field);
     }
 
+    /** 上下文是否包含该字段键（区分「显式置空=不限」与「键缺失=未提供」）。 */
+    public boolean has(String field) {
+        return attrs.containsKey(field);
+    }
+
     public String category() {
         Object v = attrs.get("category");
         return v == null ? null : v.toString();
@@ -24,6 +30,12 @@ public final class ApprovalContext {
 
     public String jobLevel() {
         Object v = attrs.get("jobLevel");
+        return v == null ? null : v.toString();
+    }
+
+    /** 最低职级门槛（项目类型 min_job_level），空=不限。 */
+    public String minJobLevel() {
+        Object v = attrs.get("minJobLevel");
         return v == null ? null : v.toString();
     }
 }

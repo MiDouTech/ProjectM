@@ -51,6 +51,24 @@ export const approvalFlowApi = {
   update: (id, data) => request.put(`/approval-flows/${id}`, data),
 }
 
+/** 项目类型管理（SaaS 租户自配，取代硬编码枚举 S/I/O） */
+export const projectTypeApi = {
+  list: (onlyActive) => request.get('/project-types', { params: { onlyActive: !!onlyActive } }),
+  get: (id) => request.get(`/project-types/${id}`),
+  create: (data) => request.post('/project-types', data),
+  update: (id, data) => request.put(`/project-types/${id}`, data),
+  setStatus: (id, active) => request.put(`/project-types/${id}/status`, null, { params: { active } }),
+}
+
+/** 项目类型标签可选颜色（design-system token，禁裸 hex） */
+export const PROJECT_TYPE_COLORS = [
+  { value: 'primary', label: '主色' },
+  { value: 'success', label: '成功' },
+  { value: 'warning', label: '警示' },
+  { value: 'danger', label: '危险' },
+  { value: 'info', label: '中性' },
+]
+
 /** 立项审批 bizType（与后端 ProjectInitService.BIZ_TYPE 对齐） */
 export const APPROVAL_BIZ_TYPES = [
   { value: 'project_init', label: '立项审批' },

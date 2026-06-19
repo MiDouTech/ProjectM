@@ -50,6 +50,8 @@ class ProjectServiceTest {
     private IdentityProvider identityProvider;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private ProjectTypeResolver projectTypeResolver;
     @InjectMocks
     private ProjectService service;
 
@@ -60,6 +62,14 @@ class ProjectServiceTest {
         p.setCategory(category);
         p.setLeaderId(leaderId);
         return p;
+    }
+
+    /** 构造一个项目类型桩：minJobLevel 门槛 + requiresNpss。 */
+    private com.mido.pm.project.entity.PmProjectType type(String minJobLevel, int requiresNpss) {
+        com.mido.pm.project.entity.PmProjectType t = new com.mido.pm.project.entity.PmProjectType();
+        t.setMinJobLevel(minJobLevel);
+        t.setRequiresNpss(requiresNpss);
+        return t;
     }
 
     private UserPrincipal leaderWithLevel(String level) {
@@ -105,6 +115,7 @@ class ProjectServiceTest {
     @Test
     void registerRejectedWhenLeaderJobLevelTooLow() {
         when(projectMapper.selectById(1L)).thenReturn(project("审批中", "S", 9L));
+        when(projectTypeResolver.require("S", null)).thenReturn(type("L3", 1));
         when(identityProvider.loadById(9L)).thenReturn(Optional.of(leaderWithLevel("L2")));
         assertThrows(BizException.class,
                 () -> service.transition(1L, new ProjectTransitionDTO("已注册", true)));
@@ -120,7 +131,16 @@ class ProjectServiceTest {
     }
 
     @Test
+    void deleteEmitsProjectDeletedEvent() {
+        when(projectMapper.selectById(1L)).thenReturn(project("草稿", "S", 1L));
+        service.delete(1L);
+        verify(projectMapper).deleteById(1L);
+        verify(eventPublisher).publish(eq("project.deleted"), any());
+    }
+
+    @Test
     void createRecordsActivity() {
+        when(projectTypeResolver.require("O", null)).thenReturn(type("L2", 1));
         service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null, null));
         verify(auditLogService).record(eq("project"), any(), eq(AuditActions.CREATED), any());
     }
@@ -131,6 +151,7 @@ class ProjectServiceTest {
         com.mido.pm.provider.identity.UserPrincipal leader = new com.mido.pm.provider.identity.UserPrincipal();
         leader.setDeptId(88L);
         when(identityProvider.loadById(1L)).thenReturn(java.util.Optional.of(leader));
+        when(projectTypeResolver.require("O", null)).thenReturn(type("L2", 1));
 
         ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
         service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null, null));
@@ -194,6 +215,7 @@ class ProjectServiceTest {
 
     @Test
     void createOperationRectifyDefaultsToNonNpss() {
+        when(projectTypeResolver.require("O", "定向整改")).thenReturn(type("L2", 0));
         ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
         service.create(new ProjectCreateDTO("整改A", "O", "定向整改", 1L, null, null, null, null, null, null));
         verify(projectMapper).insert(captor.capture());
@@ -204,6 +226,7 @@ class ProjectServiceTest {
     void registerSucceedsWithQualifiedLeaderAndEmitsRegistered() {
         PmProject p = project("审批中", "S", 9L);
         when(projectMapper.selectById(1L)).thenReturn(p);
+        when(projectTypeResolver.require("S", null)).thenReturn(type("L3", 1));
         when(identityProvider.loadById(9L)).thenReturn(Optional.of(leaderWithLevel("L3")));
 
         service.transition(1L, new ProjectTransitionDTO("已注册", true));

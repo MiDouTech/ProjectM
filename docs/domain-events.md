@@ -10,7 +10,25 @@
 | `project.status.changed` | 状态机流转 | 消息(通知Leader/干系人)、AI(风险) |
 | `project.registered` | PMO 注册完成 | 报表 |
 | `project.closed` | 结果验收达标结案 | 定时(设NPSS到点)、报表 |
+| `project.deleted` | 删除项目(逻辑删) | 目标(清理悬挂对齐)、报表、活动流 |
 | `project.budget.exceeded` | 实际成本 > 预算 | 消息(预警)、AI(风险·R) |
+
+## 1.1 项目类型域 project_type.*
+| 事件 | 触发 | 主要订阅方 |
+|---|---|---|
+| `project_type.created` | 租户新建项目类型 | 报表、活动流 |
+| `project_type.updated` | 项目类型配置变更（含重新启用） | 报表、活动流 |
+| `project_type.disabled` | 项目类型停用 | 报表、活动流 |
+
+## 1.2 目标域 goal.*
+| 事件 | 触发 | 主要订阅方 |
+|---|---|---|
+| `goal.created` | 新建目标/KR | 报表、活动流 |
+| `goal.updated` | 编辑目标/KR | 报表、活动流 |
+| `goal.deleted` | 删除目标(连带删其对齐链) | 报表、活动流 |
+| `goal.progress.changed` | KR 量化进度变化(手动改值/项目进度自动汇总反写) | 报表(OKR看板)、AI |
+| `goal.aligned` | 目标对齐到 project/task | 报表(目标-项目贯通) |
+| `goal.unaligned` | 解除对齐(含 project/task 删除清理) | 报表 |
 
 ## 2. 任务域 task.*
 | 事件 | 触发 | 订阅方 |
@@ -28,10 +46,19 @@
 |---|---|---|
 | `approval.submitted` | 提交立项申请 | 消息(通知审批人) |
 | `approval.node.approved` | 单节点通过 | 消息(通知下一节点) |
-| `approval.approved` | 全流程通过 | 项目(置已注册)、消息(通知申请人) |
-| `approval.rejected` | 驳回 | 消息(通知申请人) |
-| `approval.withdrawn` | 发起人撤回(审批中) | 项目(回草稿)、消息(通知审批人) |
+| `approval.approved` | 全流程通过 | 项目(置已注册)、变更(应用变更 bizType=change)、消息(通知申请人) |
+| `approval.rejected` | 驳回 | 项目(回草稿)、变更(置驳回)、消息(通知申请人) |
+| `approval.withdrawn` | 发起人撤回(审批中) | 项目(回草稿)、变更(置撤回)、消息(通知审批人) |
 | `approval.transferred` | 审批人转交待办 | 消息(通知受让人) |
+| `approval.node.skipped` | 节点审批人解析为空，自动跳过 | 消息(告警PMO/管理员) |
+
+## 3.1 变更域 change.*（通用变更中心）
+> 受控变更：改业务基线须走变更单，复用审批引擎(bizType=change)。被改实体域经 ChangeApplier 端口回写，变更域不反向依赖业务域。
+| 事件 | 触发 | 订阅方 |
+|---|---|---|
+| `change.requested` | 提交变更单(必审/免审) | 消息(通知审批人)、活动流 |
+| `change.applied` | 变更生效(回写被改实体) | 被改域(联动)、报表、活动流 |
+| `change.rejected` | 变更驳回/撤回，未生效 | 消息(通知发起人)、活动流 |
 
 ## 4. 干系人/验收域 stakeholder.* / npss.*
 | 事件 | 触发 | 订阅方 |

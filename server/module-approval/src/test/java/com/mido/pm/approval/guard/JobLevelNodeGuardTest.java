@@ -5,6 +5,7 @@ import com.mido.pm.approval.domain.FlowNode;
 import com.mido.pm.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -12,31 +13,42 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * 职级节点 guard 单测（npss-rule §8）。
+ * 职级节点 guard 单测（门槛制）：门槛 minJobLevel 由项目类型提供，空=不限。
  */
 class JobLevelNodeGuardTest {
 
     private final JobLevelNodeGuard guard = new JobLevelNodeGuard();
     private final FlowNode node = new FlowNode("lead", "负责人", List.of(1L), "or", "JOB_LEVEL", List.of(), null);
 
-    private ApprovalContext ctx(String category, String jobLevel) {
-        return new ApprovalContext(Map.of("category", category, "jobLevel", jobLevel));
+    private ApprovalContext ctx(String minJobLevel, String jobLevel) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("minJobLevel", minJobLevel);
+        m.put("jobLevel", jobLevel);
+        return new ApprovalContext(m);
     }
 
     @Test
-    void strategicRejectsBelowL3() {
-        assertThrows(BizException.class, () -> guard.check(node, ctx("S", "L2")));
-        assertDoesNotThrow(() -> guard.check(node, ctx("S", "L3")));
+    void rejectsBelowThreshold() {
+        assertThrows(BizException.class, () -> guard.check(node, ctx("L3", "L2")));
+        assertDoesNotThrow(() -> guard.check(node, ctx("L3", "L3")));
     }
 
     @Test
-    void operationalRejectsBelowL2() {
-        assertThrows(BizException.class, () -> guard.check(node, ctx("O", "L1")));
-        assertDoesNotThrow(() -> guard.check(node, ctx("O", "L2")));
+    void operationalThresholdL2() {
+        assertThrows(BizException.class, () -> guard.check(node, ctx("L2", "L1")));
+        assertDoesNotThrow(() -> guard.check(node, ctx("L2", "L2")));
     }
 
     @Test
-    void innovationUnrestricted() {
-        assertDoesNotThrow(() -> guard.check(node, ctx("I", "L1")));
+    void emptyThresholdUnrestricted() {
+        // 显式置空门槛=不限：minJobLevel 键存在、值 null
+        assertDoesNotThrow(() -> guard.check(node, ctx(null, "L1")));
+    }
+
+    @Test
+    void failClosedWhenThresholdKeyMissing() {
+        // 上下文未提供 minJobLevel 键（旧实例/其它业务漏传）→ fail-closed 拒绝，不静默放行
+        ApprovalContext noKey = new ApprovalContext(Map.of("jobLevel", "L1"));
+        assertThrows(BizException.class, () -> guard.check(node, noKey));
     }
 }

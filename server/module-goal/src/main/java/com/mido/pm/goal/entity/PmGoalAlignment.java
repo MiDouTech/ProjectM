@@ -14,6 +14,8 @@ public class PmGoalAlignment extends BaseEntity {
     /** 对齐目标类型：project / task */
     private String targetType;
     private Long targetId;
+    /** 对齐贡献权重（加权汇总用，默认 1） */
+    private java.math.BigDecimal weight;
 
     public Long getGoalId() { return goalId; }
     public void setGoalId(Long goalId) { this.goalId = goalId; }
@@ -21,4 +23,6 @@ public class PmGoalAlignment extends BaseEntity {
     public void setTargetType(String targetType) { this.targetType = targetType; }
     public Long getTargetId() { return targetId; }
     public void setTargetId(Long targetId) { this.targetId = targetId; }
+    public java.math.BigDecimal getWeight() { return weight; }
+    public void setWeight(java.math.BigDecimal weight) { this.weight = weight; }
 }

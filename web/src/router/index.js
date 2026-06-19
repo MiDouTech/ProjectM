@@ -8,6 +8,7 @@ export const navItems = [
   { path: '/project', title: '项目', icon: 'Folder' },
   { path: '/goal', title: '目标', icon: 'Aim' },
   { path: '/approval', title: '审批', icon: 'Stamp' },
+  { path: '/change', title: '变更中心', icon: 'RefreshRight' },
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
   { path: '/doc', title: '文档', icon: 'Document' },
   { path: '/admin', title: '管理后台', icon: 'Setting' },
@@ -29,6 +30,7 @@ const routes = [
       { path: 'project/:projectId/stakeholders', component: () => import('@/views/stakeholder/StakeholderView.vue') },
       { path: 'goal', component: () => import('@/views/Goal.vue') },
       { path: 'approval', component: () => import('@/views/approval/ApprovalView.vue') },
+      { path: 'change', component: () => import('@/views/ChangeCenter.vue') },
       { path: 'report', component: () => import('@/views/Report.vue') },
       { path: 'doc', component: () => import('@/views/Doc.vue') },
       {
@@ -40,6 +42,7 @@ const routes = [
           { path: 'roles', component: () => import('@/views/admin/RoleManage.vue') },
           { path: 'depts', component: () => import('@/views/admin/DeptTree.vue') },
           { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
+          { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
           { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
         ],
       },

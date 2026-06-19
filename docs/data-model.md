@@ -47,6 +47,21 @@ CREATE TABLE pm_project_template (
   sub_category VARCHAR(16), description TEXT, is_builtin TINYINT DEFAULT 0,
   config JSON                              -- 阶段/任务骨架/默认干系人权重/默认审批流/默认字段
 );
+-- 项目类型注册表（V17）：SaaS 租户自配，取代硬编码枚举 S/I/O。把立项职级门槛/是否走NPSS/
+-- 默认审批流/干系人权重模板收敛为类型属性。扁平建模（O 三子类各一条），parent_code 供报表汇总。
+CREATE TABLE pm_project_type (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  code VARCHAR(32) NOT NULL,               -- 租户内唯一程序引用（S/I/O_NORMAL...）
+  name VARCHAR(64) NOT NULL, parent_code VARCHAR(32),  -- parent_code 报表汇总 O_*→O
+  color VARCHAR(16), icon VARCHAR(32), sort INT DEFAULT 0,
+  min_job_level VARCHAR(8),                -- 立项 Leader 最低职级门槛（空=不限）
+  requires_npss TINYINT DEFAULT 1,         -- 默认是否走 NPSS
+  default_flow_id BIGINT,                  -- 绑定默认审批流（approval_flow.id）
+  require_goal_alignment TINYINT DEFAULT 0,-- 立项是否强制已对齐目标(V19，S 类默认 1)
+  stakeholder_tpl JSON,                    -- 默认干系人权重模板
+  status VARCHAR(16) DEFAULT 'active',     -- active/disabled
+  description VARCHAR(255), KEY idx_tenant(tenant_id), KEY idx_code(tenant_id,code)
+);
 
 -- ========== 任务域 ==========
 CREATE TABLE pm_task (
@@ -74,11 +89,15 @@ CREATE TABLE pm_goal (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, title VARCHAR(256), type VARCHAR(16),
   parent_id BIGINT DEFAULT 0, owner_id BIGINT, period VARCHAR(32),
   metric_unit VARCHAR(16), metric_start DECIMAL(14,2), metric_target DECIMAL(14,2),
-  metric_current DECIMAL(14,2), progress DECIMAL(5,2) DEFAULT 0, KEY idx_tenant(tenant_id)
+  metric_current DECIMAL(14,2), progress DECIMAL(5,2) DEFAULT 0,
+  auto_rollup TINYINT DEFAULT 0,           -- V20：KR 进度是否自动汇总对齐项目任务完成率
+  KEY idx_tenant(tenant_id)
 );
 CREATE TABLE pm_goal_alignment (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, goal_id BIGINT,
-  target_type VARCHAR(16), target_id BIGINT, KEY idx_goal(goal_id), KEY idx_target(target_type,target_id)
+  target_type VARCHAR(16), target_id BIGINT,
+  weight DECIMAL(5,2) DEFAULT 1,           -- V20：对齐贡献权重(多项目汇总到一个 KR 加权)
+  KEY idx_goal(goal_id), KEY idx_target(target_type,target_id)
 );
 
 -- ========== 干系人 + NPSS 验收域 ==========
@@ -105,6 +124,9 @@ CREATE TABLE approval_form (
 CREATE TABLE approval_flow (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), biz_type VARCHAR(32),
   mode VARCHAR(16), definition JSON);
+  -- definition.nodes[]：key/name/mode(or|and 会签或签)/guard/cc/condition(条件分支) +
+  --   approverType(USER|ROLE|DEPT_HEAD|DIRECT_LEADER|APPLICANT_SELF, 缺省 USER) + approverValues(角色ID/层级)。
+  -- 类型→流程绑定的事实源为 pm_project_type.default_flow_id（项目类型调用审批流）。
 CREATE TABLE approval_instance (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, flow_id BIGINT, biz_type VARCHAR(32),
   biz_id BIGINT, status VARCHAR(16), current_node VARCHAR(64), form_data JSON, applicant_id BIGINT,
@@ -144,7 +166,8 @@ CREATE TABLE pm_attachment (id BIGINT PRIMARY KEY, tenant_id BIGINT, entity_type
 
 -- ========== 组织/权限域 ==========
 CREATE TABLE sys_user (id BIGINT PRIMARY KEY, tenant_id BIGINT, username VARCHAR(64), phone VARCHAR(20), name VARCHAR(64), password VARCHAR(128), dept_id BIGINT, job_level VARCHAR(8), status VARCHAR(16), KEY idx_uname(username), UNIQUE KEY uk_user_phone(phone)); -- phone=登录账号(全局唯一,见 V11)；手机号/用户名双登录
-CREATE TABLE sys_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), parent_id BIGINT DEFAULT 0, KEY idx_parent(parent_id));
+CREATE TABLE sys_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), parent_id BIGINT DEFAULT 0,
+  leader_id BIGINT, KEY idx_parent(parent_id));  -- leader_id(V18)=部门负责人，动态审批人「部门主管/直属上级」解析用
 CREATE TABLE sys_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), code VARCHAR(64));
 CREATE TABLE sys_user_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, role_id BIGINT, KEY idx_user(user_id));
 CREATE TABLE sys_role_perm (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, perm_code VARCHAR(64), KEY idx_role(role_id));

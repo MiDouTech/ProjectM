@@ -30,8 +30,9 @@ server/
   common/        通用：响应包装/异常/分页/多租户拦截器/事件Outbox/Provider接口
   module/
     project/   task/   goal/   stakeholder/   verify(npss)/
-    approval/  cost/   collab/ doc/  report/   org(rbac)/
+    approval/  change/ cost/   collab/ doc/  report/   org(rbac)/
     ai/        (智能层,独立,只订阅事件,默认不启用)
+    # change=通用变更中心：受控变更单+审批编排，被改域经 ChangeApplier 端口回写，change 不反向依赖业务域
   provider/      identity/ sso/ approval/ message —— 四 Provider，local 实现先行，wecom 实现预留
 ```
 每个 module 内分层：`controller / service / domain / mapper / entity / dto / event`。**跨域只能通过 Service 接口或领域事件，禁止跨域直接查表。**
@@ -50,7 +51,7 @@ server/
 
 ## 6. 命名与术语（统一，禁同义混用）
 - 项目=Project(pm_project)；任务=Task；目标=Goal/KR；干系人=Stakeholder；验收=Verify/NPSS；立项审批=Approval；工时=WorkHour；费用=Cost。
-- 项目类型：S=战略级 / I=创新级 / O=运营级（O 细分：常规运营/定向整改/专项督办）。
+- 项目类型：由租户在 `pm_project_type` 自配（取代原硬编码枚举 S/I/O）。内置种子 S=战略级 / I=创新级 / O=运营级（O 细分：常规运营/定向整改/专项督办）作为默认数据，可改名/停用/新增。立项职级门槛、是否走 NPSS、绑定审批流均为类型的可配置属性，业务代码禁再按 S/I/O 字符串硬编码分支（统一经 `ProjectTypeResolver` 解析类型后读属性）。
 - 状态码、事件名、权限码集中登记，新增前先查重。
 
 ## 7. 工作方式

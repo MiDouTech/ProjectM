@@ -10,17 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 立项职级规则单测（npss-rule §8），跨域共用的单一事实源。
+ * 立项职级规则单测（门槛制）：门槛由项目类型 min_job_level 提供，跨域共用的单一事实源。
  */
 class JobLevelRuleTest {
-
-    @Test
-    void requiredLevels() {
-        assertEquals(3, JobLevelRule.requiredLevel("S"));
-        assertEquals(2, JobLevelRule.requiredLevel("O"));
-        assertEquals(0, JobLevelRule.requiredLevel("I"));
-        assertEquals(0, JobLevelRule.requiredLevel(null));
-    }
 
     @Test
     void parseLevel() {
@@ -32,17 +24,21 @@ class JobLevelRuleTest {
 
     @Test
     void qualifies() {
-        assertTrue(JobLevelRule.qualifies("S", "L3"));
-        assertFalse(JobLevelRule.qualifies("S", "L2"));
-        assertTrue(JobLevelRule.qualifies("O", "L2"));
-        assertFalse(JobLevelRule.qualifies("O", "L1"));
-        assertTrue(JobLevelRule.qualifies("I", null));
+        assertTrue(JobLevelRule.qualifies("L3", "L3"));
+        assertFalse(JobLevelRule.qualifies("L3", "L2"));
+        assertTrue(JobLevelRule.qualifies("L2", "L2"));
+        assertFalse(JobLevelRule.qualifies("L2", "L1"));
+        // 门槛为空=不限，恒达标
+        assertTrue(JobLevelRule.qualifies(null, null));
+        assertTrue(JobLevelRule.qualifies(null, "L1"));
     }
 
     @Test
     void assertQualified() {
-        assertThrows(BizException.class, () -> JobLevelRule.assertQualified("S", "L2"));
-        assertDoesNotThrow(() -> JobLevelRule.assertQualified("S", "L3"));
-        assertThrows(BizException.class, () -> JobLevelRule.assertQualified("S", null));
+        assertThrows(BizException.class, () -> JobLevelRule.assertQualified("L3", "L2"));
+        assertDoesNotThrow(() -> JobLevelRule.assertQualified("L3", "L3"));
+        assertThrows(BizException.class, () -> JobLevelRule.assertQualified("L3", null));
+        // 门槛为空不抛
+        assertDoesNotThrow(() -> JobLevelRule.assertQualified(null, null));
     }
 }

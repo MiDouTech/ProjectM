@@ -13,6 +13,14 @@ export const goalApi = {
   listAlignments: (id) => request.get(`/goals/${id}/alignments`),
   addAlignment: (id, data) => request.post(`/goals/${id}/alignments`, data),
   removeAlignment: (alignmentId) => request.delete(`/goals/alignments/${alignmentId}`),
+  // 对齐贡献权重（贡献度看板内编辑）
+  updateAlignmentWeight: (alignmentId, weight) =>
+    request.put(`/goals/alignments/${alignmentId}/weight`, { weight }),
+  // 反向贡献度看板：某 KR 各对齐项目的完成率/权重/贡献
+  contribution: (id) => request.get(`/goals/${id}/contribution`),
+  // 受控变更：发起目标变更（走变更中心+审批）/ 本目标变更历史
+  submitChange: (id, data) => request.post(`/goals/${id}/changes`, data),
+  changes: (id) => request.get(`/goals/${id}/changes`),
   // 反向查询：对齐到某对象的目标（项目工作台·目标用）
   listByTarget: (targetType, targetId) =>
     request.get('/goals/by-target', { params: { targetType, targetId } }),

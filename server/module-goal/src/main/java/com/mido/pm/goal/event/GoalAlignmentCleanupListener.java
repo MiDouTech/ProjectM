@@ -9,9 +9,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.Map;
 
 /**
- * 监听 task.deleted → 清理指向该任务的对齐链（弱关联，只删关联不动目标）。
- * 项目删除当前无 project.deleted 事件，故项目侧对齐链清理暂不覆盖（悬挂 target_id 无害，不级联删目标）。
- * AFTER_COMMIT：任务删除事务提交后再清理。
+ * 监听 task.deleted / project.deleted → 清理指向该对象的对齐链（弱关联，只删关联不动目标）。
+ * AFTER_COMMIT：源对象删除事务提交后再清理，避免回滚遗留。
  */
 @Component
 public class GoalAlignmentCleanupListener {
@@ -24,12 +23,14 @@ public class GoalAlignmentCleanupListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onDomainEvent(DomainEventMessage message) {
-        if (!"task.deleted".equals(message.eventType())) {
+        if (!(message.payload() instanceof Map<?, ?> payload)) {
             return;
         }
-        if (message.payload() instanceof Map<?, ?> payload
-                && payload.get("taskId") instanceof Number id) {
+        if ("task.deleted".equals(message.eventType()) && payload.get("taskId") instanceof Number id) {
             goalService.removeAlignmentsByTarget("task", id.longValue());
+        } else if ("project.deleted".equals(message.eventType())
+                && payload.get("projectId") instanceof Number id) {
+            goalService.removeAlignmentsByTarget("project", id.longValue());
         }
     }
 }

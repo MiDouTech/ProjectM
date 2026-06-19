@@ -9,6 +9,7 @@ public final class ProjectEvents {
     public static final String STATUS_CHANGED = "project.status.changed";
     public static final String REGISTERED = "project.registered";
     public static final String CLOSED = "project.closed";
+    public static final String DELETED = "project.deleted";
 
     private ProjectEvents() {
     }
