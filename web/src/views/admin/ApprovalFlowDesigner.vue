@@ -1,36 +1,49 @@
 <template>
   <div class="afd">
-    <!-- 左：流程列表 -->
-    <aside class="afd__list">
-      <div class="afd__list-head">
-        <h3 class="mido-h2">审批流</h3>
-        <el-button type="primary" link :icon="Plus" @click="newFlow">新建</el-button>
+    <!-- 列表视图：进入先看全部审批流，可新建或打开某条进编辑 -->
+    <div v-if="view === 'list'" class="afd-list" v-loading="loading">
+      <div class="afd-list__head">
+        <h2 class="mido-h2">审批流</h2>
+        <el-button type="primary" :icon="Plus" @click="newFlow">新建审批流</el-button>
       </div>
-      <el-menu :default-active="String(form.id || 'new')">
-        <el-menu-item v-for="f in flows" :key="f.id" :index="String(f.id)" @click="select(f.id)">
-          <div class="afd__item">
-            <span>{{ f.name }}</span>
-            <el-tag size="small" effect="plain">{{ bizLabel(f.bizType) }}</el-tag>
-          </div>
-        </el-menu-item>
-        <el-menu-item v-if="form.id === null" index="new">
-          <span class="mido-text-secondary">＊未保存的新流程</span>
-        </el-menu-item>
-      </el-menu>
-    </aside>
+      <el-table v-if="flows.length" :data="flows" class="afd-list__table" @row-click="(row) => openFlow(row.id)">
+        <el-table-column label="名称" min-width="220">
+          <template #default="{ row }">
+            <span class="afd-list__name">{{ row.displayName || row.name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="业务类型" width="140">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ bizLabel(row.bizType) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="审批节点" width="110">
+          <template #default="{ row }">{{ nodeCount(row) }} 个</template>
+        </el-table-column>
+        <el-table-column label="操作" width="100">
+          <template #default="{ row }">
+            <el-button type="primary" link @click.stop="openFlow(row.id)">打开</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <EmptyState v-else-if="!loading" description="暂无审批流" action-text="新建审批流"
+        :action-icon="Plus" @action="newFlow" />
+    </div>
 
-    <!-- 右：编辑器 -->
-    <section class="afd__editor" v-loading="loading">
-      <div class="afd__editor-head">
-        <el-input v-model="form.name" placeholder="流程名称（如 S_STANDARD）" class="afd__name" />
-        <el-select v-model="form.bizType" placeholder="业务类型" class="afd__biz">
+    <!-- 编辑视图：返回 + 中文名 + 业务类型 + 保存；节点编辑保留 -->
+    <section v-else class="afd-editor" v-loading="loading">
+      <div class="afd-editor__bar">
+        <el-button :icon="ArrowLeft" @click="backToList">返回</el-button>
+        <el-input v-model="form.displayName" placeholder="审批流名称（中文，如 战略级标准流程）" class="afd-editor__name" />
+        <el-select v-model="form.bizType" placeholder="业务类型" class="afd-editor__biz">
           <el-option v-for="b in APPROVAL_BIZ_TYPES" :key="b.value" :label="b.label" :value="b.value" />
         </el-select>
         <el-button type="primary" :icon="Check" :loading="saving" @click="save">保存</el-button>
       </div>
+      <div v-if="form.name" class="afd-editor__code mido-text-secondary">代码键：{{ form.name }}（系统标识，不可改）</div>
 
       <!-- 流程预览 -->
-      <el-steps :active="nodes.length" align-center class="afd__preview">
+      <el-steps :active="nodes.length" align-center class="afd-editor__preview">
         <el-step v-for="(n, i) in nodes" :key="i" :title="n.name || `节点${i + 1}`"
           :description="n.mode === 'and' ? '会签' : '或签'" />
       </el-steps>
@@ -106,21 +119,32 @@
 import { onMounted, reactive, ref } from 'vue'
 import draggable from 'vuedraggable'
 import { ElMessage } from 'element-plus'
-import { Plus, Check, Delete, Rank } from '@element-plus/icons-vue'
+import { Plus, Check, Delete, Rank, ArrowLeft } from '@element-plus/icons-vue'
 import UserSelect from '@/components/UserSelect.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { approvalFlowApi, APPROVAL_BIZ_TYPES } from '@/api/project'
 import { roleApi } from '@/api/org'
 
+const view = ref('list') // 'list' | 'edit'
 const loading = ref(false)
 const saving = ref(false)
 const flows = ref([])
 const roles = ref([])
 const meta = reactive({ conditionFields: [], conditionOps: [], guards: [], modes: [], approverTypes: [] })
 const nodes = ref([])
-const form = reactive({ id: null, name: '', bizType: 'project_init', mode: 'fixed' })
+const form = reactive({ id: null, name: '', displayName: '', bizType: 'project_init', mode: 'fixed' })
 
 let keySeq = 0
 const bizLabel = (v) => APPROVAL_BIZ_TYPES.find((b) => b.value === v)?.label || v || '—'
+
+// 列表展示用：解析 definition 统计审批节点数
+function nodeCount(row) {
+  try {
+    return (JSON.parse(row.definition || '{"nodes":[]}').nodes || []).length
+  } catch {
+    return 0
+  }
+}
 
 function blankNode() {
   return { _k: `k${keySeq++}`, name: '', approverType: 'USER', approvers: [], roleIds: [], deptLevel: 1,
@@ -167,22 +191,38 @@ function toNode(n, i) {
 }
 
 async function loadFlows() {
-  flows.value = await approvalFlowApi.list()
+  loading.value = true
+  try {
+    flows.value = await approvalFlowApi.list()
+  } finally {
+    loading.value = false
+  }
 }
 
+function backToList() {
+  view.value = 'list'
+  loadFlows()
+}
+
+// 新建：代码键自动生成（用户只填中文名），避免业务侧 resolveFlowId 误改既有键
 function newFlow() {
   form.id = null
-  form.name = ''
+  form.name = `FLOW_${Date.now()}`
+  form.displayName = ''
   form.bizType = 'project_init'
+  form.mode = 'fixed'
   nodes.value = [blankNode()]
+  view.value = 'edit'
 }
 
-async function select(id) {
+async function openFlow(id) {
+  view.value = 'edit'
   loading.value = true
   try {
     const f = await approvalFlowApi.get(id)
     form.id = f.id
     form.name = f.name
+    form.displayName = f.displayName || ''
     form.bizType = f.bizType || 'project_init'
     form.mode = f.mode || 'fixed'
     let def = { nodes: [] }
@@ -206,8 +246,8 @@ function removeNode(i) {
 }
 
 async function save() {
-  if (!form.name.trim()) {
-    ElMessage.warning('请填写流程名称')
+  if (!form.displayName.trim()) {
+    ElMessage.warning('请填写审批流名称')
     return
   }
   if (!nodes.value.length) {
@@ -215,7 +255,13 @@ async function save() {
     return
   }
   const definition = JSON.stringify({ nodes: nodes.value.map(toNode) })
-  const payload = { name: form.name.trim(), bizType: form.bizType, mode: form.mode, definition }
+  const payload = {
+    name: form.name,
+    displayName: form.displayName.trim(),
+    bizType: form.bizType,
+    mode: form.mode,
+    definition,
+  }
   saving.value = true
   try {
     if (form.id) {
@@ -237,55 +283,49 @@ onMounted(async () => {
   Object.assign(meta, m)
   roles.value = await roleApi.list()
   await loadFlows()
-  if (flows.value.length) await select(flows.value[0].id)
-  else newFlow()
 })
 </script>
 
 <style scoped>
 .afd {
-  display: flex;
-  gap: var(--mido-space-4);
   height: 100%;
 }
-.afd__list {
-  width: var(--mido-nav-width);
-  flex: none;
-  border: var(--mido-border-width) solid var(--el-border-color-light);
-  border-radius: var(--mido-radius-md);
-  overflow: hidden;
-}
-.afd__list-head {
+
+/* 列表视图 */
+.afd-list__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--mido-space-3);
-}
-.afd__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--mido-space-2);
-  width: 100%;
-}
-.afd__editor {
-  flex: 1;
-  min-width: 0;
-}
-.afd__editor-head {
-  display: flex;
-  gap: var(--mido-space-2);
   margin-bottom: var(--mido-space-4);
 }
-.afd__name {
+.afd-list__table {
+  width: 100%;
+  cursor: pointer;
+}
+.afd-list__name {
+  font-weight: var(--mido-font-weight-bold);
+}
+
+/* 编辑视图 */
+.afd-editor__bar {
+  display: flex;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-2);
+}
+.afd-editor__name {
   flex: 1;
 }
-.afd__biz {
+.afd-editor__biz {
   width: var(--mido-admin-nav-width);
 }
-.afd__preview {
+.afd-editor__code {
+  margin-bottom: var(--mido-space-4);
+  font-size: var(--mido-font-size-secondary);
+}
+.afd-editor__preview {
   margin-bottom: var(--mido-space-4);
 }
+
 .afd__nodes {
   display: flex;
   flex-direction: column;

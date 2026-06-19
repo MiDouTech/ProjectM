@@ -113,7 +113,8 @@ const rules = {
 }
 
 function flowName(id) {
-  return flows.value.find((f) => f.id === id)?.name
+  const f = flows.value.find((f) => f.id === id)
+  return f ? (f.displayName || f.name) : undefined
 }
 
 async function load() {
