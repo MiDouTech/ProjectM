@@ -2,6 +2,7 @@ package com.mido.pm.doc.service;
 
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.doc.dto.AttachmentVO;
 import com.mido.pm.doc.dto.DocCreateDTO;
 import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocSaveDTO;
@@ -11,6 +12,7 @@ import com.mido.pm.doc.entity.PmDocVersion;
 import com.mido.pm.doc.mapper.PmDocMapper;
 import com.mido.pm.doc.mapper.PmDocVersionMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.multipart.MultipartFile;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -36,6 +38,7 @@ class DocServiceTest {
     @Mock private PmDocMapper docMapper;
     @Mock private PmDocVersionMapper versionMapper;
     @Mock private DomainEventPublisher eventPublisher;
+    @Mock private AttachmentService attachmentService;
     @InjectMocks private DocService service;
 
     private PmDoc doc(long id, String type) {
@@ -101,5 +104,31 @@ class DocServiceTest {
     void moveIntoSelfRejected() {
         when(docMapper.selectById(1L)).thenReturn(doc(1L, PmDoc.TYPE_DOC));
         assertThrows(BizException.class, () -> service.move(1L, new DocMoveDTO(1L, null)));
+    }
+
+    @Test
+    void uploadFileCreatesFileNodeAndEmits() {
+        MultipartFile file = org.mockito.Mockito.mock(MultipartFile.class);
+        when(attachmentService.upload(eq("doc"), eq(7L), any()))
+                .thenReturn(new AttachmentVO(99L, "doc", 7L, "需求.pdf", 2048L, null, null));
+        when(docMapper.selectList(any())).thenReturn(List.of()); // nextSortNo
+
+        service.uploadFile(7L, 0L, file);
+
+        verify(docMapper).insert(any(PmDoc.class)); // file 节点
+        verify(eventPublisher).publish(eq("doc.created"), any());
+    }
+
+    @Test
+    void trashCascadesAndEmitsDeleted() {
+        PmDoc d = doc(1L, PmDoc.TYPE_DOC);
+        d.setTrashed(0);
+        when(docMapper.selectById(1L)).thenReturn(d);
+        when(docMapper.selectList(any())).thenReturn(List.of(d)); // subtreeIds 取项目全部节点
+
+        service.trash(1L);
+
+        verify(docMapper).updateById(any(PmDoc.class)); // 置 trashed=1
+        verify(eventPublisher).publish(eq("doc.deleted"), any());
     }
 }

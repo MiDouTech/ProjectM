@@ -7,9 +7,11 @@ import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
 import com.mido.pm.doc.dto.DocSaveDTO;
+import com.mido.pm.doc.dto.DocTrashVO;
 import com.mido.pm.doc.dto.DocVersionVO;
 import com.mido.pm.doc.service.DocService;
 import jakarta.validation.Valid;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -68,10 +70,43 @@ public class DocController {
         return R.ok();
     }
 
-    /** 删除节点（连同子树逻辑删除）。 */
+    /** 删除节点：移入回收站（连同子树）。 */
     @DeleteMapping("/{id}")
-    public R<Void> delete(@PathVariable Long id) {
-        docService.delete(id);
+    public R<Void> trash(@PathVariable Long id) {
+        docService.trash(id);
+        return R.ok();
+    }
+
+    /** 上传文件到目录，建 file 节点。 */
+    @PostMapping("/upload")
+    public R<Long> upload(@RequestParam Long projectId, @RequestParam(required = false) Long parentId,
+                          @RequestParam("file") MultipartFile file) {
+        return R.ok(docService.uploadFile(projectId, parentId, file));
+    }
+
+    /** file 节点限时下载/预览 URL。 */
+    @GetMapping("/{id}/download-url")
+    public R<String> downloadUrl(@PathVariable Long id) {
+        return R.ok(docService.downloadUrl(id));
+    }
+
+    /** 回收站列表。 */
+    @GetMapping("/recycle")
+    public R<List<DocTrashVO>> recycleBin(@RequestParam Long projectId) {
+        return R.ok(docService.recycleBin(projectId));
+    }
+
+    /** 从回收站恢复（连同子树）。 */
+    @PostMapping("/{id}/restore")
+    public R<Void> restore(@PathVariable Long id) {
+        docService.restore(id);
+        return R.ok();
+    }
+
+    /** 彻底删除（不可恢复）。 */
+    @DeleteMapping("/{id}/purge")
+    public R<Void> purge(@PathVariable Long id) {
+        docService.purge(id);
         return R.ok();
     }
 

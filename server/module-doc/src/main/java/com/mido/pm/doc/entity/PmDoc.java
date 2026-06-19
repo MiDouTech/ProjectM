@@ -13,6 +13,7 @@ public class PmDoc extends BaseEntity {
     /** 文档目录节点类型 */
     public static final String TYPE_FOLDER = "folder";
     public static final String TYPE_DOC = "doc";
+    public static final String TYPE_FILE = "file";
 
     private Long projectId;
     private Long parentId;
@@ -21,6 +22,9 @@ public class PmDoc extends BaseEntity {
     private String icon;
     private Integer sortNo;
     private Long currentVersionId;
+    private Long attachmentId;
+    private Integer trashed;
+    private java.time.LocalDateTime trashedTime;
 
     public Long getProjectId() { return projectId; }
     public void setProjectId(Long projectId) { this.projectId = projectId; }
@@ -36,4 +40,10 @@ public class PmDoc extends BaseEntity {
     public void setSortNo(Integer sortNo) { this.sortNo = sortNo; }
     public Long getCurrentVersionId() { return currentVersionId; }
     public void setCurrentVersionId(Long currentVersionId) { this.currentVersionId = currentVersionId; }
+    public Long getAttachmentId() { return attachmentId; }
+    public void setAttachmentId(Long attachmentId) { this.attachmentId = attachmentId; }
+    public Integer getTrashed() { return trashed; }
+    public void setTrashed(Integer trashed) { this.trashed = trashed; }
+    public java.time.LocalDateTime getTrashedTime() { return trashedTime; }
+    public void setTrashedTime(java.time.LocalDateTime trashedTime) { this.trashedTime = trashedTime; }
 }

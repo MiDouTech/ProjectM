@@ -5,14 +5,17 @@ import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.security.UserContext;
+import com.mido.pm.doc.dto.AttachmentVO;
 import com.mido.pm.doc.dto.DocCreateDTO;
 import com.mido.pm.doc.dto.DocDetailVO;
 import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
 import com.mido.pm.doc.dto.DocSaveDTO;
+import com.mido.pm.doc.dto.DocTrashVO;
 import com.mido.pm.doc.dto.DocVersionVO;
 import com.mido.pm.doc.entity.PmDoc;
+import org.springframework.web.multipart.MultipartFile;
 import com.mido.pm.doc.entity.PmDocVersion;
 import com.mido.pm.doc.event.DocEvents;
 import com.mido.pm.doc.mapper.PmDocMapper;
@@ -39,12 +42,14 @@ public class DocService {
     private final PmDocMapper docMapper;
     private final PmDocVersionMapper versionMapper;
     private final DomainEventPublisher eventPublisher;
+    private final AttachmentService attachmentService;
 
     public DocService(PmDocMapper docMapper, PmDocVersionMapper versionMapper,
-                      DomainEventPublisher eventPublisher) {
+                      DomainEventPublisher eventPublisher, AttachmentService attachmentService) {
         this.docMapper = docMapper;
         this.versionMapper = versionMapper;
         this.eventPublisher = eventPublisher;
+        this.attachmentService = attachmentService;
     }
 
     // ===== 目录树 =====
@@ -53,6 +58,7 @@ public class DocService {
     public List<DocNodeVO> tree(Long projectId) {
         List<PmDoc> all = docMapper.selectList(Wrappers.<PmDoc>lambdaQuery()
                 .eq(PmDoc::getProjectId, projectId)
+                .eq(PmDoc::getTrashed, 0)
                 .orderByAsc(PmDoc::getSortNo).orderByAsc(PmDoc::getId));
         // 按 parentId 分桶（节点已按 sortNo→id 入桶），再从根递归组装
         Map<Long, List<DocNodeVO>> childrenOf = new LinkedHashMap<>();
@@ -129,15 +135,88 @@ public class DocService {
         eventPublisher.publish(DocEvents.MOVED, payload(d, "parentId", target));
     }
 
+    // ===== 文件节点（附件并入树）=====
+
+    /** 上传文件到目录：落附件 + 建 file 节点（title=文件名，attachment_id 指向附件）。 */
     @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id) {
+    public Long uploadFile(Long projectId, Long parentId, MultipartFile file) {
+        AttachmentVO att = attachmentService.upload("doc", projectId, file);
+        PmDoc d = new PmDoc();
+        d.setProjectId(projectId);
+        d.setParentId(parentId == null ? ROOT : parentId);
+        d.setType(PmDoc.TYPE_FILE);
+        d.setTitle(att.name());
+        d.setAttachmentId(att.id());
+        d.setSortNo(nextSortNo(projectId, d.getParentId()));
+        d.setCreateBy(currentUserId());
+        d.setUpdateBy(currentUserId());
+        docMapper.insert(d);
+        eventPublisher.publish(DocEvents.CREATED, payload(d, "title", d.getTitle()));
+        return d.getId();
+    }
+
+    /** file 节点的限时下载/预览 URL（经附件预签名，不外泄 oss_key）。 */
+    public String downloadUrl(Long id) {
         PmDoc d = requireDoc(id);
-        // 连同子树逻辑删除
-        List<Long> ids = subtreeIds(d.getProjectId(), id);
-        for (Long nid : ids) {
+        if (!PmDoc.TYPE_FILE.equals(d.getType()) || d.getAttachmentId() == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "该节点不是文件");
+        }
+        return attachmentService.downloadUrl(d.getAttachmentId());
+    }
+
+    // ===== 回收站（软回收 trashed，区别于彻底删除 is_deleted）=====
+
+    /** 移入回收站：连同子树 trashed=1。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void trash(Long id) {
+        PmDoc d = requireDoc(id);
+        LocalDateTime now = LocalDateTime.now();
+        for (Long nid : subtreeIds(d.getProjectId(), id)) {
+            PmDoc n = docMapper.selectById(nid);
+            if (n != null && Integer.valueOf(0).equals(n.getTrashed())) {
+                n.setTrashed(1);
+                n.setTrashedTime(now);
+                n.setUpdateBy(currentUserId());
+                docMapper.updateById(n);
+            }
+        }
+        eventPublisher.publish(DocEvents.DELETED, payload(d, "title", d.getTitle()));
+    }
+
+    /** 从回收站恢复：连同子树 trashed=0。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        PmDoc d = requireDoc(id);
+        for (Long nid : subtreeIds(d.getProjectId(), id)) {
+            PmDoc n = docMapper.selectById(nid);
+            if (n != null && Integer.valueOf(1).equals(n.getTrashed())) {
+                n.setTrashed(0);
+                n.setTrashedTime(null);
+                n.setUpdateBy(currentUserId());
+                docMapper.updateById(n);
+            }
+        }
+        eventPublisher.publish(DocEvents.UPDATED, payload(d, "title", d.getTitle()));
+    }
+
+    /** 彻底删除：连同子树逻辑删除（is_deleted），不可恢复。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void purge(Long id) {
+        PmDoc d = requireDoc(id);
+        for (Long nid : subtreeIds(d.getProjectId(), id)) {
             docMapper.deleteById(nid);
         }
         eventPublisher.publish(DocEvents.DELETED, payload(d, "title", d.getTitle()));
+    }
+
+    /** 回收站列表（当前项目已回收、未彻底删除），按回收时间倒序。 */
+    public List<DocTrashVO> recycleBin(Long projectId) {
+        return docMapper.selectList(Wrappers.<PmDoc>lambdaQuery()
+                        .eq(PmDoc::getProjectId, projectId).eq(PmDoc::getTrashed, 1)
+                        .orderByDesc(PmDoc::getTrashedTime))
+                .stream()
+                .map(d -> new DocTrashVO(d.getId(), d.getType(), d.getTitle(), d.getTrashedTime()))
+                .toList();
     }
 
     // ===== 正文与版本 =====
