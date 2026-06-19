@@ -37,6 +37,7 @@ public class ApprovalFlowService {
         }
         ApprovalFlow flow = new ApprovalFlow();
         flow.setName(dto.name());
+        flow.setDisplayName(dto.displayName());
         flow.setBizType(dto.bizType());
         flow.setMode(dto.mode());
         flow.setDefinition(dto.definition());
@@ -56,6 +57,7 @@ public class ApprovalFlowService {
             throw new BizException(ErrorCode.PARAM_ERROR, "流程定义 JSON 非法: " + e.getMessage());
         }
         flow.setName(dto.name());
+        flow.setDisplayName(dto.displayName());
         flow.setBizType(dto.bizType());
         flow.setMode(dto.mode());
         flow.setDefinition(dto.definition());
@@ -88,6 +90,6 @@ public class ApprovalFlowService {
     }
 
     private FlowVO toVO(ApprovalFlow f) {
-        return new FlowVO(f.getId(), f.getName(), f.getBizType(), f.getMode(), f.getDefinition());
+        return new FlowVO(f.getId(), f.getName(), f.getDisplayName(), f.getBizType(), f.getMode(), f.getDefinition());
     }
 }
