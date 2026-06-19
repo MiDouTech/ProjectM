@@ -12,6 +12,13 @@
 | `project.closed` | 结果验收达标结案 | 定时(设NPSS到点)、报表 |
 | `project.budget.exceeded` | 实际成本 > 预算 | 消息(预警)、AI(风险·R) |
 
+## 1.1 项目类型域 project_type.*
+| 事件 | 触发 | 主要订阅方 |
+|---|---|---|
+| `project_type.created` | 租户新建项目类型 | 报表、活动流 |
+| `project_type.updated` | 项目类型配置变更（含重新启用） | 报表、活动流 |
+| `project_type.disabled` | 项目类型停用 | 报表、活动流 |
+
 ## 2. 任务域 task.*
 | 事件 | 触发 | 订阅方 |
 |---|---|---|

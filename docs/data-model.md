@@ -47,6 +47,20 @@ CREATE TABLE pm_project_template (
   sub_category VARCHAR(16), description TEXT, is_builtin TINYINT DEFAULT 0,
   config JSON                              -- 阶段/任务骨架/默认干系人权重/默认审批流/默认字段
 );
+-- 项目类型注册表（V17）：SaaS 租户自配，取代硬编码枚举 S/I/O。把立项职级门槛/是否走NPSS/
+-- 默认审批流/干系人权重模板收敛为类型属性。扁平建模（O 三子类各一条），parent_code 供报表汇总。
+CREATE TABLE pm_project_type (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  code VARCHAR(32) NOT NULL,               -- 租户内唯一程序引用（S/I/O_NORMAL...）
+  name VARCHAR(64) NOT NULL, parent_code VARCHAR(32),  -- parent_code 报表汇总 O_*→O
+  color VARCHAR(16), icon VARCHAR(32), sort INT DEFAULT 0,
+  min_job_level VARCHAR(8),                -- 立项 Leader 最低职级门槛（空=不限）
+  requires_npss TINYINT DEFAULT 1,         -- 默认是否走 NPSS
+  default_flow_id BIGINT,                  -- 绑定默认审批流（approval_flow.id）
+  stakeholder_tpl JSON,                    -- 默认干系人权重模板
+  status VARCHAR(16) DEFAULT 'active',     -- active/disabled
+  description VARCHAR(255), KEY idx_tenant(tenant_id), KEY idx_code(tenant_id,code)
+);
 
 -- ========== 任务域 ==========
 CREATE TABLE pm_task (
