@@ -18,7 +18,7 @@
           <el-icon><CollectionTag /></el-icon><span>项目类型</span>
         </el-menu-item>
         <el-menu-item index="/admin/approval-flows">
-          <el-icon><Stamp /></el-icon><span>审批流设计器</span>
+          <el-icon><Stamp /></el-icon><span>审批流</span>
         </el-menu-item>
       </el-menu>
     </aside>
