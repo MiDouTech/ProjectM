@@ -21,8 +21,12 @@ CREATE TABLE pm_change_request (
   update_by     BIGINT,
   update_time   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   is_deleted    TINYINT      NOT NULL DEFAULT 0,
+  -- 在途键：仅当 pending 且未删除时取 biz_id，否则 NULL。配合唯一索引，由 DB 保证「每对象至多一张在途变更单」
+  -- （MySQL 唯一索引允许多个 NULL，故终态/已删行不占位）；兜住 hasPending 预检的 TOCTOU 竞态。
+  pending_key   BIGINT GENERATED ALWAYS AS (IF(status = 'pending' AND is_deleted = 0, biz_id, NULL)) STORED,
   KEY idx_biz(biz_type, biz_id),
-  KEY idx_tenant_status(tenant_id, status)
+  KEY idx_tenant_status(tenant_id, status),
+  UNIQUE KEY uk_pending(tenant_id, biz_type, pending_key)
 ) COMMENT='变更单台账(变更中心)';
 
 CREATE TABLE pm_change_policy (

@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * 目标变更发起：构建变更前后快照，提交变更中心（{@link ChangeService}，复用审批引擎）。
@@ -32,6 +33,18 @@ public class GoalChangeService {
     //     经变更流程提交会被「无变更内容」拦截，故先不开放，待目标状态机落地再纳入。
     private static final Set<String> CHANGE_TYPES =
             Set.of("goal_target", "goal_scope", "goal_owner", "goal_period");
+
+    /** 可变更基线字段：现值取值器(快照) + 拟改值取值器(DTO)。新增字段只动这一处（before/after 同源，杜绝漂移）。 */
+    private record Field(String key, Function<PmGoal, Object> current, Function<GoalChangeRequestDTO, Object> proposed) {
+    }
+
+    private static final List<Field> FIELDS = List.of(
+            new Field("title", PmGoal::getTitle, GoalChangeRequestDTO::title),
+            new Field("ownerId", PmGoal::getOwnerId, GoalChangeRequestDTO::ownerId),
+            new Field("period", PmGoal::getPeriod, GoalChangeRequestDTO::period),
+            new Field("metricUnit", PmGoal::getMetricUnit, GoalChangeRequestDTO::metricUnit),
+            new Field("metricStart", PmGoal::getMetricStart, GoalChangeRequestDTO::metricStart),
+            new Field("metricTarget", PmGoal::getMetricTarget, GoalChangeRequestDTO::metricTarget));
 
     private final PmGoalMapper goalMapper;
     private final ChangeService changeService;
@@ -51,24 +64,20 @@ public class GoalChangeService {
         if (g == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "目标不存在");
         }
+        // before(基线快照) 与 after(改动项) 由同一字段表派生，避免两份手抄清单漂移
+        Map<String, Object> before = new LinkedHashMap<>();
         Map<String, Object> after = new LinkedHashMap<>();
-        putIfChanged(after, "title", req.title(), g.getTitle());
-        putIfChanged(after, "ownerId", req.ownerId(), g.getOwnerId());
-        putIfChanged(after, "period", req.period(), g.getPeriod());
-        putIfChanged(after, "metricUnit", req.metricUnit(), g.getMetricUnit());
-        putIfChanged(after, "metricStart", req.metricStart(), g.getMetricStart());
-        putIfChanged(after, "metricTarget", req.metricTarget(), g.getMetricTarget());
+        for (Field f : FIELDS) {
+            Object cur = f.current().apply(g);
+            before.put(f.key(), cur);
+            Object proposed = f.proposed().apply(req);
+            if (proposed != null && !sameValue(proposed, cur)) {
+                after.put(f.key(), proposed);
+            }
+        }
         if (after.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR, "拟改值与现值一致，无变更内容");
         }
-        // 变更前快照（基线记录）
-        Map<String, Object> before = new LinkedHashMap<>();
-        before.put("title", g.getTitle());
-        before.put("ownerId", g.getOwnerId());
-        before.put("period", g.getPeriod());
-        before.put("metricUnit", g.getMetricUnit());
-        before.put("metricStart", g.getMetricStart());
-        before.put("metricTarget", g.getMetricTarget());
         // 审批路由/展示上下文
         Map<String, Object> formData = new LinkedHashMap<>();
         formData.put("changeType", req.changeType());
@@ -84,12 +93,6 @@ public class GoalChangeService {
     /** 某目标的变更历史（变更中心·目标视角）。 */
     public List<ChangeRequestVO> list(Long goalId) {
         return changeService.list(BIZ_TYPE, goalId, null);
-    }
-
-    private void putIfChanged(Map<String, Object> after, String key, Object proposed, Object current) {
-        if (proposed != null && !sameValue(proposed, current)) {
-            after.put(key, proposed);
-        }
     }
 
     /** 等值判断：BigDecimal 按数值(compareTo)比较，避免 100 与 100.00 标度差异误判为变更。 */

@@ -14,6 +14,7 @@ import com.mido.pm.change.mapper.PmChangeRequestMapper;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,7 +64,12 @@ public class ChangeService {
         cr.setBeforeSnapshot(cmd.beforeSnapshot());
         cr.setAfterPayload(cmd.afterPayload());
         cr.setStatus(ChangeStatus.PENDING);
-        changeMapper.insert(cr);
+        try {
+            changeMapper.insert(cr);
+        } catch (DuplicateKeyException e) {
+            // hasPending 预检与 insert 间的并发：DB 唯一索引 uk_pending 兜底，把竞态转成业务冲突而非 500
+            throw new BizException(ErrorCode.CONFLICT, "该对象已有进行中的变更单，请先完成或撤回");
+        }
 
         PmChangePolicy policy = resolvePolicy(cmd.changeType());
         boolean requireApproval = policy != null && Integer.valueOf(1).equals(policy.getRequireApproval());

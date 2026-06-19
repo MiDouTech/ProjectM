@@ -89,6 +89,16 @@ class ChangeServiceTest {
     }
 
     @Test
+    void concurrentInsertRaceMappedToConflict() {
+        // hasPending 预检通过(0)，但并发下 DB 唯一索引 uk_pending 触发 DuplicateKeyException → 转业务冲突
+        when(changeMapper.selectCount(any())).thenReturn(0L);
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DuplicateKeyException("uk_pending"))
+                .when(changeMapper).insert(any(PmChangeRequest.class));
+        assertThrows(BizException.class, () -> service.submit(cmd("goal_target")));
+        verify(approvalService, never()).submit(any(SubmitDTO.class));
+    }
+
+    @Test
     void approvalClosedRejectsChange() {
         PmChangeRequest cr = new PmChangeRequest();
         cr.setId(5L);
