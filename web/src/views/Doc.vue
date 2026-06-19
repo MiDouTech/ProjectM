@@ -49,8 +49,8 @@
               <Folder v-if="r.type === 'folder'" /><Paperclip v-else-if="r.type === 'file'" /><Document v-else />
             </el-icon>
             <span class="doc__result-main">
-              <span class="doc__node-label">{{ r.title }}</span>
-              <span v-if="r.snippet" class="mido-text-secondary doc__snippet">{{ r.snippet }}</span>
+              <span class="doc__node-label" v-html="highlight(r.title)"></span>
+              <span v-if="r.snippet" class="mido-text-secondary doc__snippet" v-html="highlight(r.snippet)"></span>
             </span>
           </div>
           <el-empty v-if="!results.length" description="无匹配结果" :image-size="60" />
@@ -82,24 +82,26 @@
       <el-card v-if="activeId" shadow="never" class="doc__main" v-loading="docLoading">
         <template v-if="current && current.type === 'doc'">
           <div class="doc__editor-head">
-            <el-input v-model="title" class="doc__title" placeholder="文档标题" />
+            <el-input v-model="title" class="doc__title" placeholder="文档标题" :disabled="!canWrite" />
+            <el-tag v-if="!canWrite" type="info" effect="plain">只读</el-tag>
             <el-button :icon="current.favorited ? StarFilled : Star"
               :type="current.favorited ? 'warning' : ''" @click="toggleFav">收藏</el-button>
             <el-button :icon="Clock" @click="openHistory">历史</el-button>
-            <el-button :icon="Lock" @click="openAcl">权限</el-button>
-            <el-button :icon="Share" @click="openShare">分享</el-button>
+            <el-button v-if="isAdmin" :icon="Lock" @click="openAcl">权限</el-button>
+            <el-button v-if="isAdmin" :icon="Share" @click="openShare">分享</el-button>
             <el-dropdown trigger="click" @command="exportDoc">
               <el-button :icon="Download">导出<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="md">Markdown (.md)</el-dropdown-item>
                   <el-dropdown-item command="html">HTML (.html)</el-dropdown-item>
+                  <el-dropdown-item command="pdf">PDF（打印）</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
-            <el-button type="primary" :icon="Check" :loading="saving" @click="save">保存</el-button>
+            <el-button v-if="canWrite" type="primary" :icon="Check" :loading="saving" @click="save">保存</el-button>
           </div>
-          <DocEditor v-model="content" />
+          <DocEditor v-model="content" :editable="canWrite" />
           <div class="doc__comments">
             <h4 class="mido-h2">评论</h4>
             <CommentThread entity-type="doc" :entity-id="current.id" :users="members" />
@@ -254,6 +256,19 @@ const kw = ref('') // 搜索关键词
 const results = ref([]) // 搜索结果
 const baseVersionId = ref(null) // 载入时的版本，乐观防冲突
 
+// 按钮级权限可见性：依据当前文档的有效权限
+const canWrite = computed(() => ['write', 'admin'].includes(current.value?.permission))
+const isAdmin = computed(() => current.value?.permission === 'admin')
+
+// 搜索高亮：转义后用 <mark> 包裹命中词
+function highlight(text) {
+  const safe = String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const terms = kw.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (!terms.length) return safe
+  const re = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi')
+  return safe.replace(re, '<mark>$1</mark>')
+}
+
 const fmtTime = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
 
 // ===== 项目 / 树 =====
@@ -387,11 +402,32 @@ function exportDoc(cmd) {
   const name = (title.value || current.value.title || 'document').trim()
   if (cmd === 'md') {
     downloadText(`${name}.md`, `# ${name}\n\n${toMarkdown(content.value)}`, 'text/markdown')
-  } else {
+  } else if (cmd === 'html') {
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${name}</title></head>`
       + `<body>${toHtml(content.value)}</body></html>`
     downloadText(`${name}.html`, html, 'text/html')
+  } else {
+    printPdf(name)
   }
+}
+
+// PDF：打开打印友好视图，调用浏览器打印 → 另存为 PDF
+function printPdf(name) {
+  const w = window.open('', '_blank')
+  if (!w) {
+    ElMessage.warning('浏览器拦截了打印窗口，请允许弹窗')
+    return
+  }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${name}</title>`
+    + '<style>body{font-family:-apple-system,"Microsoft YaHei",sans-serif;max-width:800px;margin:24px auto;'
+    + 'padding:0 16px;color:#1f2329;line-height:1.7}h1{font-size:24px}h2{font-size:18px}'
+    + 'blockquote{border-left:3px solid #ddd;padding-left:12px;color:#646a73}'
+    + 'pre{background:#f5f6f7;padding:12px;border-radius:4px;overflow:auto}'
+    + 'table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 8px}</style></head>'
+    + `<body><h1>${name}</h1>${toHtml(content.value)}</body></html>`)
+  w.document.close()
+  w.focus()
+  setTimeout(() => w.print(), 300)
 }
 
 async function renameNode(data) {
