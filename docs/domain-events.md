@@ -39,6 +39,7 @@
 | `approval.rejected` | 驳回 | 消息(通知申请人) |
 | `approval.withdrawn` | 发起人撤回(审批中) | 项目(回草稿)、消息(通知审批人) |
 | `approval.transferred` | 审批人转交待办 | 消息(通知受让人) |
+| `approval.node.skipped` | 节点审批人解析为空，自动跳过 | 消息(告警PMO/管理员) |
 
 ## 4. 干系人/验收域 stakeholder.* / npss.*
 | 事件 | 触发 | 订阅方 |

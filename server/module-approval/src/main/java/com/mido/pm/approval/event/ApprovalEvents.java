@@ -9,6 +9,8 @@ public final class ApprovalEvents {
     public static final String REJECTED = "approval.rejected";
     public static final String WITHDRAWN = "approval.withdrawn";
     public static final String TRANSFERRED = "approval.transferred";
+    /** 节点审批人解析为空 → 自动跳过（告警，避免实例死锁待定） */
+    public static final String NODE_SKIPPED = "approval.node.skipped";
 
     private ApprovalEvents() {
     }

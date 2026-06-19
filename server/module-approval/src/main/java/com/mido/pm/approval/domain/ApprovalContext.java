@@ -18,6 +18,11 @@ public final class ApprovalContext {
         return attrs.get(field);
     }
 
+    /** 上下文是否包含该字段键（区分「显式置空=不限」与「键缺失=未提供」）。 */
+    public boolean has(String field) {
+        return attrs.containsKey(field);
+    }
+
     public String category() {
         Object v = attrs.get("category");
         return v == null ? null : v.toString();

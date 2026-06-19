@@ -81,28 +81,46 @@ public class ApprovalService {
         if (active.isEmpty()) {
             throw new BizException(ErrorCode.CONFLICT, "审批流无可用节点");
         }
-        FlowNode first = active.get(0);
-        guardRegistry.run(first, ctx);
 
         ApprovalInstance instance = new ApprovalInstance();
         instance.setFlowId(flow.getId());
         instance.setBizType(dto.bizType() != null ? dto.bizType() : flow.getBizType());
         instance.setBizId(dto.bizId());
         instance.setStatus(ApprovalInstance.STATUS_PENDING);
-        instance.setCurrentNode(first.key());
+        instance.setCurrentNode(active.get(0).key()); // 占位，落点确定后更新
         instance.setFormData(writeJson(dto.formData()));
         instance.setApplicantId(currentUserId());
         instanceMapper.insert(instance);
 
-        // 动态解析首节点审批人（USER/角色/部门主管/直属上级/发起人本人）
-        List<Long> firstApprovers = approverResolver.resolve(first, instance.getApplicantId());
-        createTasks(instance.getId(), first.key(), firstApprovers);
+        // 落点：跳过审批人解析为空的节点（避免建出无人可办的死锁实例），定位首个可办节点
+        Landing landing = land(active, 0, instance.getApplicantId(), instance.getId());
+        if (landing == null) {
+            // 全部节点审批人为空 → 自动通过（不留死锁实例）
+            instance.setCurrentNode(null);
+            instance.setStatus(ApprovalInstance.STATUS_APPROVED);
+            instanceMapper.updateById(instance);
+            eventPublisher.publish(ApprovalEvents.SUBMITTED, payload(
+                    "instanceId", instance.getId(), "flowId", flow.getId(),
+                    "bizType", instance.getBizType(), "bizId", instance.getBizId(),
+                    "applicantId", instance.getApplicantId(),
+                    "approverIds", List.of(), "ccIds", List.of()));
+            eventPublisher.publish(ApprovalEvents.APPROVED, payload(
+                    "instanceId", instance.getId(), "bizType", instance.getBizType(),
+                    "bizId", instance.getBizId(), "applicantId", instance.getApplicantId()));
+            return instance.getId();
+        }
+
+        FlowNode first = landing.node();
+        guardRegistry.run(first, ctx);
+        instance.setCurrentNode(first.key());
+        instanceMapper.updateById(instance);
+        createTasks(instance.getId(), first.key(), landing.approvers());
 
         eventPublisher.publish(ApprovalEvents.SUBMITTED, payload(
                 "instanceId", instance.getId(), "flowId", flow.getId(),
                 "bizType", instance.getBizType(), "bizId", instance.getBizId(),
                 "applicantId", instance.getApplicantId(),
-                "approverIds", firstApprovers,
+                "approverIds", landing.approvers(),
                 "ccIds", first.cc() == null ? List.of() : first.cc()));
         return instance.getId();
     }
@@ -159,13 +177,13 @@ public class ApprovalService {
             return; // 会签未齐，等待其余审批人
         }
 
+        // 落点：跳过审批人为空的后续节点（自动跳过 + 告警），定位下一可办节点
         int nextIndex = active.indexOf(current) + 1;
-        FlowNode next = nextIndex < active.size() ? active.get(nextIndex) : null;
-        // 动态解析下一节点审批人（供通知 + 建待办，二者一致）
-        List<Long> nextApprovers = next == null ? List.of()
-                : approverResolver.resolve(next, instance.getApplicantId());
+        Landing landing = land(active, nextIndex, instance.getApplicantId(), instanceId);
+        FlowNode next = landing == null ? null : landing.node();
+        List<Long> nextApprovers = landing == null ? List.of() : landing.approvers();
 
-        // 携带下一节点审批人，供通知监听器多通道通知"轮到你审批"（无下一节点则为空）
+        // 携带下一节点审批人，供通知监听器多通道通知"轮到你审批"（无下一可办节点则为空）
         eventPublisher.publish(ApprovalEvents.NODE_APPROVED, payload(
                 "instanceId", instanceId, "node", current.key(), "approverId", approverId,
                 "nextNode", next == null ? null : next.key(),
@@ -351,6 +369,28 @@ public class ApprovalService {
         Map<String, Object> data = readMap(i.getFormData());
         Object name = data.getOrDefault("projectName", data.get("title"));
         return name == null ? null : String.valueOf(name);
+    }
+
+    /** 落点：跳过审批人为空的节点后定位到的可办节点及其已解析审批人。 */
+    private record Landing(FlowNode node, List<Long> approvers) {
+    }
+
+    /**
+     * 从 active 的 fromIndex 起寻找首个「审批人解析非空」的节点；沿途审批人为空的节点
+     * 自动跳过并发 {@code approval.node.skipped} 告警（避免建出无人可办的死锁实例）。
+     * 全部为空返回 null，调用方据此自动通过。
+     */
+    private Landing land(List<FlowNode> active, int fromIndex, Long applicantId, Long instanceId) {
+        for (int i = fromIndex; i < active.size(); i++) {
+            FlowNode n = active.get(i);
+            List<Long> approvers = approverResolver.resolve(n, applicantId);
+            if (!approvers.isEmpty()) {
+                return new Landing(n, approvers);
+            }
+            eventPublisher.publish(ApprovalEvents.NODE_SKIPPED, payload(
+                    "instanceId", instanceId, "node", n.key(), "reason", "no_approver"));
+        }
+        return null;
     }
 
     /** 为节点建待办：approverIds 为已解析的具体审批人用户 ID（动态审批人解析后）。 */

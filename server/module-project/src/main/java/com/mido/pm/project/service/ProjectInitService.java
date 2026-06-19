@@ -57,9 +57,11 @@ public class ProjectInitService {
             throw new BizException(ErrorCode.CONFLICT, "仅草稿态项目可提交立项审批");
         }
 
-        // 申请单可覆盖 Leader/预算
+        // 申请单可覆盖 Leader/预算；改 Leader 同步归属部门(dept_id)，与 ProjectService 一致，避免数据范围 ACL 错位
         if (form.leaderId() != null) {
             project.setLeaderId(form.leaderId());
+            project.setDeptId(identityProvider.loadById(form.leaderId())
+                    .map(u -> u.getDeptId()).orElse(project.getDeptId()));
         }
         BigDecimal budget = form.budget() != null ? form.budget() : project.getBudget();
         if (form.leaderId() != null || form.budget() != null) {

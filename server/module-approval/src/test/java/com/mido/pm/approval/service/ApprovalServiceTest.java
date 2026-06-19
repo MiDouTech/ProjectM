@@ -49,6 +49,14 @@ class ApprovalServiceTest {
             "{\"nodes\":["
             + "{\"key\":\"n1\",\"name\":\"一审\",\"approvers\":[100],\"mode\":\"or\"},"
             + "{\"key\":\"n2\",\"name\":\"二审\",\"approvers\":[200,300],\"mode\":\"or\"}]}";
+    /** 首节点审批人为空（应自动跳过并落到 n2） */
+    private static final String EMPTY_FIRST_TWO_NODE =
+            "{\"nodes\":["
+            + "{\"key\":\"n1\",\"name\":\"一审\",\"approvers\":[],\"mode\":\"or\"},"
+            + "{\"key\":\"n2\",\"name\":\"二审\",\"approvers\":[200],\"mode\":\"or\"}]}";
+    /** 唯一节点审批人为空（应自动通过，不留死锁实例） */
+    private static final String SINGLE_EMPTY =
+            "{\"nodes\":[{\"key\":\"n1\",\"name\":\"审\",\"approvers\":[],\"mode\":\"or\"}]}";
 
     @Mock private ApprovalFlowMapper flowMapper;
     @Mock private ApprovalInstanceMapper instanceMapper;
@@ -119,6 +127,37 @@ class ApprovalServiceTest {
         ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
         verify(eventPublisher).publish(eq("approval.submitted"), captor.capture());
         assertEquals(List.of(100L), captor.getValue().get("approverIds"));
+    }
+
+    @Test
+    void submitSkipsEmptyApproverNodeAndLandsOnNext() {
+        login(7);
+        ApprovalFlow f = flow();
+        f.setDefinition(EMPTY_FIRST_TWO_NODE);
+        when(flowMapper.selectById(10L)).thenReturn(f);
+
+        service.submit(new SubmitDTO(10L, "project_init", 1L, Map.of("category", "O")));
+
+        // n1 审批人空 → 发跳过告警；落到 n2，为 200 建待办
+        verify(eventPublisher).publish(eq("approval.node.skipped"), any());
+        ArgumentCaptor<ApprovalTask> taskCap = ArgumentCaptor.forClass(ApprovalTask.class);
+        verify(taskMapper).insert(taskCap.capture());
+        assertEquals(200L, taskCap.getValue().getApproverId());
+        assertEquals("n2", taskCap.getValue().getNode());
+    }
+
+    @Test
+    void submitAllEmptyNodesAutoApprovesWithoutDeadlock() {
+        login(7);
+        ApprovalFlow f = flow();
+        f.setDefinition(SINGLE_EMPTY);
+        when(flowMapper.selectById(10L)).thenReturn(f);
+
+        service.submit(new SubmitDTO(10L, "project_init", 1L, Map.of()));
+
+        verify(eventPublisher).publish(eq("approval.node.skipped"), any());
+        verify(eventPublisher).publish(eq("approval.approved"), any());
+        verify(taskMapper, never()).insert(any(ApprovalTask.class));
     }
 
     @Test

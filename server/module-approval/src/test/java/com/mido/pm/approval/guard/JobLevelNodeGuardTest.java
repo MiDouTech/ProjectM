@@ -41,6 +41,14 @@ class JobLevelNodeGuardTest {
 
     @Test
     void emptyThresholdUnrestricted() {
+        // 显式置空门槛=不限：minJobLevel 键存在、值 null
         assertDoesNotThrow(() -> guard.check(node, ctx(null, "L1")));
+    }
+
+    @Test
+    void failClosedWhenThresholdKeyMissing() {
+        // 上下文未提供 minJobLevel 键（旧实例/其它业务漏传）→ fail-closed 拒绝，不静默放行
+        ApprovalContext noKey = new ApprovalContext(Map.of("jobLevel", "L1"));
+        assertThrows(BizException.class, () -> guard.check(node, noKey));
     }
 }
