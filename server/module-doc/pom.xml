@@ -34,5 +34,9 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-cost</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-org</artifactId>
+        </dependency>
     </dependencies>
 </project>

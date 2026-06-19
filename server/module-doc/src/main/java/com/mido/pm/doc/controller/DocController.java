@@ -6,14 +6,20 @@ import com.mido.pm.doc.dto.DocDetailVO;
 import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
+import com.mido.pm.doc.dto.DocAclGrantDTO;
+import com.mido.pm.doc.dto.DocAclVO;
 import com.mido.pm.doc.dto.DocSaveDTO;
 import com.mido.pm.doc.dto.DocSearchVO;
+import com.mido.pm.doc.dto.DocShareVO;
 import com.mido.pm.doc.dto.DocTemplateVO;
 import com.mido.pm.doc.dto.DocTrashVO;
 import com.mido.pm.doc.dto.DocVersionVO;
+import com.mido.pm.doc.service.DocAclService;
 import com.mido.pm.doc.service.DocService;
 import jakarta.validation.Valid;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,9 +41,11 @@ import java.util.List;
 public class DocController {
 
     private final DocService docService;
+    private final DocAclService aclService;
 
-    public DocController(DocService docService) {
+    public DocController(DocService docService, DocAclService aclService) {
         this.docService = docService;
+        this.aclService = aclService;
     }
 
     /** 项目知识库目录树。 */
@@ -158,5 +166,48 @@ public class DocController {
     @GetMapping("/templates")
     public R<List<DocTemplateVO>> templates() {
         return R.ok(docService.templates());
+    }
+
+    // ===== 权限 ACL（需 admin）=====
+
+    @GetMapping("/{id}/acl")
+    public R<List<DocAclVO>> listAcl(@PathVariable Long id) {
+        return R.ok(aclService.listAcl(id));
+    }
+
+    @PostMapping("/{id}/acl")
+    public R<Long> grant(@PathVariable Long id, @Valid @RequestBody DocAclGrantDTO dto) {
+        return R.ok(aclService.grant(id, dto));
+    }
+
+    @DeleteMapping("/acl/{aclId}")
+    public R<Void> revoke(@PathVariable Long aclId) {
+        aclService.revoke(aclId);
+        return R.ok();
+    }
+
+    // ===== 公开分享（需 admin 管理）=====
+
+    /** 创建/复用分享外链。expireTime 可空=永久。 */
+    @PostMapping("/{id}/share")
+    public R<DocShareVO> createShare(@PathVariable Long id,
+                                     @RequestParam(required = false)
+                                     @org.springframework.format.annotation.DateTimeFormat(iso =
+                                             org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+                                     LocalDateTime expireTime) {
+        return R.ok(aclService.createShare(id, expireTime));
+    }
+
+    /** 查看当前分享（无则 data=null）。 */
+    @GetMapping("/{id}/share")
+    public R<DocShareVO> getShare(@PathVariable Long id) {
+        return R.ok(aclService.getShare(id));
+    }
+
+    /** 停用分享。 */
+    @DeleteMapping("/{id}/share")
+    public R<Void> disableShare(@PathVariable Long id) {
+        aclService.disableShare(id);
+        return R.ok();
     }
 }

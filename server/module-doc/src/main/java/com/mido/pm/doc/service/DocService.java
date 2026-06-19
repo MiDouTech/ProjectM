@@ -35,6 +35,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 项目知识库文档服务：目录树、节点 CRUD、正文保存（产生版本）、版本列表/回滚。
@@ -51,16 +52,19 @@ public class DocService {
     private final AttachmentService attachmentService;
     private final PmDocFavoriteMapper favoriteMapper;
     private final PmDocTemplateMapper templateMapper;
+    private final DocAclService aclService;
 
     public DocService(PmDocMapper docMapper, PmDocVersionMapper versionMapper,
                       DomainEventPublisher eventPublisher, AttachmentService attachmentService,
-                      PmDocFavoriteMapper favoriteMapper, PmDocTemplateMapper templateMapper) {
+                      PmDocFavoriteMapper favoriteMapper, PmDocTemplateMapper templateMapper,
+                      DocAclService aclService) {
         this.docMapper = docMapper;
         this.versionMapper = versionMapper;
         this.eventPublisher = eventPublisher;
         this.attachmentService = attachmentService;
         this.favoriteMapper = favoriteMapper;
         this.templateMapper = templateMapper;
+        this.aclService = aclService;
     }
 
     // ===== 目录树 =====
@@ -71,9 +75,14 @@ public class DocService {
                 .eq(PmDoc::getProjectId, projectId)
                 .eq(PmDoc::getTrashed, 0)
                 .orderByAsc(PmDoc::getSortNo).orderByAsc(PmDoc::getId));
+        // 仅保留当前用户可读节点（ACL 过滤）
+        Set<Long> readable = aclService.readableDocIds(all);
         // 按 parentId 分桶（节点已按 sortNo→id 入桶），再从根递归组装
         Map<Long, List<DocNodeVO>> childrenOf = new LinkedHashMap<>();
         for (PmDoc d : all) {
+            if (!readable.contains(d.getId())) {
+                continue;
+            }
             childrenOf.computeIfAbsent(parentOf(d), k -> new ArrayList<>()).add(toNode(d));
         }
         return buildChildren(childrenOf, ROOT);
@@ -92,6 +101,7 @@ public class DocService {
     // ===== 详情 =====
 
     public DocDetailVO get(Long id) {
+        aclService.requireRead(id);
         PmDoc d = requireDoc(id);
         PmDocVersion ver = d.getCurrentVersionId() == null ? null : versionMapper.selectById(d.getCurrentVersionId());
         return new DocDetailVO(d.getId(), d.getProjectId(), d.getParentId(), d.getType(), d.getTitle(), d.getIcon(),
@@ -105,6 +115,9 @@ public class DocService {
     public Long create(DocCreateDTO dto) {
         if (!PmDoc.TYPE_FOLDER.equals(dto.type()) && !PmDoc.TYPE_DOC.equals(dto.type())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法节点类型: " + dto.type());
+        }
+        if (dto.parentId() != null && dto.parentId() != 0L) {
+            aclService.requireWrite(dto.parentId());
         }
         PmDoc d = new PmDoc();
         d.setProjectId(dto.projectId());
@@ -122,6 +135,7 @@ public class DocService {
 
     @Transactional(rollbackFor = Exception.class)
     public void rename(Long id, DocRenameDTO dto) {
+        aclService.requireWrite(id);
         PmDoc d = requireDoc(id);
         d.setTitle(dto.title().trim());
         d.setIcon(dto.icon());
@@ -132,6 +146,7 @@ public class DocService {
 
     @Transactional(rollbackFor = Exception.class)
     public void move(Long id, DocMoveDTO dto) {
+        aclService.requireWrite(id);
         PmDoc d = requireDoc(id);
         Long target = dto.parentId() == null ? ROOT : dto.parentId();
         if (target.equals(d.getId()) || isDescendant(d.getProjectId(), target, d.getId())) {
@@ -151,6 +166,9 @@ public class DocService {
     /** 上传文件到目录：落附件 + 建 file 节点（title=文件名，attachment_id 指向附件）。 */
     @Transactional(rollbackFor = Exception.class)
     public Long uploadFile(Long projectId, Long parentId, MultipartFile file) {
+        if (parentId != null && parentId != 0L) {
+            aclService.requireWrite(parentId);
+        }
         AttachmentVO att = attachmentService.upload("doc", projectId, file);
         PmDoc d = new PmDoc();
         d.setProjectId(projectId);
@@ -168,6 +186,7 @@ public class DocService {
 
     /** file 节点的限时下载/预览 URL（经附件预签名，不外泄 oss_key）。 */
     public String downloadUrl(Long id) {
+        aclService.requireRead(id);
         PmDoc d = requireDoc(id);
         if (!PmDoc.TYPE_FILE.equals(d.getType()) || d.getAttachmentId() == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "该节点不是文件");
@@ -180,6 +199,7 @@ public class DocService {
     /** 移入回收站：连同子树 trashed=1。 */
     @Transactional(rollbackFor = Exception.class)
     public void trash(Long id) {
+        aclService.requireWrite(id);
         PmDoc d = requireDoc(id);
         LocalDateTime now = LocalDateTime.now();
         for (Long nid : subtreeIds(d.getProjectId(), id)) {
@@ -213,6 +233,7 @@ public class DocService {
     /** 彻底删除：连同子树逻辑删除（is_deleted），不可恢复。 */
     @Transactional(rollbackFor = Exception.class)
     public void purge(Long id) {
+        aclService.requireAdmin(id);
         PmDoc d = requireDoc(id);
         for (Long nid : subtreeIds(d.getProjectId(), id)) {
             docMapper.deleteById(nid);
@@ -235,6 +256,7 @@ public class DocService {
     /** 保存正文：仅 type=doc；追加新版本并指向之。 */
     @Transactional(rollbackFor = Exception.class)
     public DocVersionVO saveContent(Long id, DocSaveDTO dto) {
+        aclService.requireWrite(id);
         PmDoc d = requireDoc(id);
         if (!PmDoc.TYPE_DOC.equals(d.getType())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "目录节点不能保存正文");
@@ -255,6 +277,7 @@ public class DocService {
 
     /** 版本列表（不含正文，按版本号倒序）。 */
     public List<DocVersionVO> versions(Long docId) {
+        aclService.requireRead(docId);
         requireDoc(docId);
         return versionMapper.selectList(Wrappers.<PmDocVersion>lambdaQuery()
                         .eq(PmDocVersion::getDocId, docId)
@@ -268,12 +291,14 @@ public class DocService {
         if (v == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "版本不存在");
         }
+        aclService.requireRead(v.getDocId());
         return toVersionVO(v, true);
     }
 
     /** 回滚：以指定历史版本正文追加为新版本（不抹历史）。 */
     @Transactional(rollbackFor = Exception.class)
     public DocVersionVO rollback(Long id, Long versionId) {
+        aclService.requireWrite(id);
         PmDoc d = requireDoc(id);
         PmDocVersion src = versionMapper.selectById(versionId);
         if (src == null || !src.getDocId().equals(id)) {
@@ -299,8 +324,12 @@ public class DocService {
         }
         List<PmDoc> docs = docMapper.selectList(Wrappers.<PmDoc>lambdaQuery()
                 .eq(PmDoc::getProjectId, projectId).eq(PmDoc::getTrashed, 0));
+        Set<Long> readable = aclService.readableDocIds(docs);
         List<DocSearchVO> result = new ArrayList<>();
         for (PmDoc d : docs) {
+            if (!readable.contains(d.getId())) {
+                continue;
+            }
             boolean titleHit = d.getTitle() != null && d.getTitle().toLowerCase().contains(kw);
             String snippet = null;
             if (!titleHit && PmDoc.TYPE_DOC.equals(d.getType()) && d.getCurrentVersionId() != null) {

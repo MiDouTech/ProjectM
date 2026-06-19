@@ -41,6 +41,7 @@ class DocServiceTest {
     @Mock private AttachmentService attachmentService;
     @Mock private com.mido.pm.doc.mapper.PmDocFavoriteMapper favoriteMapper;
     @Mock private com.mido.pm.doc.mapper.PmDocTemplateMapper templateMapper;
+    @Mock private DocAclService aclService;
     @InjectMocks private DocService service;
 
     private PmDoc doc(long id, String type) {
@@ -159,6 +160,7 @@ class DocServiceTest {
     void searchMatchesTitle() {
         PmDoc d = doc(1L, PmDoc.TYPE_DOC); // title 设计说明
         when(docMapper.selectList(any())).thenReturn(List.of(d));
+        when(aclService.readableDocIds(any())).thenReturn(java.util.Set.of(1L));
 
         var hits = service.search(7L, "设计");
 
