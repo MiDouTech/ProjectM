@@ -131,6 +131,14 @@ class ProjectServiceTest {
     }
 
     @Test
+    void deleteEmitsProjectDeletedEvent() {
+        when(projectMapper.selectById(1L)).thenReturn(project("草稿", "S", 1L));
+        service.delete(1L);
+        verify(projectMapper).deleteById(1L);
+        verify(eventPublisher).publish(eq("project.deleted"), any());
+    }
+
+    @Test
     void createRecordsActivity() {
         when(projectTypeResolver.require("O", null)).thenReturn(type("L2", 1));
         service.create(new ProjectCreateDTO("项目A", "O", null, 1L, null, null, null, null, null, null));

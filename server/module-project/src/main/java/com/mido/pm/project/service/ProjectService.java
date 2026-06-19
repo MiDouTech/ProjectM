@@ -195,6 +195,8 @@ public class ProjectService {
     public void delete(Long id) {
         requireExists(id);
         projectMapper.deleteById(id);
+        // 发 project.deleted：目标域据此清理悬挂对齐链（与 task.deleted 对称），其它订阅方按需消费
+        eventPublisher.publish(ProjectEvents.DELETED, basePayload(id).build());
     }
 
     /**

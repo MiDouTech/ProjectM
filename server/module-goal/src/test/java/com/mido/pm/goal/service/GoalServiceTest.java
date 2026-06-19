@@ -1,6 +1,8 @@
 package com.mido.pm.goal.service;
 
+import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.goal.entity.PmGoal;
+import com.mido.pm.goal.event.GoalEvents;
 import com.mido.pm.goal.mapper.PmGoalAlignmentMapper;
 import com.mido.pm.goal.mapper.PmGoalMapper;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +25,7 @@ class GoalServiceTest {
 
     @Mock private PmGoalMapper goalMapper;
     @Mock private PmGoalAlignmentMapper alignmentMapper;
+    @Mock private DomainEventPublisher eventPublisher;
     @InjectMocks private GoalService service;
 
     @Test
@@ -39,11 +43,21 @@ class GoalServiceTest {
 
     @Test
     void targetDeletionRemovesAlignmentLinksNotGoal() {
+        when(alignmentMapper.delete(any())).thenReturn(2);
         service.removeAlignmentsByTarget("task", 9L);
 
-        // 只删对齐链；从不触碰 goalMapper（不级联删目标）
+        // 只删对齐链；从不触碰 goalMapper（不级联删目标）；删到行才发 unaligned 事件
         verify(alignmentMapper).delete(any());
-        verify(goalMapper, org.mockito.Mockito.never()).deleteById(eq(9L));
+        verify(goalMapper, never()).deleteById(eq(9L));
+        verify(eventPublisher).publish(eq(GoalEvents.UNALIGNED), any());
+    }
+
+    @Test
+    void targetDeletionWithNoLinksEmitsNoEvent() {
+        when(alignmentMapper.delete(any())).thenReturn(0);
+        service.removeAlignmentsByTarget("project", 77L);
+
+        verify(eventPublisher, never()).publish(eq(GoalEvents.UNALIGNED), any());
     }
 
     @Test

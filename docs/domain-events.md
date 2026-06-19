@@ -10,6 +10,7 @@
 | `project.status.changed` | 状态机流转 | 消息(通知Leader/干系人)、AI(风险) |
 | `project.registered` | PMO 注册完成 | 报表 |
 | `project.closed` | 结果验收达标结案 | 定时(设NPSS到点)、报表 |
+| `project.deleted` | 删除项目(逻辑删) | 目标(清理悬挂对齐)、报表、活动流 |
 | `project.budget.exceeded` | 实际成本 > 预算 | 消息(预警)、AI(风险·R) |
 
 ## 1.1 项目类型域 project_type.*
@@ -18,6 +19,16 @@
 | `project_type.created` | 租户新建项目类型 | 报表、活动流 |
 | `project_type.updated` | 项目类型配置变更（含重新启用） | 报表、活动流 |
 | `project_type.disabled` | 项目类型停用 | 报表、活动流 |
+
+## 1.2 目标域 goal.*
+| 事件 | 触发 | 主要订阅方 |
+|---|---|---|
+| `goal.created` | 新建目标/KR | 报表、活动流 |
+| `goal.updated` | 编辑目标/KR | 报表、活动流 |
+| `goal.deleted` | 删除目标(连带删其对齐链) | 报表、活动流 |
+| `goal.progress.changed` | KR 量化进度变化(手动改值/项目进度自动汇总反写) | 报表(OKR看板)、AI |
+| `goal.aligned` | 目标对齐到 project/task | 报表(目标-项目贯通) |
+| `goal.unaligned` | 解除对齐(含 project/task 删除清理) | 报表 |
 
 ## 2. 任务域 task.*
 | 事件 | 触发 | 订阅方 |
