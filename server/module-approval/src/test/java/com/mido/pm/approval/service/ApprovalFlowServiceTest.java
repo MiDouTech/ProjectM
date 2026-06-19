@@ -36,13 +36,13 @@ class ApprovalFlowServiceTest {
     @Test
     void createRejectsInvalidDefinitionJson() {
         assertThrows(BizException.class,
-                () -> service().create(new FlowCreateDTO("流A", "project_init", "or", "{not-json")));
+                () -> service().create(new FlowCreateDTO("流A", "流程A", "project_init", "or", "{not-json")));
         verify(flowMapper, never()).insert(any(ApprovalFlow.class));
     }
 
     @Test
     void createPersistsValidFlow() {
-        service().create(new FlowCreateDTO("流A", "project_init", "or", VALID_DEF));
+        service().create(new FlowCreateDTO("流A", "流程A", "project_init", "or", VALID_DEF));
         verify(flowMapper).insert(any(ApprovalFlow.class));
     }
 
@@ -50,14 +50,14 @@ class ApprovalFlowServiceTest {
     void updateRejectsWhenFlowMissing() {
         when(flowMapper.selectById(9L)).thenReturn(null);
         assertThrows(BizException.class,
-                () -> service().update(9L, new FlowCreateDTO("流A", "project_init", "or", VALID_DEF)));
+                () -> service().update(9L, new FlowCreateDTO("流A", "流程A", "project_init", "or", VALID_DEF)));
         verify(flowMapper, never()).updateById(any(ApprovalFlow.class));
     }
 
     @Test
     void updatePersistsValidDefinition() {
         when(flowMapper.selectById(1L)).thenReturn(new ApprovalFlow());
-        service().update(1L, new FlowCreateDTO("流B", "project_init", "and", VALID_DEF));
+        service().update(1L, new FlowCreateDTO("流B", "流程B", "project_init", "and", VALID_DEF));
         verify(flowMapper).updateById(any(ApprovalFlow.class));
     }
 }
