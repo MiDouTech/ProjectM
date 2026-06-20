@@ -11,6 +11,7 @@ import com.mido.pm.approval.domain.FlowNode;
 import com.mido.pm.approval.domain.NodeStatus;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
+import com.mido.pm.approval.dto.InitiatedApprovalVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.dto.TransferDTO;
@@ -313,6 +314,25 @@ public class ApprovalService {
             }
         }
         return result;
+    }
+
+    /**
+     * 我发起的（审批中心）：当前用户提交的审批实例，跨 bizType、任意状态，按新→旧，上限 MINE_LIMIT。
+     * tenant 由 MyBatis-Plus 拦截器统一注入，不手写租户条件。
+     */
+    public List<InitiatedApprovalVO> myInitiated() {
+        Long me = currentUserId();
+        if (me == null) {
+            return List.of();
+        }
+        return instanceMapper.selectList(Wrappers.<ApprovalInstance>lambdaQuery()
+                        .eq(ApprovalInstance::getApplicantId, me)
+                        .orderByDesc(ApprovalInstance::getId)
+                        .last("LIMIT " + MINE_LIMIT))
+                .stream()
+                .map(i -> new InitiatedApprovalVO(i.getId(), i.getBizType(), i.getBizId(),
+                        i.getStatus(), bizTitle(i), i.getCreateTime()))
+                .toList();
     }
 
     public InstanceVO getInstance(Long id) {

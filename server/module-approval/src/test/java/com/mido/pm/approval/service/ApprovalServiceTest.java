@@ -277,6 +277,32 @@ class ApprovalServiceTest {
     }
 
     @Test
+    void myInitiatedReturnsMySubmissionsAcrossBizTypes() {
+        login(7);
+        ApprovalInstance proj = instanceWithStatus(10L, ApprovalInstance.STATUS_PENDING);
+        ApprovalInstance change = instanceWithStatus(20L, ApprovalInstance.STATUS_APPROVED);
+        change.setBizType("change");
+        when(instanceMapper.selectList(any())).thenReturn(List.of(change, proj));
+
+        var result = service.myInitiated();
+
+        assertEquals(2, result.size());
+        // 跨 bizType 一并返回，状态原样透出（供前端按类型筛选/着色）
+        assertEquals("change", result.get(0).bizType());
+        assertEquals(ApprovalInstance.STATUS_APPROVED, result.get(0).status());
+        assertEquals(ApprovalInstance.STATUS_PENDING, result.get(1).status());
+    }
+
+    @Test
+    void myInitiatedReturnsEmptyWhenNotLoggedIn() {
+        // 未登录（无 UserContext）直接返回空，不触达 mapper
+        var result = service.myInitiated();
+
+        assertEquals(0, result.size());
+        verify(instanceMapper, never()).selectList(any());
+    }
+
+    @Test
     void withdrawByApplicantMarksWithdrawnAndCarriesApprovers() {
         login(7);
         ApprovalInstance inst = pendingInstance();

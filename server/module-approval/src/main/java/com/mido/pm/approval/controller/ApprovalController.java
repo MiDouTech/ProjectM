@@ -1,6 +1,7 @@
 package com.mido.pm.approval.controller;
 
 import com.mido.pm.approval.dto.ActDTO;
+import com.mido.pm.approval.dto.InitiatedApprovalVO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
@@ -64,5 +65,11 @@ public class ApprovalController {
     @GetMapping("/mine")
     public R<List<PendingApprovalVO>> mine() {
         return R.ok(approvalService.myPending());
+    }
+
+    /** 我发起的（审批中心）：当前用户提交的审批实例，跨 bizType、任意状态。 */
+    @GetMapping("/mine-initiated")
+    public R<List<InitiatedApprovalVO>> mineInitiated() {
+        return R.ok(approvalService.myInitiated());
     }
 }

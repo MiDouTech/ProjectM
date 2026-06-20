@@ -40,6 +40,8 @@ export const approvalApi = {
   transfer: (id, data) => request.post(`/approvals/instances/${id}/transfer`, data),
   // 待我审批（工作台卡）：我未处理且实例 pending 的待办
   mine: () => request.get('/approvals/mine'),
+  // 我发起的（审批中心）：我提交的审批实例，跨 bizType、任意状态
+  mineInitiated: () => request.get('/approvals/mine-initiated'),
 }
 
 /** 审批流定义（Step 3 进度渲染 + P2 可视化设计器 CRUD） */
