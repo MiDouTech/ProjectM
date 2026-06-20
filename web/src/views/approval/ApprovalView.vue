@@ -18,7 +18,7 @@
           <div class="apv__row">
             <h3 class="mido-h2">待我审批（{{ filteredMine.length }}）</h3>
             <el-select v-model="mineBizFilter" clearable placeholder="全部类型" class="apv__filter">
-              <el-option v-for="b in APPROVAL_BIZ_TYPES" :key="b.value" :label="b.label" :value="b.value" />
+              <el-option v-for="b in bizFilterOptions" :key="b.value" :label="b.label" :value="b.value" />
             </el-select>
           </div>
           <el-table :data="filteredMine" class="is-clickable" @row-click="(r) => select(r.instanceId)">
@@ -100,7 +100,7 @@
           <div class="apv__row">
             <h3 class="mido-h2">我发起的审批（{{ filteredInitiated.length }}）</h3>
             <el-select v-model="initiatedBizFilter" clearable placeholder="全部类型" class="apv__filter">
-              <el-option v-for="b in APPROVAL_BIZ_TYPES" :key="b.value" :label="b.label" :value="b.value" />
+              <el-option v-for="b in bizFilterOptions" :key="b.value" :label="b.label" :value="b.value" />
             </el-select>
           </div>
           <el-table :data="filteredInitiated" class="is-clickable" @row-click="openInitiated">
@@ -178,6 +178,10 @@ import { useUserStore } from '@/store/user'
 const userStore = useUserStore()
 const showChange = computed(() => userStore.hasFeature('change'))
 const activeTab = ref('mine')
+// bizType 筛选项随 showChange 收敛：无 change 功能时剔除「变更审批」死选项
+const bizFilterOptions = computed(() => (showChange.value
+  ? APPROVAL_BIZ_TYPES
+  : APPROVAL_BIZ_TYPES.filter((b) => b.value !== 'change')))
 
 // 待我审批按 bizType 客户端筛选（数据来自 mine，不增后端请求）
 const mineBizFilter = ref('')
@@ -200,6 +204,8 @@ async function loadInitiated() {
   initiatedLoading.value = true
   try {
     initiated.value = await approvalApi.mineInitiated() || []
+  } catch {
+    // 错误已由 request 拦截器统一 toast；此处吞掉避免 watch 中未捕获 rejection
   } finally {
     initiatedLoading.value = false
   }
@@ -223,6 +229,10 @@ async function doWithdraw() {
 // 切到「我发起的」时拉取（保持状态新鲜；列表轻量，重复请求成本低）
 watch(activeTab, (t) => {
   if (t === 'initiated') loadInitiated()
+})
+// change 功能码异步翻成关闭时，若仍停在变更台账 tab 则回退，避免内容区空白
+watch(showChange, (v) => {
+  if (!v && activeTab.value === 'change') activeTab.value = 'mine'
 })
 
 const lookupId = ref('')
@@ -260,8 +270,8 @@ async function loadMine() {
 }
 const route = useRoute()
 onMounted(async () => {
-  // 旧 /change 深链重定向至此，按 tab 参数定位变更台账
-  if (route.query.tab === 'change') activeTab.value = 'change'
+  // 旧 /change 深链重定向至此，按 tab 参数定位变更台账（无 change 功能则不切，留在待我审批）
+  if (route.query.tab === 'change' && showChange.value) activeTab.value = 'change'
   loadMine()
   try {
     members.value = await fetchMembers()

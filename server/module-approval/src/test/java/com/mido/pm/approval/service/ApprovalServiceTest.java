@@ -1,6 +1,10 @@
 package com.mido.pm.approval.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.dto.TransferDTO;
@@ -26,11 +30,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -280,6 +287,8 @@ class ApprovalServiceTest {
     void myInitiatedReturnsMySubmissionsAcrossBizTypes() {
         login(7);
         ApprovalInstance proj = instanceWithStatus(10L, ApprovalInstance.STATUS_PENDING);
+        proj.setFormData("{\"projectName\":\"立项A\"}");
+        proj.setCreateTime(LocalDateTime.now());
         ApprovalInstance change = instanceWithStatus(20L, ApprovalInstance.STATUS_APPROVED);
         change.setBizType("change");
         when(instanceMapper.selectList(any())).thenReturn(List.of(change, proj));
@@ -291,6 +300,17 @@ class ApprovalServiceTest {
         assertEquals("change", result.get(0).bizType());
         assertEquals(ApprovalInstance.STATUS_APPROVED, result.get(0).status());
         assertEquals(ApprovalInstance.STATUS_PENDING, result.get(1).status());
+        // title 取自 formData、submittedAt 取自 createTime，正向覆盖透出字段
+        assertEquals("立项A", result.get(1).title());
+        assertNotNull(result.get(1).submittedAt());
+        // 必须按发起人过滤（防越权返回他人审批）：查询片段须含 applicant 列条件。
+        // 单测无 Spring，先初始化 lambda 列缓存，wrapper 方能解析列名供断言。
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), ApprovalInstance.class);
+        ArgumentCaptor<AbstractWrapper> cap = ArgumentCaptor.forClass(AbstractWrapper.class);
+        verify(instanceMapper).selectList(cap.capture());
+        String sql = cap.getValue().getTargetSql().toLowerCase();
+        assertTrue(sql.contains("applicant"), "myInitiated 必须按当前用户 applicantId 过滤");
     }
 
     @Test
