@@ -230,10 +230,14 @@ async function doWithdraw() {
 watch(activeTab, (t) => {
   if (t === 'initiated') loadInitiated()
 })
-// change 功能码异步翻成关闭时，若仍停在变更台账 tab 则回退，避免内容区空白
+// change 功能码关闭时（含异步翻转/挂载即关闭）：回退变更台账 tab，并清理残留为
+// 「变更审批」的筛选值，避免内容区空白或筛选恒空。immediate 兼顾挂载时已为 false 的情形。
 watch(showChange, (v) => {
-  if (!v && activeTab.value === 'change') activeTab.value = 'mine'
-})
+  if (v) return
+  if (activeTab.value === 'change') activeTab.value = 'mine'
+  if (mineBizFilter.value === 'change') mineBizFilter.value = ''
+  if (initiatedBizFilter.value === 'change') initiatedBizFilter.value = ''
+}, { immediate: true })
 
 const lookupId = ref('')
 const loading = ref(false)
