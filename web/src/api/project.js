@@ -73,6 +73,7 @@ export const PROJECT_TYPE_COLORS = [
 export const APPROVAL_BIZ_TYPES = [
   { value: 'project_init', label: '立项审批' },
   { value: 'cost', label: '费用审批' },
+  { value: 'change', label: '变更审批' },
 ]
 
 /** 项目类型字典（CLAUDE.md §6：S 战略级 / I 创新级 / O 运营级） */

@@ -1,14 +1,16 @@
 <template>
   <div class="mido-page">
     <div class="apv__bar">
-      <h1 class="mido-h1">立项审批</h1>
-      <div class="apv__lookup">
+      <h1 class="mido-h1">审批中心</h1>
+      <div v-show="activeTab === 'mine'" class="apv__lookup">
         <el-input v-model="lookupId" placeholder="输入审批实例 ID" class="apv__input"
           :prefix-icon="Search" @keyup.enter="open" />
         <el-button type="primary" :disabled="!lookupId" @click="open">打开</el-button>
       </div>
     </div>
 
+    <el-tabs v-model="activeTab" class="apv__tabs">
+      <el-tab-pane label="待我审批" name="mine">
     <el-row :gutter="16">
       <!-- 待我审批（当前登录人未处理且实例 pending 的待办） + 会话内最近打开 -->
       <el-col :span="8">
@@ -86,6 +88,12 @@
         </el-card>
       </el-col>
     </el-row>
+      </el-tab-pane>
+      <!-- 变更台账：复用变更中心组件（embedded 隐藏自身标题）；受 change 功能码门控 -->
+      <el-tab-pane v-if="showChange" label="变更台账" name="change" lazy>
+        <ChangeCenter embedded />
+      </el-tab-pane>
+    </el-tabs>
 
     <!-- 转交：经统一 UserSelect 选择受让人 -->
     <el-dialog v-model="transferVisible" title="转交审批" width="420">
@@ -106,16 +114,23 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
 import UserSelect from '@/components/UserSelect.vue'
+import ChangeCenter from '@/views/ChangeCenter.vue'
 import { approvalApi, projectApi, APPROVAL_BIZ_TYPES, PROJECT_CATEGORIES } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { userName } from '@/utils/display'
+import { useUserStore } from '@/store/user'
+
+// 审批中心 Tab：待我审批 / 变更台账（后者受 change 功能码门控，fail-open）
+const userStore = useUserStore()
+const showChange = computed(() => userStore.hasFeature('change'))
+const activeTab = ref('mine')
 
 const lookupId = ref('')
 const loading = ref(false)
@@ -152,6 +167,8 @@ async function loadMine() {
 }
 const route = useRoute()
 onMounted(async () => {
+  // 旧 /change 深链重定向至此，按 tab 参数定位变更台账
+  if (route.query.tab === 'change') activeTab.value = 'change'
   loadMine()
   try {
     members.value = await fetchMembers()
