@@ -8,6 +8,7 @@
         <el-select v-model="query.status" placeholder="全部状态" clearable class="bar__filter" @change="reload">
           <el-option v-for="s in TENANT_STATUS" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
+        <el-button :icon="Refresh" :loading="snapshotLoading" @click="refreshUsage">刷新用量</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">开通租户</el-button>
       </div>
     </div>
@@ -81,6 +82,10 @@
     <el-drawer v-model="detailDrawer" title="租户详情" size="var(--mido-drawer-width)">
       <div v-loading="detailLoading" class="detail">
         <template v-if="detail.id">
+          <div class="detail__actions">
+            <el-button type="primary" plain :icon="Switch" @click="impersonate">模拟登录</el-button>
+          </div>
+
           <el-descriptions title="基础信息" :column="1" border>
             <el-descriptions-item label="编码">{{ detail.code }}</el-descriptions-item>
             <el-descriptions-item label="名称">{{ detail.name }}</el-descriptions-item>
@@ -97,6 +102,28 @@
             <el-descriptions-item label="创建时间">{{ detail.createTime || '—' }}</el-descriptions-item>
             <el-descriptions-item label="备注">{{ detail.remark || '—' }}</el-descriptions-item>
           </el-descriptions>
+
+          <div class="detail__block">
+            <div class="detail__sub-title">资源用量</div>
+            <el-table v-if="usage.length" :data="usage" size="small" border>
+              <el-table-column label="资源">
+                <template #default="{ row }">{{ resourceLabel(row.resource) }}</template>
+              </el-table-column>
+              <el-table-column label="已用" width="90">
+                <template #default="{ row }">{{ row.used }}</template>
+              </el-table-column>
+              <el-table-column label="上限" width="90">
+                <template #default="{ row }">{{ row.limit === -1 ? '不限' : row.limit }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }">
+                  <StatusTag v-if="row.exceeded" status="逾期" label="超限" />
+                  <StatusTag v-else status="达标" label="正常" />
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无用量数据" :image-size="60" />
+          </div>
 
           <el-descriptions class="detail__block" title="当前订阅" :column="1" border>
             <template v-if="detail.subscription">
@@ -157,9 +184,10 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Refresh, Switch } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { tenantApi, planApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
+import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
+import { TOKEN_KEY } from '@/store/user'
 
 const loading = ref(false)
 const rows = ref([])
@@ -271,6 +299,7 @@ async function changeStatus(row, status) {
 const detailDrawer = ref(false)
 const detailLoading = ref(false)
 const detail = reactive({})
+const usage = ref([])
 const subForm = reactive({ planId: '', startAt: '', expireAt: '', remark: '' })
 const subSaving = ref(false)
 let currentId = null
@@ -281,12 +310,49 @@ async function openDetail(row) {
   detailLoading.value = true
   Object.keys(detail).forEach((k) => delete detail[k])
   Object.assign(subForm, { planId: '', startAt: '', expireAt: '', remark: '' })
+  usage.value = []
   try {
     if (!plans.value.length) plans.value = await planApi.list()
-    Object.assign(detail, await tenantApi.get(row.id))
+    const [info, usageRows] = await Promise.all([tenantApi.get(row.id), tenantApi.usage(row.id)])
+    Object.assign(detail, info)
+    usage.value = usageRows || []
     if (detail.subscription?.planId) subForm.planId = detail.subscription.planId
   } finally {
     detailLoading.value = false
+  }
+}
+
+/* ===== 模拟登录（高敏感，二次确认 + 审计）===== */
+async function impersonate() {
+  try {
+    await ElMessageBox.confirm(
+      '这是高敏感操作：将以该租户用户身份进入租户应用，操作会被审计。确认继续？',
+      '模拟登录',
+      { type: 'warning', confirmButtonText: '确认进入', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  const res = await tenantApi.impersonate(currentId)
+  // 短时租户令牌写入租户应用 token（与运营台 token 隔离），再新标签页打开租户应用
+  localStorage.setItem(TOKEN_KEY, res.token)
+  window.open('/', '_blank')
+  ElMessage.success('已生成模拟登录令牌，已在新标签页打开租户应用')
+}
+
+/* ===== 刷新用量（手动触发全量快照）===== */
+const snapshotLoading = ref(false)
+async function refreshUsage() {
+  snapshotLoading.value = true
+  try {
+    const count = await usageApi.snapshot()
+    ElMessage.success(`用量快照已刷新，共处理 ${count} 个租户`)
+    // 若当前正打开详情，重拉该租户用量
+    if (detailDrawer.value && currentId) {
+      usage.value = (await tenantApi.usage(currentId)) || []
+    }
+  } finally {
+    snapshotLoading.value = false
   }
 }
 async function saveSubscription() {
@@ -331,6 +397,11 @@ onMounted(load)
   display: flex;
   justify-content: flex-end;
   margin-top: var(--mido-space-4);
+}
+.detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--mido-space-4);
 }
 .detail__block {
   margin-top: var(--mido-space-5);

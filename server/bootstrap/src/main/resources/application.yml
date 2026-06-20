@@ -56,6 +56,8 @@ mido:
   jwt:
     secret: ${MIDO_JWT_SECRET:mido-pm-default-secret-key-please-change-in-prod}
     ttl-millis: 86400000
+    # 模拟登录令牌有效期（默认 30 分钟），平台运营进租户排障用
+    impersonation-ttl-millis: ${MIDO_IMPERSONATION_TTL:1800000}
   # 平台运营后台 JWT（独立密钥，与租户 SSO 物理隔离），生产必须覆盖；默认有效期 12h
   platform:
     jwt:

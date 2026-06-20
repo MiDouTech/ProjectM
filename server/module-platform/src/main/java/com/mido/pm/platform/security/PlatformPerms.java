@@ -13,6 +13,8 @@ public final class PlatformPerms {
     public static final String TENANT_QUERY = "platform:tenant:query";
     /** 租户管理（开通/编辑/停用/启用/续期） */
     public static final String TENANT_MANAGE = "platform:tenant:manage";
+    /** 模拟登录进租户排障（高敏感） */
+    public static final String TENANT_IMPERSONATE = "platform:tenant:impersonate";
 
     /** 套餐与配额查询 */
     public static final String PLAN_QUERY = "platform:plan:query";

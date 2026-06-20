@@ -25,6 +25,15 @@ export const tenantApi = {
   update: (id, data) => request.put(`/platform/tenants/${id}`, data),
   changeStatus: (id, data) => request.put(`/platform/tenants/${id}/status`, data),
   bindSubscription: (id, data) => request.post(`/platform/tenants/${id}/subscription`, data),
+  // 用量 vs 配额：[{resource, used, limit, exceeded, snapshotTime}]，limit=-1 表示不限
+  usage: (id) => request.get(`/platform/tenants/${id}/usage`),
+  // 模拟登录：返回短时租户令牌 {token, tokenType, expiresIn, tenantId, tenantCode, targetUserId}
+  impersonate: (id) => request.post(`/platform/tenants/${id}/impersonate`),
+}
+
+/** 用量快照（手动触发全量，返回处理租户数）*/
+export const usageApi = {
+  snapshot: () => request.post('/platform/usage/snapshot'),
 }
 
 /** 套餐管理 */

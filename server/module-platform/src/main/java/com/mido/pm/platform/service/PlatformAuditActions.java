@@ -6,6 +6,7 @@ public final class PlatformAuditActions {
     public static final String TENANT_CREATED = "tenant_created";
     public static final String TENANT_UPDATED = "tenant_updated";
     public static final String TENANT_STATUS_CHANGED = "tenant_status_changed";
+    public static final String TENANT_IMPERSONATED = "tenant_impersonated";
     public static final String SUBSCRIPTION_SAVED = "subscription_saved";
     public static final String PLAN_SAVED = "plan_saved";
     public static final String PLAN_DELETED = "plan_deleted";

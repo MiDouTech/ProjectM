@@ -85,8 +85,15 @@ erDiagram
 - **种子账号**：平台超管 `superadmin / superadmin123`（BCrypt；生产必须改密码并覆盖 `MIDO_PLATFORM_JWT_SECRET`）。
 - **计费**：阶段一**线下收款**，`price` 仅作参考价，不接支付网关。
 
-## 5. 路线图
+## 5. P1 能力（已交付）
 
-- **P0（本期已交付）**：平台域建模 + 独立认证 + 租户管理 + 套餐配额 + 订阅 + 运营概览 + 平台 RBAC + 运营审计 + 独立运营台前端。
-- **P1**：用量统计（定时快照 user/project/storage/task）+ 配额强制校验 + **租户侧从 JWT 解析真实 `tenant_id` 替换固定值、多租户登录隔离打通（全模块回归）** + 模拟登录 impersonation。
-- **P2**：公告/通知模板、按套餐下发功能开关、工单客服、开放平台 API Key、数据导出/注销合规、线下收入/合同台账报表。
+- **多租户登录隔离**：租户侧从固定 `tenant_id=1` 切换为按 JWT 真实租户解析（`TenantContextFilter` 设基线，`JwtAuthenticationFilter` 按令牌租户声明覆盖）。每租户独立用户命名空间（`uk_user_tenant_phone`），登录按租户编码 + 账号定位（`tenantCode` 缺省回落自用租户）。
+- **用量统计**：`UsageContributor` 端口由各业务域实现（user/project/task/storage_mb），平台 `PlatformUsageService` 经 `PlatformTenantScope` 切租户聚合，每日定时快照（`PlatformUsageScheduler`，cron 可配）+ 手动触发；运营台「用量 vs 配额」展示与超限标记。
+- **配额强制**：`QuotaGuard` 端口（平台实现，读当前租户生效订阅配额），建成员/项目时硬校验超限拦截；task/storage 当前仅统计预警不硬卡。
+- **模拟登录**：运营经 `POST /platform/tenants/{id}/impersonate` 以租户主用户身份签发**短时**租户令牌（默认 30min，携带 `imp` 声明），完整权限、全程审计。
+
+> 端口均落在 `common`（`TenantDirectory`/`TenantUserLocator`/`QuotaGuard`/`UsageContributor`），实现分散在 platform/org/project/task/doc，保持模块无环（业务域不反向依赖 platform）。
+
+## 6. 路线图（P2）
+
+公告/通知模板、按套餐下发功能开关、工单客服、开放平台 API Key、数据导出/注销合规、线下收入/合同台账报表；模拟登录可进一步收敛为只读模式或更细的范围限权。

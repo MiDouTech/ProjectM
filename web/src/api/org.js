@@ -2,6 +2,7 @@ import request from './request'
 
 /** 认证（Step 1-2） */
 export const authApi = {
+  // tenantCode 可选（多租户登录隔离）：留空时后端回落自用租户，行为与原先一致。
   login: (data) => request.post('/auth/login', data),
 }
 

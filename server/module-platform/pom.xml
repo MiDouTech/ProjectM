@@ -20,6 +20,11 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <!-- 模拟登录需经租户 SsoProvider 签发租户令牌（provider 不反向依赖 platform，无环） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>provider</artifactId>
+        </dependency>
 
         <!-- 平台账号独立 JWT（与租户 SSO 物理隔离，独立密钥） -->
         <dependency>

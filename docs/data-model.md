@@ -209,7 +209,13 @@ CREATE TABLE sys_platform_role_perm (id BIGINT PRIMARY KEY, role_id BIGINT, perm
 CREATE TABLE sys_platform_audit_log (     -- 平台运营审计(追加写,无逻辑删除)
   id BIGINT PRIMARY KEY, admin_id BIGINT, action VARCHAR(64), target VARCHAR(32), target_id BIGINT,
   detail TEXT, ip VARCHAR(64), create_time DATETIME, KEY idx_target(target,target_id));
+CREATE TABLE sys_tenant_quota_usage (     -- 租户用量快照(P1)，每(tenant,resource)一行，定时任务 upsert
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, resource VARCHAR(32) NOT NULL, -- user/project/task/storage_mb
+  used_value BIGINT DEFAULT 0, snapshot_time DATETIME, UNIQUE KEY uk_usage_tenant_res(tenant_id, resource));
 ```
+
+> P1 多租户登录隔离：`sys_user` 唯一约束由【全局唯一手机号 uk_user_phone】改为【租户内唯一 uk_user_tenant_phone(tenant_id, phone)】（V29）。
+> 登录令牌携带租户声明（tid），登录按租户编码 + 账号定位用户；模拟登录令牌额外携带 imp（发起运营账号）声明。
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`

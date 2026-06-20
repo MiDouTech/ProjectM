@@ -2,13 +2,17 @@ package com.mido.pm.platform.controller;
 
 import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.api.R;
+import com.mido.pm.platform.dto.ImpersonateVO;
 import com.mido.pm.platform.dto.TenantCreateDTO;
 import com.mido.pm.platform.dto.TenantDetailVO;
 import com.mido.pm.platform.dto.TenantQueryDTO;
 import com.mido.pm.platform.dto.TenantStatusDTO;
 import com.mido.pm.platform.dto.TenantUpdateDTO;
+import com.mido.pm.platform.dto.TenantUsageVO;
 import com.mido.pm.platform.dto.TenantVO;
 import com.mido.pm.platform.security.PlatformPerms;
+import com.mido.pm.platform.service.PlatformImpersonationService;
+import com.mido.pm.platform.service.PlatformUsageService;
 import com.mido.pm.platform.service.TenantAdminService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,15 +24,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 租户管理：开通/编辑/状态流转/详情。 */
+import java.util.List;
+
+/** 租户管理：开通/编辑/状态流转/详情/用量/模拟登录。 */
 @RestController
 @RequestMapping("/api/v1/platform/tenants")
 public class TenantAdminController {
 
     private final TenantAdminService tenantService;
+    private final PlatformUsageService usageService;
+    private final PlatformImpersonationService impersonationService;
 
-    public TenantAdminController(TenantAdminService tenantService) {
+    public TenantAdminController(TenantAdminService tenantService, PlatformUsageService usageService,
+                                 PlatformImpersonationService impersonationService) {
         this.tenantService = tenantService;
+        this.usageService = usageService;
+        this.impersonationService = impersonationService;
     }
 
     @PreAuthorize("hasAuthority('" + PlatformPerms.TENANT_QUERY + "')")
@@ -61,5 +72,19 @@ public class TenantAdminController {
     public R<Void> changeStatus(@PathVariable Long id, @Valid @RequestBody TenantStatusDTO dto) {
         tenantService.changeStatus(id, dto);
         return R.ok();
+    }
+
+    /** 租户用量（用量 vs 套餐配额，含是否超限）。 */
+    @PreAuthorize("hasAuthority('" + PlatformPerms.TENANT_QUERY + "')")
+    @GetMapping("/{id}/usage")
+    public R<List<TenantUsageVO>> usage(@PathVariable Long id) {
+        return R.ok(usageService.usageOf(id));
+    }
+
+    /** 模拟登录进租户排障：返回短时租户令牌（高敏感，全程审计）。 */
+    @PreAuthorize("hasAuthority('" + PlatformPerms.TENANT_IMPERSONATE + "')")
+    @PostMapping("/{id}/impersonate")
+    public R<ImpersonateVO> impersonate(@PathVariable Long id) {
+        return R.ok(impersonationService.impersonate(id));
     }
 }
