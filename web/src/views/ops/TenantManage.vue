@@ -125,6 +125,50 @@
             <el-empty v-else description="暂无用量数据" :image-size="60" />
           </div>
 
+          <div class="detail__block">
+            <div class="detail__sub-title detail__sub-title--bar">
+              <span>数据导出</span>
+              <el-button type="primary" plain size="small" :icon="Download"
+                :loading="exportRequesting" @click="requestExport">发起导出</el-button>
+            </div>
+            <el-table v-if="exports.length" :data="exports" size="small" border>
+              <el-table-column label="创建时间" min-width="160">
+                <template #default="{ row }">{{ row.createTime || '—' }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }">
+                  <StatusTag :status="row.status" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default="{ row }">
+                  <el-button v-if="row.status === 'done' && row.fileReady" link type="primary"
+                    @click="downloadExport(row)">下载</el-button>
+                  <el-tooltip v-else-if="row.status === 'failed' && row.error"
+                    :content="row.error" placement="top">
+                    <span class="detail__error">查看错误</span>
+                  </el-tooltip>
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无导出任务" :image-size="60" />
+          </div>
+
+          <div class="detail__block">
+            <div class="detail__sub-title">注销合规</div>
+            <el-alert v-if="detail.purgeScheduledAt" type="error" :closable="false" show-icon
+              :title="`已注销，计划清除时间：${detail.purgeScheduledAt}`"
+              description="该租户处于注销宽限期，到期后数据将被物理清除。" />
+            <div class="detail__deletion">
+              <el-button v-if="detail.purgeScheduledAt" type="warning"
+                :loading="deletionLoading" @click="cancelDeletion">取消注销</el-button>
+              <el-button v-else-if="String(detail.id) !== '1'" type="danger"
+                :loading="deletionLoading" @click="requestDeletion">注销租户</el-button>
+              <span v-else class="detail__hint">自用租户不可注销</span>
+            </div>
+          </div>
+
           <el-descriptions class="detail__block" title="当前订阅" :column="1" border>
             <template v-if="detail.subscription">
               <el-descriptions-item label="套餐">{{ detail.subscription.planName }}</el-descriptions-item>
@@ -184,7 +228,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Switch } from '@element-plus/icons-vue'
+import { Plus, Refresh, Switch, Download } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
@@ -302,6 +346,9 @@ const detail = reactive({})
 const usage = ref([])
 const subForm = reactive({ planId: '', startAt: '', expireAt: '', remark: '' })
 const subSaving = ref(false)
+const exports = ref([])
+const exportRequesting = ref(false)
+const deletionLoading = ref(false)
 let currentId = null
 
 async function openDetail(row) {
@@ -311,14 +358,88 @@ async function openDetail(row) {
   Object.keys(detail).forEach((k) => delete detail[k])
   Object.assign(subForm, { planId: '', startAt: '', expireAt: '', remark: '' })
   usage.value = []
+  exports.value = []
   try {
     if (!plans.value.length) plans.value = await planApi.list()
-    const [info, usageRows] = await Promise.all([tenantApi.get(row.id), tenantApi.usage(row.id)])
+    const [info, usageRows, exportRows] = await Promise.all([
+      tenantApi.get(row.id),
+      tenantApi.usage(row.id),
+      tenantApi.exports(row.id),
+    ])
     Object.assign(detail, info)
     usage.value = usageRows || []
+    exports.value = exportRows || []
     if (detail.subscription?.planId) subForm.planId = detail.subscription.planId
   } finally {
     detailLoading.value = false
+  }
+}
+
+/* ===== 数据导出 ===== */
+async function loadExports() {
+  exports.value = (await tenantApi.exports(currentId)) || []
+}
+async function requestExport() {
+  exportRequesting.value = true
+  try {
+    await tenantApi.requestExport(currentId)
+    ElMessage.success('已发起导出，任务处理中')
+    await loadExports()
+  } finally {
+    exportRequesting.value = false
+  }
+}
+async function downloadExport(row) {
+  const res = await tenantApi.exportDownload(currentId, row.id)
+  if (res?.url) {
+    window.open(res.url, '_blank')
+  } else {
+    ElMessage.warning('下载链接暂不可用')
+  }
+}
+
+/* ===== 注销合规（高危，二次确认）===== */
+async function refreshDetail() {
+  Object.assign(detail, await tenantApi.get(currentId))
+}
+async function requestDeletion() {
+  try {
+    await ElMessageBox.confirm(
+      `这是高危操作：将停用租户「${detail.name}」，并在宽限期（默认 30 天）结束后【物理清除】其全部数据，不可恢复。确认发起注销？`,
+      '注销租户',
+      { type: 'warning', confirmButtonText: '确认注销', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' },
+    )
+  } catch {
+    return
+  }
+  deletionLoading.value = true
+  try {
+    await tenantApi.requestDeletion(currentId)
+    ElMessage.success('已发起注销，进入宽限期')
+    await refreshDetail()
+    load()
+  } finally {
+    deletionLoading.value = false
+  }
+}
+async function cancelDeletion() {
+  try {
+    await ElMessageBox.confirm(
+      `确认取消租户「${detail.name}」的注销流程？取消后将不再物理清除数据。`,
+      '取消注销',
+      { type: 'warning', confirmButtonText: '确认取消注销', cancelButtonText: '返回' },
+    )
+  } catch {
+    return
+  }
+  deletionLoading.value = true
+  try {
+    await tenantApi.cancelDeletion(currentId)
+    ElMessage.success('已取消注销')
+    await refreshDetail()
+    load()
+  } finally {
+    deletionLoading.value = false
   }
 }
 
@@ -411,5 +532,20 @@ onMounted(load)
   font-size: var(--mido-font-size-h2);
   font-weight: var(--mido-font-weight-bold);
   color: var(--el-text-color-primary);
+}
+.detail__sub-title--bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.detail__error {
+  color: var(--el-color-danger);
+  cursor: pointer;
+}
+.detail__deletion {
+  margin-top: var(--mido-space-3);
+}
+.detail__hint {
+  color: var(--el-text-color-secondary);
 }
 </style>

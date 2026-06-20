@@ -101,8 +101,14 @@ erDiagram
 - **功能开关按套餐下发**：`sys_plan_feature` 配 plan→功能码（FeatureCodes：gantt/okr/npss/doc/cost/report/change/openapi）；租户侧 `GET /api/v1/features` 取启用项做前端门控（未订阅/未配置 fail-open 全启用）。
 - **模拟登录只读**：令牌 `imp` 声明经 `CurrentUser.impersonatedBy` 透传，`ImpersonationReadOnlyInterceptor` 拦截模拟态下的写操作（仅放行 GET/HEAD/OPTIONS）——收敛了 P1 的完整权限模拟。
 
-## 7. 路线图（P2.2，下一批）
+## 7. P2.2 能力（已交付）
 
-- **开放平台 API Key**：key 绑定用户、可访问全量 `/api/v1`（按该用户权限/数据范围），独立 ApiKey 鉴权过滤器。
-- **数据导出/注销合规**：注销发起→标记 closed→记录计划清除时间（默认 30 天）→定时清除；核心域（项目/任务/成员/目标）异步 JSON 导出打包。
-- 工单客服、合同台账报表等运营增强。
+- **开放平台 API Key**（P2.2a）：`sys_api_key`(V34) 租户业务表，key 绑定用户、SHA-256 存储仅前缀展示；`ApiKeyAuthenticationFilter`（租户链置于 JWT 前）读 `X-API-Key` → 以绑定用户身份访问全量 `/api/v1`（继承其权限/数据范围）；租户 `/admin` 下管理页，明文一次性展示。
+- **数据导出**（P2.2b）：`TenantDataExporter` 端口（org/project/task/goal 实现核心域），`sys_tenant_export`(V35) 异步任务 + `PlatformMaintenanceScheduler` 定时处理 → JSON 写对象存储 → 下载走限时预签名 URL（不外泄 key）。
+- **注销合规**（P2.2b）：发起注销→标记 `closed` + `purge_scheduled_at`（默认 30 天宽限，可取消）；定时任务对到期租户经 `TenantDataPurger` 端口（org/project/task/goal 物理删除）清除数据并标记 `purged`；**自用租户（tenant_id=1）永不注销/清除**。
+
+> 端口续用 common 下沉模式（`TenantDataExporter`/`TenantDataPurger`），实现分散业务域，platform 仅编排，模块无环。
+
+## 8. 路线图（后续）
+
+工单客服、合同台账报表、按套餐更细粒度的功能/接口配额；模拟登录可再细化范围限权；多租户分库分表（ShardingSphere）按规模启用。

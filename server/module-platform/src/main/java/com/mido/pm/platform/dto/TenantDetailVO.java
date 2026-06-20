@@ -17,6 +17,7 @@ public record TenantDetailVO(
         String remark,
         LocalDateTime activatedAt,
         LocalDateTime expireAt,
+        LocalDateTime purgeScheduledAt,
         LocalDateTime createTime,
         SubscriptionVO subscription,
         List<QuotaVO> quotas) {

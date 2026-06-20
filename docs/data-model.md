@@ -227,6 +227,12 @@ CREATE TABLE sys_announcement (           -- 平台公告(status=draft/published
 CREATE TABLE sys_plan_feature (           -- 套餐功能开关(feature_code 取自 FeatureCodes)
   id BIGINT PRIMARY KEY, plan_id BIGINT NOT NULL, feature_code VARCHAR(32) NOT NULL,
   enabled TINYINT DEFAULT 1, KEY idx_pf_plan(plan_id));
+-- P2.2 注销合规 + 数据导出
+-- sys_tenant 追加列 purge_scheduled_at DATETIME(注销清除计划时间)。
+CREATE TABLE sys_tenant_export (          -- 租户数据导出任务(异步: pending→processing→done/failed)
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, status VARCHAR(16) DEFAULT 'pending',
+  file_key VARCHAR(512), error VARCHAR(512), requested_by BIGINT,
+  KEY idx_export_tenant(tenant_id), KEY idx_export_status(status));
 ```
 
 > P1 多租户登录隔离：`sys_user` 唯一约束由【全局唯一手机号 uk_user_phone】改为【租户内唯一 uk_user_tenant_phone(tenant_id, phone)】（V29）。

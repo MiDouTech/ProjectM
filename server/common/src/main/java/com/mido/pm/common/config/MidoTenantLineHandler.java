@@ -28,6 +28,7 @@ public class MidoTenantLineHandler implements TenantLineHandler {
             "sys_revenue_record",
             "sys_announcement",
             "sys_plan_feature",
+            "sys_tenant_export",
             "sys_platform_admin",
             "sys_platform_role",
             "sys_platform_admin_role",

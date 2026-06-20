@@ -47,6 +47,10 @@ const STATUS_TYPE = {
   payment: 'success', refund: 'danger',
   // 平台公告：级别 info/warning + 状态 draft/published（待回写 design-system §1.5 登记）
   info: 'info', warning: 'warning', draft: 'info', published: 'success',
+  // 平台运营后台：租户数据导出任务状态（待回写 design-system §1.5 登记）
+  pending: 'info', processing: 'warning', done: 'success', failed: 'danger',
+  // 平台运营后台：租户注销后物理清除状态（待回写 design-system §1.5 登记）
+  purged: 'info',
 }
 
 // 英文状态码 → 中文展示文案。命中则显示中文，否则原样回显 status
@@ -59,6 +63,10 @@ const STATUS_LABEL = {
   payment: '收款', refund: '退款',
   // 公告级别 / 状态
   info: '通知', warning: '警告', draft: '草稿', published: '已发布',
+  // 租户数据导出任务状态
+  pending: '待处理', processing: '处理中', done: '已完成', failed: '失败',
+  // 租户注销后物理清除状态
+  purged: '已清除',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')

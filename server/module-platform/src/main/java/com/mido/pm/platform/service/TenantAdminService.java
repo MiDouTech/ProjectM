@@ -69,7 +69,7 @@ public class TenantAdminService {
         List<QuotaVO> quotas = sub == null ? List.of() : planService.get(sub.planId()).quotas();
         return new TenantDetailVO(t.getId(), t.getCode(), t.getName(), t.getStatus(), t.getIndustry(),
                 t.getContactName(), t.getContactPhone(), t.getContactEmail(), t.getSource(), t.getRemark(),
-                t.getActivatedAt(), t.getExpireAt(), t.getCreateTime(), sub, quotas);
+                t.getActivatedAt(), t.getExpireAt(), t.getPurgeScheduledAt(), t.getCreateTime(), sub, quotas);
     }
 
     @Transactional(rollbackFor = Exception.class)

@@ -29,7 +29,25 @@ export const tenantApi = {
   usage: (id) => request.get(`/platform/tenants/${id}/usage`),
   // 模拟登录：返回短时租户令牌 {token, tokenType, expiresIn, tenantId, tenantCode, targetUserId}
   impersonate: (id) => request.post(`/platform/tenants/${id}/impersonate`),
+  // 数据导出：发起导出，返回 exportId(字符串)
+  requestExport: (id) => request.post(`/platform/tenants/${id}/export`),
+  // 导出任务列表：[{id,tenantId,status,fileReady,error,createTime,updateTime}]
+  exports: (id) => request.get(`/platform/tenants/${id}/exports`),
+  // 导出下载：返回 {url}（限时预签名）
+  exportDownload: (id, exportId) => request.get(`/platform/tenants/${id}/exports/${exportId}/download`),
+  // 发起注销：可选 graceDays，缺省后端默认 30 天
+  requestDeletion: (id, graceDays) => request.post(`/platform/tenants/${id}/deletion`, null, { params: graceDays ? { graceDays } : {} }),
+  // 取消注销
+  cancelDeletion: (id) => request.post(`/platform/tenants/${id}/deletion/cancel`),
 }
+
+/** 导出任务状态 */
+export const EXPORT_STATUS = [
+  { value: 'pending', label: '待处理' },
+  { value: 'processing', label: '处理中' },
+  { value: 'done', label: '已完成' },
+  { value: 'failed', label: '失败' },
+]
 
 /** 用量快照（手动触发全量，返回处理租户数）*/
 export const usageApi = {

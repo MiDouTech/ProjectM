@@ -7,6 +7,10 @@ public final class PlatformAuditActions {
     public static final String TENANT_UPDATED = "tenant_updated";
     public static final String TENANT_STATUS_CHANGED = "tenant_status_changed";
     public static final String TENANT_IMPERSONATED = "tenant_impersonated";
+    public static final String TENANT_EXPORT_REQUESTED = "tenant_export_requested";
+    public static final String TENANT_DELETION_REQUESTED = "tenant_deletion_requested";
+    public static final String TENANT_DELETION_CANCELLED = "tenant_deletion_cancelled";
+    public static final String TENANT_PURGED = "tenant_purged";
     public static final String SUBSCRIPTION_SAVED = "subscription_saved";
     public static final String PLAN_SAVED = "plan_saved";
     public static final String PLAN_DELETED = "plan_deleted";

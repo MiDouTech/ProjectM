@@ -27,6 +27,8 @@ public class SysTenant extends PlatformBaseEntity {
     private LocalDateTime activatedAt;
     /** 到期时间（与订阅同步，空表示不限期，如自用租户） */
     private LocalDateTime expireAt;
+    /** 注销宽限期满后的计划清除时间（注销合规）；空表示未进入注销流程 */
+    private LocalDateTime purgeScheduledAt;
     private String remark;
 
     public String getCode() {
@@ -115,6 +117,14 @@ public class SysTenant extends PlatformBaseEntity {
 
     public void setExpireAt(LocalDateTime expireAt) {
         this.expireAt = expireAt;
+    }
+
+    public LocalDateTime getPurgeScheduledAt() {
+        return purgeScheduledAt;
+    }
+
+    public void setPurgeScheduledAt(LocalDateTime purgeScheduledAt) {
+        this.purgeScheduledAt = purgeScheduledAt;
     }
 
     public String getRemark() {
