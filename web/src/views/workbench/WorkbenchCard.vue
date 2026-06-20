@@ -9,24 +9,24 @@
         </div>
         <div class="wc__ops">
           <el-button link :icon="Refresh" aria-label="刷新" @click="load" />
-          <el-button link :icon="Close" aria-label="关闭卡片" @click="$emit('remove', card.id)" />
+          <el-button v-if="!card.basic" link :icon="Close" aria-label="关闭卡片" @click="$emit('remove', card.id)" />
         </div>
       </div>
     </template>
 
     <div v-loading="loading" class="wc__body">
-      <!-- 我参与的项目 -->
-      <template v-if="card.type === 'projects'">
+      <!-- 我参与的项目 / 待我验收的项目 -->
+      <template v-if="card.type === 'projects' || card.type === 'pendingVerify'">
         <div v-for="p in items" :key="p.id" class="wc__row" role="button" tabindex="0"
-          @click="$router.push('/project')" @keyup.enter="$router.push('/project')">
+          @click="$router.push(projectRoute(p))" @keyup.enter="$router.push(projectRoute(p))">
           <CategoryBadge :category="p.category" :show-label="false" />
           <span class="wc__row-main">{{ p.name }}</span>
           <StatusTag :status="p.status" />
         </div>
       </template>
 
-      <!-- 我负责的任务 -->
-      <template v-else-if="card.type === 'tasks'">
+      <!-- 我负责的任务 / 逾期任务预警 -->
+      <template v-else-if="card.type === 'tasks' || card.type === 'overdueTasks'">
         <div v-for="t in items" :key="t.id" class="wc__row" role="button" tabindex="0"
           @click="$router.push(`/project/${t.projectId}/tasks`)" @keyup.enter="$router.push(`/project/${t.projectId}/tasks`)">
           <span class="wc__row-main">{{ t.title }}</span>
@@ -93,9 +93,21 @@ const userId = useUserStore().userId
 // 各卡片类型的数据加载器（统一返回数组或分页 {list}，由 load 归一）
 const LOADERS = {
   projects: () => projectApi.mine(),
+  // 待我验收：我参与的项目中处于「结果验收」态的（前端过滤，复用既有接口）
+  pendingVerify: async () => (await projectApi.mine() || []).filter((p) => p.status === '结果验收'),
   approvals: () => approvalApi.mine(),
   tasks: () => taskApi.query({ page: 1, size: 50, assigneeId: userId }),
+  // 逾期任务预警：我负责的任务中已逾期的（前端按 isTaskOverdue 过滤，复用既有接口）
+  overdueTasks: async () => {
+    const res = await taskApi.query({ page: 1, size: 50, assigneeId: userId })
+    return (res.list || []).filter((t) => isTaskOverdue(t))
+  },
   notifications: () => notificationApi.list({ page: 1, size: 50, unread: true }),
+}
+
+// 项目卡行跳转：待我验收卡直达项目验收，其余进项目列表
+function projectRoute(p) {
+  return props.card.type === 'pendingVerify' ? `/project/${p.id}` : '/project'
 }
 
 const count = computed(() => items.value.length)
