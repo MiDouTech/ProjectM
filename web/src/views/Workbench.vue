@@ -52,33 +52,46 @@ import { ElMessage } from 'element-plus'
 import WorkbenchCard from './workbench/WorkbenchCard.vue'
 import { workbenchApi } from '@/api/workbench'
 
-// 卡片目录（design-system §7-C 默认卡）
+// 卡片目录（design-system §7-C）。basic=基础卡片：始终存在、不可移除。
 const CATALOG = [
   { id: 'myProjects', group: '项目', title: '我参与的项目', type: 'projects' },
+  { id: 'pendingVerify', group: '项目', title: '待我验收的项目', type: 'pendingVerify' },
   { id: 'myApprovals', group: '审批', title: '待我审批的立项', type: 'approvals' },
-  { id: 'myTasks', group: '任务', title: '我负责的任务', type: 'tasks' },
-  { id: 'myNotifications', group: '通知', title: '我的未读通知', type: 'notifications' },
+  { id: 'myTasks', group: '任务', title: '我负责的任务', type: 'tasks', basic: true },
+  { id: 'overdueTasks', group: '任务', title: '逾期任务预警', type: 'overdueTasks' },
+  { id: 'myNotifications', group: '通知', title: '我的未读通知', type: 'notifications', basic: true },
 ]
 const catalogMap = Object.fromEntries(CATALOG.map((c) => [c.id, c]))
+// 基础卡片 id（始终存在、不可移除）
+const BASIC_IDS = CATALOG.filter((c) => c.basic).map((c) => c.id)
+// 默认布局：保持原有四张，新增卡片默认不开启（不破坏既有体验，可经「添加卡片」加入）
+const DEFAULT_IDS = ['myProjects', 'myApprovals', 'myTasks', 'myNotifications']
 const grouped = computed(() => {
   const g = {}
   CATALOG.forEach((c) => { (g[c.group] ||= []).push(c) })
   return g
 })
 
-// 已启用卡片（有序，持久化到 pm_view）；默认全部
-const enabled = ref(CATALOG.map((c) => c.id))
+// 确保基础卡片始终在列（缺失则补到最前），并保留原有顺序、去重
+function withBasics(ids) {
+  const present = ids.filter((id) => catalogMap[id])
+  const missingBasics = BASIC_IDS.filter((id) => !present.includes(id))
+  return [...missingBasics, ...present]
+}
+
+// 已启用卡片（有序，持久化到 pm_view）；默认含基础卡片
+const enabled = ref(withBasics(DEFAULT_IDS))
 // 用户在加载完成前就改动过 → 不让慢到的初始加载覆盖其改动
 let userEdited = false
 
-// 从后端布局加载；未保存过(cards=null)用默认；过滤已下线卡片 id
+// 从后端布局加载；未保存过(cards=null)用默认；过滤已下线卡片 id；强制补齐基础卡片
 onMounted(async () => {
   try {
     const layout = await workbenchApi.getLayout()
     const saved = layout?.cards
-    // null=未保存过(用默认)；数组(含空)=用户已保存的布局，按目录过滤下线卡片
+    // null=未保存过(用默认)；数组(含空)=用户已保存的布局，按目录过滤下线卡片并补基础卡片
     if (Array.isArray(saved) && !userEdited) {
-      enabled.value = saved.filter((id) => catalogMap[id])
+      enabled.value = withBasics(saved)
     }
   } catch {
     // 加载失败时保留默认布局（请求层已提示），不抛未处理异常
@@ -115,6 +128,8 @@ function confirmAdd() {
   persist()
 }
 function removeCard(id) {
+  // 基础卡片不可移除（双保险：卡片侧已隐藏关闭按钮）
+  if (BASIC_IDS.includes(id)) return
   enabled.value = enabled.value.filter((x) => x !== id)
   persist()
 }
