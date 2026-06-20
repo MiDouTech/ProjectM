@@ -68,3 +68,16 @@ server/
 - 小步生成、逐层审查：DDL→Entity/Mapper→Service(+测试)→Controller→Swagger→Vue API→Vue 页面。
 - 每完成一个模块跑一次构建与测试；每 2–3 模块 `/compact` 压上下文、`/review` 审变更。
 - 不确定就停下问人，不要猜架构。
+
+## Agent skills
+
+> 供 mattpocock 系列工程 skill（`to-prd` / `triage` / `improve-codebase-architecture` 等）读取的本仓库配置。详见 `docs/agents/*`。
+
+### Issue tracker
+issue/PRD 记录在 **GitHub Issues**（仓库 `MiDouTech/ProjectM`）；外部 PR **不**作为请求面。本地用 `gh` CLI；Claude Code web 会话无 `gh`，改走 **GitHub MCP**（`mcp__github__*`，限 `midoutech/projectm`）。见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+默认五态：`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`。见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+单 context：根目录 `CONTEXT.md` + `docs/adr/`（暂未建，按需由 `domain-modeling` 懒创建）。现有领域术语事实源：本文件 §6 命名与术语、`docs/data-model.md`、`docs/npss-rule.md`。见 `docs/agents/domain.md`。
