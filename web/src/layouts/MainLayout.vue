@@ -13,32 +13,10 @@
       </div>
       <div class="mido-topbar__spacer" />
       <div class="mido-topbar__actions">
-        <!-- 平台公告：有生效公告才显角标，点击弹出列表 -->
-        <el-popover placement="bottom-end" :width="360" trigger="click">
-          <template #reference>
-            <el-badge :value="announcements.length" :max="99" :hidden="!announcements.length" class="mido-topbar__bell">
-              <el-icon class="mido-topbar__icon" role="button" tabindex="0" aria-label="平台公告">
-                <BellFilled />
-              </el-icon>
-            </el-badge>
-          </template>
-          <div class="mido-anno">
-            <div class="mido-anno__title">平台公告</div>
-            <el-scrollbar v-if="announcements.length" max-height="320px">
-              <div v-for="a in announcements" :key="a.id" class="mido-anno__item">
-                <div class="mido-anno__head">
-                  <span class="mido-anno__name">{{ a.title }}</span>
-                  <StatusTag :status="a.level" />
-                </div>
-                <div class="mido-anno__content">{{ a.content }}</div>
-              </div>
-            </el-scrollbar>
-            <el-empty v-else description="暂无公告" :image-size="60" />
-          </div>
-        </el-popover>
-        <el-badge :value="unread" :max="99" :hidden="!unread" class="mido-topbar__bell">
+        <!-- 统一消息入口：系统消息未读 + 未看平台公告，合并角标，点击进消息中心 -->
+        <el-badge :value="totalUnread" :max="99" :hidden="!totalUnread" class="mido-topbar__bell">
           <el-icon class="mido-topbar__icon" role="button" tabindex="0"
-            :aria-label="unread ? `通知，${unread} 条未读` : '通知'"
+            :aria-label="totalUnread ? `消息中心，${totalUnread} 条未读` : '消息中心'"
             @click="goNotifications" @keydown.enter="goNotifications" @keydown.space.prevent="goNotifications">
             <Bell />
           </el-icon>
@@ -86,14 +64,14 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Bell, BellFilled, Grid, Fold, Expand } from '@element-plus/icons-vue'
+import { Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
 import { notificationApi } from '@/api/collab'
 import { userApi } from '@/api/org'
 import { attachmentApi } from '@/api/attachment'
 import { appApi } from '@/api/app'
-import StatusTag from '@/components/StatusTag.vue'
+import { unseenCount } from '@/utils/announcements'
 
 const route = useRoute()
 const router = useRouter()
@@ -116,18 +94,25 @@ const visibleNavItems = computed(() =>
   }),
 )
 
-// 平台公告（当前生效），有则顶栏铃铛显角标
+// 平台公告（当前生效）：用于计算未看数并入消息徽标
 const announcements = ref([])
+const unseenAnno = ref(0)
+function recomputeUnseenAnno() {
+  unseenAnno.value = unseenCount(announcements.value, userStore.userId)
+}
 async function loadAnnouncements() {
   try {
     announcements.value = (await appApi.announcements()) || []
   } catch {
     announcements.value = []
   }
+  recomputeUnseenAnno()
 }
 
 // 顶栏未读数：进入应用 / 路由切换时刷新，并定时轮询；页面不可见时暂停以省资源。
+// 消息徽标 = 系统消息未读 + 未看平台公告（统一入口）。
 const unread = ref(0)
+const totalUnread = computed(() => unread.value + unseenAnno.value)
 const POLL_MS = 30000
 let pollTimer = null
 async function loadUnread() {
@@ -174,7 +159,11 @@ function onVisibility() {
     startPoll()
   }
 }
-watch(() => route.path, loadUnread)
+// 路由切换（尤其从消息中心返回）时刷新系统未读，并重算公告未看数，保持徽标同步
+watch(() => route.path, () => {
+  loadUnread()
+  recomputeUnseenAnno()
+})
 
 // 顶栏 logo：缺图时优雅回落到 Grid 图标
 const logoOk = ref(true)
@@ -335,37 +324,5 @@ function onUserCommand(command) {
   padding: var(--mido-space-5);
   overflow-y: auto;
   background-color: var(--el-bg-color-page);
-}
-
-/* 平台公告弹层 */
-.mido-anno__title {
-  margin-bottom: var(--mido-space-3);
-  font-size: var(--mido-font-size-h2);
-  font-weight: var(--mido-font-weight-bold);
-  color: var(--el-text-color-primary);
-}
-.mido-anno__item {
-  padding: var(--mido-space-3) 0;
-  border-bottom: var(--mido-border-width) solid var(--el-border-color-lighter);
-}
-.mido-anno__item:last-child {
-  border-bottom: none;
-}
-.mido-anno__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--mido-space-2);
-  margin-bottom: var(--mido-space-2);
-}
-.mido-anno__name {
-  font-weight: var(--mido-font-weight-bold);
-  color: var(--el-text-color-primary);
-}
-.mido-anno__content {
-  font-size: var(--mido-font-size-caption);
-  color: var(--el-text-color-regular);
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 </style>
