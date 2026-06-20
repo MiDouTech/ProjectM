@@ -94,6 +94,15 @@ erDiagram
 
 > 端口均落在 `common`（`TenantDirectory`/`TenantUserLocator`/`QuotaGuard`/`UsageContributor`），实现分散在 platform/org/project/task/doc，保持模块无环（业务域不反向依赖 platform）。
 
-## 6. 路线图（P2）
+## 6. P2.1 能力（已交付）
 
-公告/通知模板、按套餐下发功能开关、工单客服、开放平台 API Key、数据导出/注销合规、线下收入/合同台账报表；模拟登录可进一步收敛为只读模式或更细的范围限权。
+- **线下收入台账**：`sys_revenue_record` 流水 CRUD + 汇总（收款/退款/净额），运营台「收入台账」页。
+- **公告下发**：`sys_announcement` 运营建/发布；租户侧 `GET /api/v1/announcements` 读当前生效公告（走租户链），前端顶栏公告入口展示。
+- **功能开关按套餐下发**：`sys_plan_feature` 配 plan→功能码（FeatureCodes：gantt/okr/npss/doc/cost/report/change/openapi）；租户侧 `GET /api/v1/features` 取启用项做前端门控（未订阅/未配置 fail-open 全启用）。
+- **模拟登录只读**：令牌 `imp` 声明经 `CurrentUser.impersonatedBy` 透传，`ImpersonationReadOnlyInterceptor` 拦截模拟态下的写操作（仅放行 GET/HEAD/OPTIONS）——收敛了 P1 的完整权限模拟。
+
+## 7. 路线图（P2.2，下一批）
+
+- **开放平台 API Key**：key 绑定用户、可访问全量 `/api/v1`（按该用户权限/数据范围），独立 ApiKey 鉴权过滤器。
+- **数据导出/注销合规**：注销发起→标记 closed→记录计划清除时间（默认 30 天）→定时清除；核心域（项目/任务/成员/目标）异步 JSON 导出打包。
+- 工单客服、合同台账报表等运营增强。

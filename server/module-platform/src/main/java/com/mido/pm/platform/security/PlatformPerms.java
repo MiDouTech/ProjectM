@@ -32,6 +32,15 @@ public final class PlatformPerms {
     /** 运营审计查询 */
     public static final String AUDIT_QUERY = "platform:audit:query";
 
+    /** 线下收入台账查询 */
+    public static final String REVENUE_QUERY = "platform:revenue:query";
+    /** 线下收入台账管理 */
+    public static final String REVENUE_MANAGE = "platform:revenue:manage";
+    /** 公告管理 */
+    public static final String ANNOUNCEMENT_MANAGE = "platform:announcement:manage";
+    /** 套餐功能开关管理 */
+    public static final String FEATURE_MANAGE = "platform:feature:manage";
+
     private PlatformPerms() {
     }
 }

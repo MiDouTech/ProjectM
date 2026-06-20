@@ -13,6 +13,29 @@
       </div>
       <div class="mido-topbar__spacer" />
       <div class="mido-topbar__actions">
+        <!-- 平台公告：有生效公告才显角标，点击弹出列表 -->
+        <el-popover placement="bottom-end" :width="360" trigger="click">
+          <template #reference>
+            <el-badge :value="announcements.length" :max="99" :hidden="!announcements.length" class="mido-topbar__bell">
+              <el-icon class="mido-topbar__icon" role="button" tabindex="0" aria-label="平台公告">
+                <BellFilled />
+              </el-icon>
+            </el-badge>
+          </template>
+          <div class="mido-anno">
+            <div class="mido-anno__title">平台公告</div>
+            <el-scrollbar v-if="announcements.length" max-height="320px">
+              <div v-for="a in announcements" :key="a.id" class="mido-anno__item">
+                <div class="mido-anno__head">
+                  <span class="mido-anno__name">{{ a.title }}</span>
+                  <StatusTag :status="a.level" />
+                </div>
+                <div class="mido-anno__content">{{ a.content }}</div>
+              </div>
+            </el-scrollbar>
+            <el-empty v-else description="暂无公告" :image-size="60" />
+          </div>
+        </el-popover>
         <el-badge :value="unread" :max="99" :hidden="!unread" class="mido-topbar__bell">
           <el-icon class="mido-topbar__icon" role="button" tabindex="0"
             :aria-label="unread ? `通知，${unread} 条未读` : '通知'"
@@ -42,7 +65,7 @@
           background-color="transparent"
         >
           <el-menu-item
-            v-for="item in navItems"
+            v-for="item in visibleNavItems"
             :key="item.path"
             :index="item.path"
           >
@@ -63,17 +86,45 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
+import { Bell, BellFilled, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
 import { notificationApi } from '@/api/collab'
 import { userApi } from '@/api/org'
 import { attachmentApi } from '@/api/attachment'
+import { appApi } from '@/api/app'
+import StatusTag from '@/components/StatusTag.vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 // 高亮顶层导航（嵌套子路由如 /admin/members 也命中 /admin）
 const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'workbench'))
+
+// 顶级导航 → 功能码映射；未列出的项无对应功能码，始终显示。
+// features 为空（未取到）时 hasFeature 走 fail-open 默认全显示。
+const NAV_FEATURE_MAP = {
+  '/goal': 'okr',
+  '/doc': 'doc',
+  '/report': 'report',
+  '/change': 'change',
+}
+const visibleNavItems = computed(() =>
+  navItems.filter((item) => {
+    const code = NAV_FEATURE_MAP[item.path]
+    return !code || userStore.hasFeature(code)
+  }),
+)
+
+// 平台公告（当前生效），有则顶栏铃铛显角标
+const announcements = ref([])
+async function loadAnnouncements() {
+  try {
+    announcements.value = (await appApi.announcements()) || []
+  } catch {
+    announcements.value = []
+  }
+}
 
 // 顶栏未读数：进入应用 / 路由切换时刷新，并定时轮询；页面不可见时暂停以省资源。
 const unread = ref(0)
@@ -141,6 +192,8 @@ onMounted(() => {
   loadUnread()
   startPoll()
   loadMe()
+  userStore.fetchFeatures()
+  loadAnnouncements()
 })
 onUnmounted(() => {
   window.removeEventListener('resize', syncByWidth)
@@ -282,5 +335,37 @@ function onUserCommand(command) {
   padding: var(--mido-space-5);
   overflow-y: auto;
   background-color: var(--el-bg-color-page);
+}
+
+/* 平台公告弹层 */
+.mido-anno__title {
+  margin-bottom: var(--mido-space-3);
+  font-size: var(--mido-font-size-h2);
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--el-text-color-primary);
+}
+.mido-anno__item {
+  padding: var(--mido-space-3) 0;
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-lighter);
+}
+.mido-anno__item:last-child {
+  border-bottom: none;
+}
+.mido-anno__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-2);
+}
+.mido-anno__name {
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--el-text-color-primary);
+}
+.mido-anno__content {
+  font-size: var(--mido-font-size-caption);
+  color: var(--el-text-color-regular);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

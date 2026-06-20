@@ -43,6 +43,26 @@ export const planApi = {
   create: (data) => request.post('/platform/plans', data),
   update: (id, data) => request.put(`/platform/plans/${id}`, data),
   remove: (id) => request.delete(`/platform/plans/${id}`),
+  // 套餐功能开关：[{featureCode, enabled}]
+  features: (planId) => request.get(`/platform/plans/${planId}/features`),
+  saveFeatures: (planId, data) => request.put(`/platform/plans/${planId}/features`, data),
+}
+
+/** 收入台账（平台收款 / 退款）*/
+export const revenueApi = {
+  query: (data) => request.post('/platform/revenue/query', data),
+  summary: (tenantId) => request.get('/platform/revenue/summary', { params: { tenantId: tenantId || undefined } }),
+  create: (data) => request.post('/platform/revenue', data),
+  update: (id, data) => request.put(`/platform/revenue/${id}`, data),
+  remove: (id) => request.delete(`/platform/revenue/${id}`),
+}
+
+/** 平台公告 */
+export const announcementApi = {
+  list: () => request.get('/platform/announcements'),
+  create: (data) => request.post('/platform/announcements', data),
+  update: (id, data) => request.put(`/platform/announcements/${id}`, data),
+  remove: (id) => request.delete(`/platform/announcements/${id}`),
 }
 
 /** 运营账号管理 */
@@ -97,3 +117,42 @@ export const QUOTA_RESOURCE = [
   { value: 'storage_mb', label: '存储(MB)' },
   { value: 'task', label: '任务数' },
 ]
+
+/** 收入类型 */
+export const REVENUE_TYPE = { payment: '收款', refund: '退款' }
+
+/** 收入类型（下拉用数组形态）*/
+export const REVENUE_TYPE_OPTIONS = [
+  { value: 'payment', label: '收款' },
+  { value: 'refund', label: '退款' },
+]
+
+/** 公告状态 */
+export const ANNOUNCEMENT_STATUS = { draft: '草稿', published: '已发布' }
+
+/** 公告状态（下拉用数组形态）*/
+export const ANNOUNCEMENT_STATUS_OPTIONS = [
+  { value: 'draft', label: '草稿' },
+  { value: 'published', label: '已发布' },
+]
+
+/** 公告级别 */
+export const ANNOUNCEMENT_LEVEL = { info: '通知', warning: '警告' }
+
+/** 公告级别（下拉用数组形态）*/
+export const ANNOUNCEMENT_LEVEL_OPTIONS = [
+  { value: 'info', label: '通知' },
+  { value: 'warning', label: '警告' },
+]
+
+/** 功能码 → 中文名（套餐功能开关 / 租户门控）*/
+export const FEATURE_LABELS = {
+  gantt: '甘特图',
+  okr: '目标/OKR',
+  npss: 'NPSS验收',
+  doc: '文档',
+  cost: '费用',
+  report: '报表',
+  change: '变更中心',
+  openapi: '开放平台',
+}

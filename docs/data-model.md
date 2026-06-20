@@ -212,6 +212,17 @@ CREATE TABLE sys_platform_audit_log (     -- 平台运营审计(追加写,无逻
 CREATE TABLE sys_tenant_quota_usage (     -- 租户用量快照(P1)，每(tenant,resource)一行，定时任务 upsert
   id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, resource VARCHAR(32) NOT NULL, -- user/project/task/storage_mb
   used_value BIGINT DEFAULT 0, snapshot_time DATETIME, UNIQUE KEY uk_usage_tenant_res(tenant_id, resource));
+-- P2.1 平台域追加表
+CREATE TABLE sys_revenue_record (         -- 线下收入台账(type=payment 收款/refund 退款)
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, type VARCHAR(16) DEFAULT 'payment',
+  amount DECIMAL(14,2) NOT NULL, contract_no VARCHAR(64), occurred_date DATE, remark VARCHAR(512),
+  KEY idx_rev_tenant(tenant_id));
+CREATE TABLE sys_announcement (           -- 平台公告(status=draft/published, level=info/warning)
+  id BIGINT PRIMARY KEY, title VARCHAR(256) NOT NULL, content TEXT NOT NULL, level VARCHAR(16) DEFAULT 'info',
+  status VARCHAR(16) DEFAULT 'draft', publish_at DATETIME, expire_at DATETIME, KEY idx_ann_status(status));
+CREATE TABLE sys_plan_feature (           -- 套餐功能开关(feature_code 取自 FeatureCodes)
+  id BIGINT PRIMARY KEY, plan_id BIGINT NOT NULL, feature_code VARCHAR(32) NOT NULL,
+  enabled TINYINT DEFAULT 1, KEY idx_pf_plan(plan_id));
 ```
 
 > P1 多租户登录隔离：`sys_user` 唯一约束由【全局唯一手机号 uk_user_phone】改为【租户内唯一 uk_user_tenant_phone(tenant_id, phone)】（V29）。

@@ -43,6 +43,10 @@ const STATUS_TYPE = {
   已生效: 'success', 已驳回: 'danger', 已撤回: 'info',
   // 平台运营后台：租户生命周期状态（英文码，待回写 design-system §1.5 登记）
   trial: 'info', suspended: 'warning', expired: 'danger', closed: 'info',
+  // 平台收入台账：类型（payment 收款/refund 退款，待回写 design-system §1.5 登记）
+  payment: 'success', refund: 'danger',
+  // 平台公告：级别 info/warning + 状态 draft/published（待回写 design-system §1.5 登记）
+  info: 'info', warning: 'warning', draft: 'info', published: 'success',
 }
 
 // 英文状态码 → 中文展示文案。命中则显示中文，否则原样回显 status
@@ -51,6 +55,10 @@ const STATUS_TYPE = {
 const STATUS_LABEL = {
   trial: '试用', active: '启用', suspended: '停用', expired: '已过期',
   closed: '已注销', disabled: '停用',
+  // 收入台账类型
+  payment: '收款', refund: '退款',
+  // 公告级别 / 状态
+  info: '通知', warning: '警告', draft: '草稿', published: '已发布',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')

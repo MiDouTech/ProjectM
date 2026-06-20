@@ -47,7 +47,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (payload != null) {
                     // 按令牌真实租户覆盖基线租户上下文，落地多租户隔离（替代固定 tenant_id=1）
                     TenantContext.set(payload.tenantId());
-                    identityProvider.loadById(payload.userId()).ifPresent(this::authenticate);
+                    Long impersonatedBy = payload.impersonatedBy();
+                    identityProvider.loadById(payload.userId())
+                            .ifPresent(p -> authenticate(p, impersonatedBy));
                 }
             }
             filterChain.doFilter(request, response);
@@ -57,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    private void authenticate(UserPrincipal principal) {
+    private void authenticate(UserPrincipal principal, Long impersonatedBy) {
         List<SimpleGrantedAuthority> authorities = principal.getPermCodes().stream()
                 .map(SimpleGrantedAuthority::new).toList();
         UsernamePasswordAuthenticationToken auth =
@@ -70,6 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         current.setSubDeptIds(principal.getSubDeptIds());
         current.setCustomDeptIds(principal.getCustomDeptIds());
         current.setResourceScopes(principal.getResourceScopes());
+        current.setImpersonatedBy(impersonatedBy);
         UserContext.set(current);
     }
 

@@ -21,9 +21,10 @@
       <el-table-column label="配额项" min-width="160">
         <template #default="{ row }">{{ quotaSummary(row.quotas) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" @click="openFeatures(row)">功能开关</el-button>
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -75,6 +76,21 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-drawer>
+
+    <!-- 功能开关（右抽屉）-->
+    <el-drawer v-model="featuresDrawer" title="功能开关" size="var(--mido-drawer-width)">
+      <div v-loading="featuresLoading" class="features">
+        <div class="features__hint">为套餐「{{ featurePlanName }}」配置可用功能模块。</div>
+        <div v-for="f in featureList" :key="f.featureCode" class="features__row">
+          <span class="features__name">{{ featureLabel(f.featureCode) }}</span>
+          <el-switch v-model="f.enabled" />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="featuresDrawer = false">取消</el-button>
+        <el-button type="primary" :loading="featuresSaving" @click="saveFeatures">保存</el-button>
+      </template>
+    </el-drawer>
   </el-card>
 </template>
 
@@ -83,7 +99,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { planApi, BILLING_CYCLE, ENABLE_STATUS, QUOTA_RESOURCE } from '@/api/ops'
+import { planApi, BILLING_CYCLE, ENABLE_STATUS, QUOTA_RESOURCE, FEATURE_LABELS } from '@/api/ops'
 
 const loading = ref(false)
 const rows = ref([])
@@ -168,6 +184,50 @@ async function remove(row) {
   load()
 }
 
+/* ===== 功能开关（独立右抽屉，单 PUT）===== */
+const FEATURE_CODES = Object.keys(FEATURE_LABELS)
+const featuresDrawer = ref(false)
+const featuresLoading = ref(false)
+const featuresSaving = ref(false)
+const featureList = ref([])
+const featurePlanName = ref('')
+let featurePlanId = null
+
+function featureLabel(code) {
+  return FEATURE_LABELS[code] || code
+}
+async function openFeatures(row) {
+  featurePlanId = row.id
+  featurePlanName.value = row.name
+  featuresDrawer.value = true
+  featuresLoading.value = true
+  // 先用全量功能码占位（默认关闭），再用后端返回的 enabled 覆盖
+  featureList.value = FEATURE_CODES.map((code) => ({ featureCode: code, enabled: false }))
+  try {
+    const res = (await planApi.features(row.id)) || []
+    const enabledMap = {}
+    res.forEach((f) => { enabledMap[f.featureCode] = !!f.enabled })
+    featureList.value = FEATURE_CODES.map((code) => ({
+      featureCode: code,
+      enabled: code in enabledMap ? enabledMap[code] : false,
+    }))
+  } finally {
+    featuresLoading.value = false
+  }
+}
+async function saveFeatures() {
+  featuresSaving.value = true
+  try {
+    await planApi.saveFeatures(featurePlanId, {
+      features: featureList.value.map((f) => ({ featureCode: f.featureCode, enabled: f.enabled })),
+    })
+    ElMessage.success('功能开关已保存')
+    featuresDrawer.value = false
+  } finally {
+    featuresSaving.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -194,5 +254,26 @@ onMounted(load)
 }
 .quotas__limit {
   width: var(--mido-admin-nav-width);
+}
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-3);
+}
+.features__hint {
+  margin-bottom: var(--mido-space-2);
+  font-size: var(--mido-font-size-caption);
+  color: var(--el-text-color-secondary);
+}
+.features__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--mido-space-2) var(--mido-space-3);
+  border: var(--mido-border-width) solid var(--el-border-color-light);
+  border-radius: var(--mido-radius);
+}
+.features__name {
+  color: var(--el-text-color-primary);
 }
 </style>
