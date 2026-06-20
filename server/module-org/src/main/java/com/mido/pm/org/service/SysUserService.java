@@ -7,6 +7,8 @@ import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.datascope.DataScopeContext;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
+import com.mido.pm.common.quota.QuotaGuard;
+import com.mido.pm.common.quota.QuotaResources;
 import com.mido.pm.org.dto.UserCreateDTO;
 import com.mido.pm.org.dto.UserQueryDTO;
 import com.mido.pm.org.dto.UserUpdateDTO;
@@ -36,12 +38,14 @@ public class SysUserService {
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final PasswordEncoder passwordEncoder;
+    private final QuotaGuard quotaGuard;
 
     public SysUserService(SysUserMapper userMapper, SysUserRoleMapper userRoleMapper,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder, QuotaGuard quotaGuard) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
+        this.quotaGuard = quotaGuard;
     }
 
     public PageResult<UserVO> page(UserQueryDTO query) {
@@ -72,6 +76,10 @@ public class SysUserService {
     }
 
     public Long create(UserCreateDTO dto) {
+        // 配额硬校验：当前租户成员数不得超过订阅套餐上限（不限/未订阅则放行）
+        Long currentUserCount = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery());
+        quotaGuard.checkCanAdd(QuotaResources.USER, currentUserCount == null ? 0L : currentUserCount);
+
         Long phoneExists = userMapper.selectCount(
                 Wrappers.<SysUser>lambdaQuery().eq(SysUser::getPhone, dto.phone()));
         if (phoneExists != null && phoneExists > 0) {

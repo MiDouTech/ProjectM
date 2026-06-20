@@ -2,6 +2,7 @@ import request from './request'
 
 /** 认证（Step 1-2） */
 export const authApi = {
+  // tenantCode 可选（多租户登录隔离）：留空时后端回落自用租户，行为与原先一致。
   login: (data) => request.post('/auth/login', data),
 }
 
@@ -40,6 +41,17 @@ export const deptApi = {
   create: (data) => request.post('/depts', data),
   update: (id, data) => request.put(`/depts/${id}`, data),
   remove: (id) => request.delete(`/depts/${id}`),
+}
+
+/**
+ * 开放平台 API Key（租户应用 /admin 下管理；走租户 token）。
+ * keyPrefix/雪花 id 全程字符串；create 返回的 apiKey 为明文，仅此一次返回。
+ */
+export const apiKeyApi = {
+  list: () => request.get('/apikeys'),
+  create: (data) => request.post('/apikeys', data),
+  revoke: (id) => request.put(`/apikeys/${id}/revoke`),
+  remove: (id) => request.delete(`/apikeys/${id}`),
 }
 
 /** 数据范围可选值（design-system / data-model 状态字典） */

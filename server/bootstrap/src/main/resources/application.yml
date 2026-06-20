@@ -52,10 +52,17 @@ mybatis-plus:
 
 # 业务自定义配置
 mido:
-  # JWT（本地 SSO 使用），生产请覆盖 secret
+  # JWT（租户侧本地 SSO 使用），生产请覆盖 secret
   jwt:
     secret: ${MIDO_JWT_SECRET:mido-pm-default-secret-key-please-change-in-prod}
     ttl-millis: 86400000
+    # 模拟登录令牌有效期（默认 30 分钟），平台运营进租户排障用
+    impersonation-ttl-millis: ${MIDO_IMPERSONATION_TTL:1800000}
+  # 平台运营后台 JWT（独立密钥，与租户 SSO 物理隔离），生产必须覆盖；默认有效期 12h
+  platform:
+    jwt:
+      secret: ${MIDO_PLATFORM_JWT_SECRET:mido-platform-console-secret-key-change-me}
+      ttl-millis: 43200000
   # MinIO / S3 兼容对象存储连接（客户端 Bean 随存储模块接入）
   minio:
     endpoint: ${MIDO_MINIO_ENDPOINT:http://localhost:9000}

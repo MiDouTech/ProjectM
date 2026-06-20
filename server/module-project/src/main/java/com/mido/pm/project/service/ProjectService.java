@@ -9,6 +9,8 @@ import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.quota.QuotaGuard;
+import com.mido.pm.common.quota.QuotaResources;
 import com.mido.pm.common.security.JobLevelRule;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.project.domain.ProjectStateMachine;
@@ -69,17 +71,19 @@ public class ProjectService {
     private final IdentityProvider identityProvider;
     private final AuditLogService auditLogService;
     private final ProjectTypeResolver projectTypeResolver;
+    private final QuotaGuard quotaGuard;
 
     public ProjectService(PmProjectMapper projectMapper, PmProjectMemberMapper memberMapper,
                           DomainEventPublisher eventPublisher,
                           IdentityProvider identityProvider, AuditLogService auditLogService,
-                          ProjectTypeResolver projectTypeResolver) {
+                          ProjectTypeResolver projectTypeResolver, QuotaGuard quotaGuard) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
         this.identityProvider = identityProvider;
         this.auditLogService = auditLogService;
         this.projectTypeResolver = projectTypeResolver;
+        this.quotaGuard = quotaGuard;
     }
 
     /**
@@ -105,6 +109,10 @@ public class ProjectService {
 
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectCreateDTO dto) {
+        // 配额硬校验：当前租户项目数不得超过订阅套餐上限（不限/未订阅则放行）
+        Long currentProjectCount = projectMapper.selectCount(Wrappers.<PmProject>lambdaQuery());
+        quotaGuard.checkCanAdd(QuotaResources.PROJECT,
+                currentProjectCount == null ? 0L : currentProjectCount);
         // 校验项目类型存在（取代硬编码枚举 S/I/O），并据其属性决定默认是否走 NPSS
         PmProjectType type = projectTypeResolver.require(dto.category(), dto.subCategory());
         PmProject p = new PmProject();

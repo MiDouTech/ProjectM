@@ -69,6 +69,7 @@ public class OrgIdentityProvider implements IdentityProvider {
     private UserPrincipal build(SysUser user) {
         UserPrincipal p = new UserPrincipal();
         p.setUserId(user.getId());
+        p.setTenantId(user.getTenantId());
         p.setUsername(user.getUsername());
         p.setPhone(user.getPhone());
         p.setName(user.getName());

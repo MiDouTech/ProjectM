@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useUserStore } from '@/store/user'
+import { useOpsUserStore } from '@/store/opsUser'
 
 // 顶层主导航（design-system §4 / architecture-overview §1.2）
 export const navItems = [
@@ -14,8 +15,35 @@ export const navItems = [
   { path: '/admin', title: '管理后台', icon: 'Setting' },
 ]
 
+// 平台运营后台侧导航（独立于租户应用 navItems）
+export const opsNavItems = [
+  { path: '/ops/dashboard', title: '运营概览', icon: 'DataLine' },
+  { path: '/ops/tenants', title: '租户管理', icon: 'OfficeBuilding' },
+  { path: '/ops/plans', title: '套餐管理', icon: 'Goods' },
+  { path: '/ops/revenue', title: '收入台账', icon: 'Coin' },
+  { path: '/ops/announcements', title: '公告', icon: 'Bell' },
+  { path: '/ops/admins', title: '运营账号', icon: 'UserFilled' },
+  { path: '/ops/audit', title: '审计日志', icon: 'Tickets' },
+]
+
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
+  // ===== 平台运营后台（独立登录/布局，前缀 /ops）=====
+  { path: '/ops/login', name: 'opsLogin', component: () => import('@/views/ops/OpsLoginView.vue') },
+  {
+    path: '/ops',
+    component: () => import('@/layouts/OpsLayout.vue'),
+    redirect: '/ops/dashboard',
+    children: [
+      { path: 'dashboard', component: () => import('@/views/ops/DashboardView.vue') },
+      { path: 'tenants', component: () => import('@/views/ops/TenantManage.vue') },
+      { path: 'plans', component: () => import('@/views/ops/PlanManage.vue') },
+      { path: 'revenue', component: () => import('@/views/ops/RevenueView.vue') },
+      { path: 'announcements', component: () => import('@/views/ops/AnnouncementManage.vue') },
+      { path: 'admins', component: () => import('@/views/ops/AdminManage.vue') },
+      { path: 'audit', component: () => import('@/views/ops/AuditView.vue') },
+    ],
+  },
   { path: '/share/:token', name: 'publicDoc', component: () => import('@/views/PublicDocView.vue') },
   {
     path: '/',
@@ -45,6 +73,7 @@ const routes = [
           { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
           { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
           { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
+          { path: 'apikeys', component: () => import('@/views/admin/ApiKeyManage.vue') },
         ],
       },
     ],
@@ -58,6 +87,15 @@ const router = createRouter({
 
 // 认证守卫：未登录跳登录页
 router.beforeEach((to) => {
+  // ===== 平台运营后台分支（独立登录态，最前处理；不触碰租户逻辑）=====
+  if (to.path.startsWith('/ops')) {
+    const opsStore = useOpsUserStore()
+    if (to.path === '/ops/login') {
+      return opsStore.token ? { path: '/ops' } : true
+    }
+    return opsStore.token ? true : { path: '/ops/login' }
+  }
+
   const userStore = useUserStore()
   // 公开分享页：匿名可访问，跳过登录校验
   if (to.name === 'publicDoc') {

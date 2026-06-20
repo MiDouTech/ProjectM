@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.mido.pm</groupId>
+        <artifactId>mido-pm-server</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>module-platform</artifactId>
+    <name>module-platform</name>
+    <description>平台域(SaaS 运营总后台)：租户注册/套餐配额/订阅/平台账号RBAC/运营审计。跨租户全局表，不带 tenant_id。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <!-- 模拟登录需经租户 SsoProvider 签发租户令牌（provider 不反向依赖 platform，无环） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>provider</artifactId>
+        </dependency>
+
+        <!-- 平台账号独立 JWT（与租户 SSO 物理隔离，独立密钥） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+</project>

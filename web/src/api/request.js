@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { TOKEN_KEY } from '@/store/user'
+import { OPS_TOKEN_KEY } from '@/store/opsUser'
 
 /**
  * Axios 封装（对齐 docs/api-conventions.md）：
@@ -15,7 +16,10 @@ const request = axios.create({
 })
 
 request.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY)
+  // 同一实例承载两套登录态：/ops 路径用运营 token，其余用租户 token，
+  // 避免运营后台与租户应用相互覆盖鉴权。
+  const isOps = location.pathname.startsWith('/ops')
+  const token = localStorage.getItem(isOps ? OPS_TOKEN_KEY : TOKEN_KEY)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

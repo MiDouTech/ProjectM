@@ -2,9 +2,11 @@ package com.mido.pm.security;
 
 import com.mido.pm.common.security.CurrentUser;
 import com.mido.pm.common.security.UserContext;
+import com.mido.pm.common.tenant.TenantContext;
 import com.mido.pm.provider.identity.IdentityProvider;
 import com.mido.pm.provider.identity.UserPrincipal;
 import com.mido.pm.provider.sso.SsoProvider;
+import com.mido.pm.provider.sso.TokenPayload;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,11 +41,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
+            // 若前置 API Key 过滤器已认证，则不再用 JWT 覆盖
             String token = resolveToken(request);
-            if (token != null) {
-                Long userId = ssoProvider.verifyToken(token);
-                if (userId != null) {
-                    identityProvider.loadById(userId).ifPresent(this::authenticate);
+            if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                TokenPayload payload = ssoProvider.verifyToken(token);
+                if (payload != null) {
+                    // 按令牌真实租户覆盖基线租户上下文，落地多租户隔离（替代固定 tenant_id=1）
+                    TenantContext.set(payload.tenantId());
+                    Long impersonatedBy = payload.impersonatedBy();
+                    identityProvider.loadById(payload.userId())
+                            .ifPresent(p -> authenticate(p, impersonatedBy));
                 }
             }
             filterChain.doFilter(request, response);
@@ -53,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    private void authenticate(UserPrincipal principal) {
+    private void authenticate(UserPrincipal principal, Long impersonatedBy) {
         List<SimpleGrantedAuthority> authorities = principal.getPermCodes().stream()
                 .map(SimpleGrantedAuthority::new).toList();
         UsernamePasswordAuthenticationToken auth =
@@ -66,6 +73,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         current.setSubDeptIds(principal.getSubDeptIds());
         current.setCustomDeptIds(principal.getCustomDeptIds());
         current.setResourceScopes(principal.getResourceScopes());
+        current.setImpersonatedBy(impersonatedBy);
         UserContext.set(current);
     }
 

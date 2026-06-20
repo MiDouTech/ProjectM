@@ -1,0 +1,278 @@
+<template>
+  <el-card shadow="never">
+    <div class="bar">
+      <h2 class="mido-h2">收入台账</h2>
+      <el-button type="primary" :icon="Plus" @click="openCreate">新增记录</el-button>
+    </div>
+
+    <!-- 汇总卡片 -->
+    <div class="summary">
+      <div class="summary__item">
+        <div class="summary__label">收款合计</div>
+        <div class="summary__value summary__value--income">{{ fmtAmount(summary.totalPayment) }}</div>
+      </div>
+      <div class="summary__item">
+        <div class="summary__label">退款合计</div>
+        <div class="summary__value summary__value--refund">{{ fmtAmount(summary.totalRefund) }}</div>
+      </div>
+      <div class="summary__item">
+        <div class="summary__label">净收入</div>
+        <div class="summary__value summary__value--net">{{ fmtAmount(summary.net) }}</div>
+      </div>
+      <div class="summary__item">
+        <div class="summary__label">记录数</div>
+        <div class="summary__value">{{ summary.count || 0 }}</div>
+      </div>
+    </div>
+
+    <div class="bar bar--filter">
+      <el-select v-model="query.tenantId" placeholder="全部租户" clearable filterable class="bar__filter" @change="reload">
+        <el-option v-for="t in tenants" :key="t.id" :label="t.name" :value="t.id" />
+      </el-select>
+      <el-select v-model="query.type" placeholder="全部类型" clearable class="bar__filter" @change="reload">
+        <el-option v-for="t in REVENUE_TYPE_OPTIONS" :key="t.value" :label="t.label" :value="t.value" />
+      </el-select>
+    </div>
+
+    <el-table v-loading="loading" :data="rows" stripe>
+      <el-table-column label="租户" min-width="140">
+        <template #default="{ row }">{{ row.tenantName || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="类型" width="90">
+        <template #default="{ row }"><StatusTag :status="row.type" /></template>
+      </el-table-column>
+      <el-table-column label="金额" width="130" align="right">
+        <template #default="{ row }">{{ fmtAmount(row.amount) }}</template>
+      </el-table-column>
+      <el-table-column prop="contractNo" label="合同号" min-width="140">
+        <template #default="{ row }">{{ row.contractNo || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="发生日期" width="140">
+        <template #default="{ row }">{{ row.occurredDate || '—' }}</template>
+      </el-table-column>
+      <el-table-column prop="remark" label="备注" min-width="160">
+        <template #default="{ row }">{{ row.remark || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="140" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="danger" @click="remove(row)">删除</el-button>
+        </template>
+      </el-table-column>
+      <template #empty><el-empty description="暂无收入记录" /></template>
+    </el-table>
+
+    <div class="pager">
+      <el-pagination
+        v-model:current-page="query.page"
+        v-model:page-size="query.size"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        @current-change="load"
+        @size-change="reload"
+      />
+    </div>
+
+    <!-- 新增 / 编辑（右抽屉）-->
+    <el-drawer v-model="drawer" :title="editing ? '编辑记录' : '新增记录'" size="var(--mido-drawer-width)">
+      <el-form ref="formRef" :model="form" :rules="rules" :label-width="90">
+        <el-form-item label="租户" prop="tenantId">
+          <el-select v-model="form.tenantId" placeholder="选择租户" filterable style="width: 100%">
+            <el-option v-for="t in tenants" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型" prop="type">
+          <el-select v-model="form.type" placeholder="选择类型" style="width: 100%">
+            <el-option v-for="t in REVENUE_TYPE_OPTIONS" :key="t.value" :label="t.label" :value="t.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="金额" prop="amount">
+          <el-input-number v-model="form.amount" :min="0" :precision="2" :step="1" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="合同号"><el-input v-model="form.contractNo" /></el-form-item>
+        <el-form-item label="发生日期" prop="occurredDate">
+          <el-date-picker v-model="form.occurredDate" type="date" value-format="YYYY-MM-DD"
+            placeholder="选择日期" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="3" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="drawer = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+      </template>
+    </el-drawer>
+  </el-card>
+</template>
+
+<script setup>
+import { onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import StatusTag from '@/components/StatusTag.vue'
+import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS } from '@/api/ops'
+
+const loading = ref(false)
+const rows = ref([])
+const total = ref(0)
+const query = reactive({ tenantId: '', type: '', page: 1, size: 10 })
+const summary = reactive({ totalPayment: 0, totalRefund: 0, net: 0, count: 0 })
+const tenants = ref([])
+
+function fmtAmount(v) {
+  const n = Number(v || 0)
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const res = await revenueApi.query({
+      tenantId: query.tenantId || undefined,
+      type: query.type || undefined,
+      page: query.page,
+      size: query.size,
+    })
+    rows.value = res.list || []
+    total.value = Number(res.total || 0)
+  } finally {
+    loading.value = false
+  }
+}
+async function loadSummary() {
+  const res = await revenueApi.summary(query.tenantId)
+  Object.assign(summary, {
+    totalPayment: res?.totalPayment || 0,
+    totalRefund: res?.totalRefund || 0,
+    net: res?.net || 0,
+    count: res?.count || 0,
+  })
+}
+function reload() {
+  query.page = 1
+  load()
+  loadSummary()
+}
+
+/* ===== 新增 / 编辑 ===== */
+const drawer = ref(false)
+const editing = ref(false)
+const saving = ref(false)
+const formRef = ref()
+const form = reactive({ id: null, tenantId: '', type: 'payment', amount: 0, contractNo: '', occurredDate: '', remark: '' })
+const rules = {
+  tenantId: [{ required: true, message: '请选择租户', trigger: 'change' }],
+  type: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  amount: [{ required: true, message: '请输入金额', trigger: 'blur' }],
+  occurredDate: [{ required: true, message: '请选择发生日期', trigger: 'change' }],
+}
+
+function resetForm() {
+  Object.assign(form, { id: null, tenantId: '', type: 'payment', amount: 0, contractNo: '', occurredDate: '', remark: '' })
+}
+function openCreate() {
+  editing.value = false
+  resetForm()
+  drawer.value = true
+}
+function openEdit(row) {
+  editing.value = true
+  Object.assign(form, {
+    id: row.id, tenantId: row.tenantId, type: row.type, amount: Number(row.amount || 0),
+    contractNo: row.contractNo || '', occurredDate: row.occurredDate || '', remark: row.remark || '',
+  })
+  drawer.value = true
+}
+async function save() {
+  await formRef.value.validate()
+  saving.value = true
+  try {
+    const payload = {
+      tenantId: form.tenantId, type: form.type, amount: form.amount,
+      contractNo: form.contractNo || undefined, occurredDate: form.occurredDate,
+      remark: form.remark || undefined,
+    }
+    if (editing.value) {
+      await revenueApi.update(form.id, payload)
+    } else {
+      await revenueApi.create(payload)
+    }
+    ElMessage.success('保存成功')
+    drawer.value = false
+    load()
+    loadSummary()
+  } finally {
+    saving.value = false
+  }
+}
+async function remove(row) {
+  await ElMessageBox.confirm(`确认删除该${row.type === 'refund' ? '退款' : '收款'}记录？`, '提示', { type: 'warning' })
+  await revenueApi.remove(row.id)
+  ElMessage.success('已删除')
+  load()
+  loadSummary()
+}
+
+onMounted(async () => {
+  load()
+  loadSummary()
+  try {
+    const res = await tenantApi.query({ page: 1, size: 200 })
+    tenants.value = res.list || []
+  } catch {
+    tenants.value = []
+  }
+})
+</script>
+
+<style scoped>
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--mido-space-4);
+}
+.bar--filter {
+  justify-content: flex-start;
+  gap: var(--mido-space-2);
+}
+.bar__filter {
+  width: var(--mido-admin-nav-width);
+}
+.summary {
+  display: flex;
+  gap: var(--mido-space-4);
+  margin-bottom: var(--mido-space-5);
+}
+.summary__item {
+  flex: 1;
+  padding: var(--mido-space-4);
+  background-color: var(--el-bg-color-page);
+  border: var(--mido-border-width) solid var(--el-border-color-light);
+  border-radius: var(--mido-radius);
+}
+.summary__label {
+  font-size: var(--mido-font-size-caption);
+  color: var(--el-text-color-secondary);
+  margin-bottom: var(--mido-space-2);
+}
+.summary__value {
+  font-size: var(--mido-font-size-h1);
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--el-text-color-primary);
+}
+.summary__value--income {
+  color: var(--el-color-success);
+}
+.summary__value--refund {
+  color: var(--el-color-danger);
+}
+.summary__value--net {
+  color: var(--el-color-primary);
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
+}
+</style>

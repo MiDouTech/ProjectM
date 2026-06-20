@@ -173,12 +173,70 @@ CREATE TABLE sys_user_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIG
 CREATE TABLE sys_role_perm (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, perm_code VARCHAR(64), KEY idx_role(role_id));
 CREATE TABLE sys_role_data_scope (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, resource VARCHAR(32), scope VARCHAR(16)); -- self/dept/dept_and_sub/all/custom
 CREATE TABLE sys_identity_map (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, provider VARCHAR(16), external_id VARCHAR(128), KEY idx_ext(provider,external_id));
+-- 开放平台 API Key（P2.2，租户业务表）：key 绑定用户、等同其身份调 OpenAPI；仅存 SHA-256 与前缀。
+CREATE TABLE sys_api_key (id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, user_id BIGINT NOT NULL,
+  name VARCHAR(64), key_hash CHAR(64), key_prefix VARCHAR(16), status VARCHAR(16) DEFAULT 'active',
+  last_used_at DATETIME, expire_at DATETIME, UNIQUE KEY uk_apikey_hash(key_hash), KEY idx_apikey_tenant(tenant_id));
 
 -- ========== 平台基础 ==========
 CREATE TABLE sys_domain_event (id BIGINT PRIMARY KEY, tenant_id BIGINT, event_type VARCHAR(64), payload JSON, status VARCHAR(16) DEFAULT 'pending', create_time DATETIME, KEY idx_status(status));
 CREATE TABLE sys_audit_log (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, action VARCHAR(64), target VARCHAR(64), detail JSON, create_time DATETIME);
 CREATE TABLE ai_suggestion (id BIGINT PRIMARY KEY, tenant_id BIGINT, type VARCHAR(32), ref_type VARCHAR(16), ref_id BIGINT, content JSON, status VARCHAR(16) DEFAULT 'pending', create_time DATETIME);
+
+-- ========== 平台域（SaaS 运营总后台，跨租户全局，【不带 tenant_id】，不参与多租户隔离）==========
+-- 见 server/module-platform 与 CLAUDE.md §4「平台域」。公共字段同业务表但无 tenant_id；审计表为追加写无逻辑删除。
+-- 实体继承 PlatformBaseEntity；所有表登记在 MidoTenantLineHandler 忽略名单。落地见 V27/V28 migration。
+CREATE TABLE sys_tenant (                 -- 租户注册表：本表 id 即业务侧各表的 tenant_id
+  id BIGINT PRIMARY KEY, code VARCHAR(32) NOT NULL, name VARCHAR(128) NOT NULL,
+  status VARCHAR(16) DEFAULT 'trial',     -- trial/active/suspended/expired/closed
+  industry VARCHAR(64), contact_name VARCHAR(64), contact_phone VARCHAR(32), contact_email VARCHAR(128),
+  source VARCHAR(16) DEFAULT 'manual', admin_user_id BIGINT,  -- admin_user_id=租户主管理员 sys_user.id(P1)
+  activated_at DATETIME, expire_at DATETIME,                  -- expire_at 随订阅，空=不限期
+  UNIQUE KEY uk_tenant_code(code), KEY idx_status(status), KEY idx_expire(expire_at));
+CREATE TABLE sys_plan (                    -- 套餐(price=线下参考价,不接支付网关)
+  id BIGINT PRIMARY KEY, code VARCHAR(32) NOT NULL, name VARCHAR(64) NOT NULL,
+  price DECIMAL(14,2), billing_cycle VARCHAR(16) DEFAULT 'yearly', -- monthly/yearly/once
+  status VARCHAR(16) DEFAULT 'active', sort INT DEFAULT 0, remark VARCHAR(255), UNIQUE KEY uk_plan_code(code));
+CREATE TABLE sys_plan_quota (             -- 套餐配额项(limit_value=-1 表示不限)
+  id BIGINT PRIMARY KEY, plan_id BIGINT NOT NULL, resource VARCHAR(32) NOT NULL, -- user/project/storage_mb/task
+  limit_value BIGINT DEFAULT -1, KEY idx_plan(plan_id));
+CREATE TABLE sys_tenant_subscription (    -- 租户订阅(每租户至多一条 active；tenant_id 为普通引用列非隔离列)
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, plan_id BIGINT NOT NULL,
+  start_at DATETIME, expire_at DATETIME, status VARCHAR(16) DEFAULT 'active', -- active/expired/cancelled
+  quota_override TEXT, remark VARCHAR(255), KEY idx_tenant(tenant_id,status), KEY idx_plan(plan_id));
+CREATE TABLE sys_platform_admin (         -- 平台运营账号(独立账号体系,不属于任何租户)
+  id BIGINT PRIMARY KEY, username VARCHAR(64) NOT NULL, password VARCHAR(128) NOT NULL, name VARCHAR(64) NOT NULL,
+  status VARCHAR(16) DEFAULT 'active', last_login_at DATETIME, UNIQUE KEY uk_username(username));
+CREATE TABLE sys_platform_role (id BIGINT PRIMARY KEY, name VARCHAR(64), code VARCHAR(64) NOT NULL, remark VARCHAR(255), UNIQUE KEY uk_code(code));
+CREATE TABLE sys_platform_admin_role (id BIGINT PRIMARY KEY, admin_id BIGINT, role_id BIGINT, KEY idx_admin(admin_id));
+CREATE TABLE sys_platform_role_perm (id BIGINT PRIMARY KEY, role_id BIGINT, perm_code VARCHAR(64), KEY idx_role(role_id)); -- perm_code 取自 PlatformPerms
+CREATE TABLE sys_platform_audit_log (     -- 平台运营审计(追加写,无逻辑删除)
+  id BIGINT PRIMARY KEY, admin_id BIGINT, action VARCHAR(64), target VARCHAR(32), target_id BIGINT,
+  detail TEXT, ip VARCHAR(64), create_time DATETIME, KEY idx_target(target,target_id));
+CREATE TABLE sys_tenant_quota_usage (     -- 租户用量快照(P1)，每(tenant,resource)一行，定时任务 upsert
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, resource VARCHAR(32) NOT NULL, -- user/project/task/storage_mb
+  used_value BIGINT DEFAULT 0, snapshot_time DATETIME, UNIQUE KEY uk_usage_tenant_res(tenant_id, resource));
+-- P2.1 平台域追加表
+CREATE TABLE sys_revenue_record (         -- 线下收入台账(type=payment 收款/refund 退款)
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, type VARCHAR(16) DEFAULT 'payment',
+  amount DECIMAL(14,2) NOT NULL, contract_no VARCHAR(64), occurred_date DATE, remark VARCHAR(512),
+  KEY idx_rev_tenant(tenant_id));
+CREATE TABLE sys_announcement (           -- 平台公告(status=draft/published, level=info/warning)
+  id BIGINT PRIMARY KEY, title VARCHAR(256) NOT NULL, content TEXT NOT NULL, level VARCHAR(16) DEFAULT 'info',
+  status VARCHAR(16) DEFAULT 'draft', publish_at DATETIME, expire_at DATETIME, KEY idx_ann_status(status));
+CREATE TABLE sys_plan_feature (           -- 套餐功能开关(feature_code 取自 FeatureCodes)
+  id BIGINT PRIMARY KEY, plan_id BIGINT NOT NULL, feature_code VARCHAR(32) NOT NULL,
+  enabled TINYINT DEFAULT 1, KEY idx_pf_plan(plan_id));
+-- P2.2 注销合规 + 数据导出
+-- sys_tenant 追加列 purge_scheduled_at DATETIME(注销清除计划时间)。
+CREATE TABLE sys_tenant_export (          -- 租户数据导出任务(异步: pending→processing→done/failed)
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, status VARCHAR(16) DEFAULT 'pending',
+  file_key VARCHAR(512), error VARCHAR(512), requested_by BIGINT,
+  KEY idx_export_tenant(tenant_id), KEY idx_export_status(status));
 ```
+
+> P1 多租户登录隔离：`sys_user` 唯一约束由【全局唯一手机号 uk_user_phone】改为【租户内唯一 uk_user_tenant_phone(tenant_id, phone)】（V29）。
+> 登录令牌携带租户声明（tid），登录按租户编码 + 账号定位用户；模拟登录令牌额外携带 imp（发起运营账号）声明。
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`
@@ -187,3 +245,5 @@ CREATE TABLE ai_suggestion (id BIGINT PRIMARY KEY, tenant_id BIGINT, type VARCHA
 - NPSS result_level：`success / mixed / failure`
 - 通知 channel：`inapp / wecom`
 - 数据范围 scope：`self / dept / dept_and_sub / all / custom`
+- 租户状态（平台域）：`trial 试用 / active 正式 / suspended 停用 / expired 已过期 / closed 已注销`
+- 套餐/平台账号状态（平台域）：`active 启用 / disabled 停用`；订阅状态：`active / expired / cancelled`

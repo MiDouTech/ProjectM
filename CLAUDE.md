@@ -2,6 +2,13 @@
 
 > 本文件是 AI 在本仓库工作的**最高约束**。每次生成代码前，先读相关 `docs/` 事实源。架构决策由人定，AI 在既定架构内填充实现，**不得擅自改技术栈、改表结构、改分层**。
 
+## 0. 工作纪律（每次任务必守，优先级最高）
+1. **先想后做**：接到任务先深度思考、**用自己的话复述需求**与边界、**识别风险**（影响范围/兼容性/数据安全），再执行；不确定就停下问人，不要猜架构。
+2. **出方案先评审**：让出方案时只输出方案，**人审核通过后才开发**；大任务按 P0/P1/P2 拆分，每个优先级一个 commit。
+3. **改动前先评估影响**：动任何东西前先用 Grep/Glob 评估影响范围；大文件优先 Grep（命中多先 `count`）、Read 用 offset/limit 分段。
+4. **敏感内容禁止上库**：**严禁把配置性/敏感内容**（密钥、密码、token、企微/数据库/对象存储等真实凭证、内网地址、`.env`/私有证书等）提交或推送到 GitHub。一旦发现此类内容将被纳入提交，**先拒绝并提醒用户**，改用环境变量/占位符注入（仓库内只放默认占位值）。
+5. **如实汇报**：测试失败要贴输出说失败；跳过的步骤要讲明；完成并自检无误才说做完。
+
 ## 1. 项目定位
 米多业务侧通用项目管理系统。对标 Worktile 全功能，差异化护城河 = 立项审批引擎 + 干系人管理 + NPSS 两段式价值验收。战略：预留扩展 / 先自用再商用 / 先夯实基础再接入智能。
 
@@ -32,14 +39,17 @@ server/
     project/   task/   goal/   stakeholder/   verify(npss)/
     approval/  change/ cost/   collab/ doc/  report/   org(rbac)/
     ai/        (智能层,独立,只订阅事件,默认不启用)
+    platform/  (平台域=SaaS 运营总后台：租户注册/套餐配额/订阅/平台账号RBAC/运营审计)
     # change=通用变更中心：受控变更单+审批编排，被改域经 ChangeApplier 端口回写，change 不反向依赖业务域
   provider/      identity/ sso/ approval/ message —— 四 Provider，local 实现先行，wecom 实现预留
 ```
 每个 module 内分层：`controller / service / domain / mapper / entity / dto / event`。**跨域只能通过 Service 接口或领域事件，禁止跨域直接查表。**
 
+> **平台域（platform）是跨租户的全局域**，与租户内业务域不同维度：管理「谁是租户/买了什么套餐/配额/到期/谁在运营」。其表**不带 `tenant_id`**、登记在 `MidoTenantLineHandler` 忽略名单、不参与多租户隔离（继承 `PlatformBaseEntity` 而非 `BaseEntity`）；平台账号体系独立于任何租户，走 `/api/v1/platform/**` + 独立 JWT 密钥（`PlatformTokenService`），与租户 SSO 物理隔离。**这是对下方规则 1/2 的唯一正式例外，业务域一律不得照搬。**
+
 ## 5. 硬性规则（违反即返工）
-1. 所有业务表必带 `tenant_id`，查询经 MyBatis-Plus 多租户拦截器统一注入，**业务代码禁手写 tenant 条件**。
-2. 公共字段统一：`id`(雪花) / `tenant_id` / `create_by` / `create_time` / `update_by` / `update_time` / `is_deleted`(逻辑删除)。
+1. 所有业务表必带 `tenant_id`，查询经 MyBatis-Plus 多租户拦截器统一注入，**业务代码禁手写 tenant 条件**。（唯一例外：平台域 `platform` 全局表，见上方说明。）
+2. 公共字段统一：`id`(雪花) / `tenant_id` / `create_by` / `create_time` / `update_by` / `update_time` / `is_deleted`(逻辑删除)。（平台域表无 `tenant_id`，其余公共字段一致。）
 3. 任何**写操作**（增删改、状态流转）必须在同一事务内写 `sys_domain_event`（Outbox），事件名取自 `docs/domain-events.md`，不得自造。
 4. 异步统一走 RabbitMQ；禁在业务线程内直接调企微/LLM 等外部副作用。
 5. 外部能力（身份/组织、SSO、审批、消息推送）一律走 `provider/` 接口，**禁止业务层直接 import 企微 SDK**。

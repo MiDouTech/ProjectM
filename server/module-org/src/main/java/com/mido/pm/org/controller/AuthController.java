@@ -34,7 +34,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public R<LoginVO> login(@Valid @RequestBody LoginDTO dto) {
-        String token = ssoProvider.login(dto.username(), dto.password());
+        String token = ssoProvider.login(dto.username(), dto.password(), dto.tenantCode());
         return R.ok(new LoginVO(token, "Bearer", ttlMillis / 1000));
     }
 

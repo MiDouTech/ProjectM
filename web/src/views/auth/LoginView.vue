@@ -48,6 +48,17 @@
               @keyup.enter="submit"
             />
           </el-form-item>
+          <!-- 可选：租户编码（自用可留空，回落自用租户） -->
+          <el-form-item prop="tenantCode">
+            <el-input
+              v-model="form.tenantCode"
+              size="large"
+              placeholder="租户编码（自用可留空）"
+              aria-label="租户编码"
+              :prefix-icon="OfficeBuilding"
+              @keyup.enter="submit"
+            />
+          </el-form-item>
           <el-button
             type="primary"
             size="large"
@@ -76,7 +87,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Grid, User, Lock } from '@element-plus/icons-vue'
+import { Grid, User, Lock, OfficeBuilding } from '@element-plus/icons-vue'
 import { authApi } from '@/api/org'
 import { useUserStore } from '@/store/user'
 
@@ -84,7 +95,7 @@ const router = useRouter()
 const formRef = ref()
 const loading = ref(false)
 const logoOk = ref(true)
-const form = reactive({ username: '13800000000', password: '' })
+const form = reactive({ username: '13800000000', password: '', tenantCode: '' })
 const rules = {
   username: [{ required: true, message: '请输入手机号或用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
@@ -94,7 +105,12 @@ async function submit() {
   await formRef.value.validate()
   loading.value = true
   try {
-    const data = await authApi.login({ username: form.username, password: form.password })
+    const data = await authApi.login({
+      username: form.username,
+      password: form.password,
+      // 留空不提交，保持自用租户回落行为；trim 去除误输空格
+      tenantCode: form.tenantCode.trim() || undefined,
+    })
     useUserStore().setToken(data.token)
     router.push('/')
   } finally {

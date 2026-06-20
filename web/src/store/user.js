@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { appApi } from '@/api/app'
 
 const TOKEN_KEY = 'mido_token'
 
@@ -20,6 +21,10 @@ function decodeJwt(token) {
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: localStorage.getItem(TOKEN_KEY) || '',
+    // 当前租户启用的功能码（功能门控用）。空数组语义为「未取到」，
+    // 由 hasFeature 走 fail-open 默认全显示，避免误隐藏。
+    features: [],
+    featuresLoaded: false,
   }),
   getters: {
     isLogin: (state) => !!state.token,
@@ -28,6 +33,11 @@ export const useUserStore = defineStore('user', {
     userId: (state) => {
       const claims = state.token ? decodeJwt(state.token) : null
       return claims?.sub ? String(claims.sub) : null
+    },
+    // 功能门控：未取到功能列表（featuresLoaded=false 或空）时默认放行（fail-open）。
+    hasFeature: (state) => (code) => {
+      if (!state.featuresLoaded || !state.features.length) return true
+      return state.features.includes(code)
     },
   },
   actions: {
@@ -38,6 +48,19 @@ export const useUserStore = defineStore('user', {
     clearToken() {
       this.token = ''
       localStorage.removeItem(TOKEN_KEY)
+      this.features = []
+      this.featuresLoaded = false
+    },
+    // 拉取当前租户启用的功能码（失败保持空数组 → fail-open）
+    async fetchFeatures() {
+      try {
+        const list = await appApi.features()
+        this.features = Array.isArray(list) ? list : []
+        this.featuresLoaded = true
+      } catch {
+        this.features = []
+        this.featuresLoaded = false
+      }
     },
   },
 })

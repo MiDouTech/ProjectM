@@ -52,6 +52,8 @@ class ProjectServiceTest {
     private AuditLogService auditLogService;
     @Mock
     private ProjectTypeResolver projectTypeResolver;
+    @Mock
+    private com.mido.pm.common.quota.QuotaGuard quotaGuard;
     @InjectMocks
     private ProjectService service;
 

@@ -14,8 +14,10 @@ import java.util.Map;
 public class UserPrincipal {
 
     private Long userId;
+    /** 所属租户 ID（多租户登录隔离据此签发令牌租户声明） */
+    private Long tenantId;
     private String username;
-    /** 手机号：登录账号（全局唯一） */
+    /** 手机号：登录账号（租户内唯一） */
     private String phone;
     private String name;
     /** 密码哈希（仅 loadByUsername 用于登录校验时填充） */
@@ -38,6 +40,14 @@ public class UserPrincipal {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
     }
 
     public String getUsername() {

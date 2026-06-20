@@ -16,6 +16,8 @@ public class CurrentUser {
 
     private Long userId;
     private Long deptId;
+    /** 模拟登录来源：发起模拟的平台运营账号 ID；非模拟登录为 null（只读拦截据此判定） */
+    private Long impersonatedBy;
     /** 下属部门 ID（不含本部门），用于 dept_and_sub */
     private List<Long> subDeptIds = new ArrayList<>();
     /** 自定义部门集，用于 custom（持久化存储待后续迁移补充） */
@@ -37,6 +39,19 @@ public class CurrentUser {
 
     public void setDeptId(Long deptId) {
         this.deptId = deptId;
+    }
+
+    public Long getImpersonatedBy() {
+        return impersonatedBy;
+    }
+
+    public void setImpersonatedBy(Long impersonatedBy) {
+        this.impersonatedBy = impersonatedBy;
+    }
+
+    /** 当前会话是否为平台运营的模拟登录。 */
+    public boolean isImpersonating() {
+        return impersonatedBy != null;
     }
 
     public List<Long> getSubDeptIds() {
