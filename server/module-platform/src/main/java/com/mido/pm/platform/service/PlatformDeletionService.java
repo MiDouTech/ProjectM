@@ -70,26 +70,28 @@ public class PlatformDeletionService {
                 PlatformAuditActions.TARGET_TENANT, tenantId, null);
     }
 
-    /** 定时清除到期注销租户（closed 且 purge_scheduled_at<=now），物理删除各域数据后标记 purged。 */
-    public int purgeDue() {
+    /**
+     * 找出到期注销租户（closed 且 purge_scheduled_at<=now，排除自用租户）。
+     * 注意：清除按租户逐个事务执行，由调度器外部调用 {@link #purgeTenant}（经代理使 @Transactional 生效，
+     * 且单租户失败不影响其余）；勿在本类内部直接循环调用 purgeTenant（自调用会绕过事务）。
+     */
+    public List<SysTenant> findDueTenants() {
         LocalDateTime now = LocalDateTime.now();
-        List<SysTenant> due = tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
-                .eq(SysTenant::getStatus, "closed")
-                .isNotNull(SysTenant::getPurgeScheduledAt)
-                .le(SysTenant::getPurgeScheduledAt, now));
-        int purged = 0;
-        for (SysTenant tenant : due) {
-            if (tenant.getId() != null && tenant.getId() == TenantContext.DEFAULT_TENANT_ID) {
-                continue;
-            }
-            purgeTenant(tenant);
-            purged++;
-        }
-        return purged;
+        return tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
+                        .eq(SysTenant::getStatus, "closed")
+                        .isNotNull(SysTenant::getPurgeScheduledAt)
+                        .le(SysTenant::getPurgeScheduledAt, now))
+                .stream()
+                .filter(t -> !(t.getId() != null && t.getId() == TenantContext.DEFAULT_TENANT_ID))
+                .toList();
     }
 
+    /** 物理清除单个租户数据并标记 purged（独立事务）。自用租户防御性跳过。 */
     @Transactional(rollbackFor = Exception.class)
     public void purgeTenant(SysTenant tenant) {
+        if (tenant.getId() != null && tenant.getId() == TenantContext.DEFAULT_TENANT_ID) {
+            return;
+        }
         Map<String, Object> detail = new HashMap<>();
         long total = 0;
         for (TenantDataPurger purger : purgers) {

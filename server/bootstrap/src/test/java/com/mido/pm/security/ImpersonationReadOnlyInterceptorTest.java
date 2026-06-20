@@ -52,6 +52,15 @@ class ImpersonationReadOnlyInterceptorTest {
     }
 
     @Test
+    void postQueryAllowedWhenImpersonating() {
+        // 项目约定：列表/分页走 POST /xxx/query，模拟态应放行（属读操作）
+        impersonating(true);
+        lenient().when(request.getMethod()).thenReturn("POST");
+        lenient().when(request.getRequestURI()).thenReturn("/api/v1/tasks/query");
+        assertTrue(interceptor.preHandle(request, null, null));
+    }
+
+    @Test
     void writeAllowedWhenNotImpersonating() {
         impersonating(false);
         lenient().when(request.getMethod()).thenReturn("POST");

@@ -1,5 +1,6 @@
 package com.mido.pm.platform.service;
 
+import com.mido.pm.platform.entity.SysTenant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -36,16 +37,21 @@ public class PlatformMaintenanceScheduler {
         }
     }
 
-    /** 清除到期注销租户（默认每日 03:00）。 */
+    /** 清除到期注销租户（默认每日 03:00）。逐租户独立事务调用，单个失败不影响其余。 */
     @Scheduled(cron = "${mido.platform.purge.cron:0 0 3 * * *}")
     public void purgeDue() {
-        try {
-            int n = deletionService.purgeDue();
-            if (n > 0) {
-                log.info("清除到期注销租户 {} 个", n);
+        int n = 0;
+        for (SysTenant tenant : deletionService.findDueTenants()) {
+            try {
+                // 经代理外部调用，使 purgeTenant 的 @Transactional 生效
+                deletionService.purgeTenant(tenant);
+                n++;
+            } catch (Exception e) {
+                log.error("清除到期注销租户失败 tenantId={}", tenant.getId(), e);
             }
-        } catch (Exception e) {
-            log.error("清除到期注销租户失败", e);
+        }
+        if (n > 0) {
+            log.info("清除到期注销租户 {} 个", n);
         }
     }
 }

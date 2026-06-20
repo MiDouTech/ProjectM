@@ -25,9 +25,21 @@ public class ImpersonationReadOnlyInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         CurrentUser current = UserContext.get();
-        if (current != null && current.isImpersonating() && !SAFE_METHODS.contains(request.getMethod())) {
+        if (current != null && current.isImpersonating() && !isReadRequest(request)) {
             throw new BizException(ErrorCode.FORBIDDEN, "模拟登录为只读模式，禁止写操作");
         }
         return true;
+    }
+
+    /**
+     * 是否为读请求：安全方法（GET/HEAD/OPTIONS），或遵循本项目约定的查询接口 POST /xxx/query
+     * （列表/分页统一走 POST query 体）。否则视为写操作。
+     */
+    private boolean isReadRequest(HttpServletRequest request) {
+        if (SAFE_METHODS.contains(request.getMethod())) {
+            return true;
+        }
+        String uri = request.getRequestURI();
+        return HttpMethod.POST.name().equals(request.getMethod()) && uri != null && uri.endsWith("/query");
     }
 }
