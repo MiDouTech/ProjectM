@@ -43,6 +43,17 @@ export const deptApi = {
   remove: (id) => request.delete(`/depts/${id}`),
 }
 
+/**
+ * 开放平台 API Key（租户应用 /admin 下管理；走租户 token）。
+ * keyPrefix/雪花 id 全程字符串；create 返回的 apiKey 为明文，仅此一次返回。
+ */
+export const apiKeyApi = {
+  list: () => request.get('/apikeys'),
+  create: (data) => request.post('/apikeys', data),
+  revoke: (id) => request.put(`/apikeys/${id}/revoke`),
+  remove: (id) => request.delete(`/apikeys/${id}`),
+}
+
 /** 数据范围可选值（design-system / data-model 状态字典） */
 export const DATA_SCOPES = [
   { value: 'self', label: '本人' },

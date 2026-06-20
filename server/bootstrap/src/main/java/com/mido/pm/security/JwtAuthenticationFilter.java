@@ -41,8 +41,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
+            // 若前置 API Key 过滤器已认证，则不再用 JWT 覆盖
             String token = resolveToken(request);
-            if (token != null) {
+            if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 TokenPayload payload = ssoProvider.verifyToken(token);
                 if (payload != null) {
                     // 按令牌真实租户覆盖基线租户上下文，落地多租户隔离（替代固定 tenant_id=1）

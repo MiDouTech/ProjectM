@@ -173,6 +173,10 @@ CREATE TABLE sys_user_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIG
 CREATE TABLE sys_role_perm (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, perm_code VARCHAR(64), KEY idx_role(role_id));
 CREATE TABLE sys_role_data_scope (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, resource VARCHAR(32), scope VARCHAR(16)); -- self/dept/dept_and_sub/all/custom
 CREATE TABLE sys_identity_map (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, provider VARCHAR(16), external_id VARCHAR(128), KEY idx_ext(provider,external_id));
+-- 开放平台 API Key（P2.2，租户业务表）：key 绑定用户、等同其身份调 OpenAPI；仅存 SHA-256 与前缀。
+CREATE TABLE sys_api_key (id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, user_id BIGINT NOT NULL,
+  name VARCHAR(64), key_hash CHAR(64), key_prefix VARCHAR(16), status VARCHAR(16) DEFAULT 'active',
+  last_used_at DATETIME, expire_at DATETIME, UNIQUE KEY uk_apikey_hash(key_hash), KEY idx_apikey_tenant(tenant_id));
 
 -- ========== 平台基础 ==========
 CREATE TABLE sys_domain_event (id BIGINT PRIMARY KEY, tenant_id BIGINT, event_type VARCHAR(64), payload JSON, status VARCHAR(16) DEFAULT 'pending', create_time DATETIME, KEY idx_status(status));

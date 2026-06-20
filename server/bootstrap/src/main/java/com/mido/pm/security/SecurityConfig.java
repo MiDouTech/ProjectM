@@ -1,5 +1,6 @@
 package com.mido.pm.security;
 
+import com.mido.pm.org.service.ApiKeyService;
 import com.mido.pm.platform.security.PlatformTokenService;
 import com.mido.pm.platform.service.PlatformAuthService;
 import com.mido.pm.provider.identity.IdentityProvider;
@@ -70,8 +71,11 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    SsoProvider ssoProvider,
-                                                   IdentityProvider identityProvider) throws Exception {
+                                                   IdentityProvider identityProvider,
+                                                   ApiKeyService apiKeyService) throws Exception {
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(ssoProvider, identityProvider);
+        // 开放平台 API Key 过滤器置于 JWT 之前：带 X-API-Key 时以绑定用户身份认证，否则放行交给 JWT
+        ApiKeyAuthenticationFilter apiKeyFilter = new ApiKeyAuthenticationFilter(apiKeyService, identityProvider);
         http
                 .csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
@@ -83,7 +87,8 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(unauthorizedEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 
