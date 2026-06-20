@@ -13,8 +13,22 @@ import java.util.Set;
  */
 public class MidoTenantLineHandler implements TenantLineHandler {
 
-    /** 无需租户隔离的表（无 tenant_id 列或全局共享）。当前无，预留扩展。 */
-    private static final Set<String> IGNORE_TABLES = Set.of();
+    /**
+     * 无需租户隔离的表：平台域（SaaS 运营总后台）全局表，无 tenant_id 列、跨租户共享。
+     * 这是对「所有业务表必带 tenant_id」的正式架构例外（见 com.mido.pm.platform 包说明）。
+     * 注：sys_tenant_subscription 含 tenant_id 列，但那是指向 sys_tenant.id 的普通引用列、非隔离列，
+     * 同样需忽略以免被自动注入 where 条件。
+     */
+    private static final Set<String> IGNORE_TABLES = Set.of(
+            "sys_tenant",
+            "sys_plan",
+            "sys_plan_quota",
+            "sys_tenant_subscription",
+            "sys_platform_admin",
+            "sys_platform_role",
+            "sys_platform_admin_role",
+            "sys_platform_role_perm",
+            "sys_platform_audit_log");
 
     @Override
     public Expression getTenantId() {

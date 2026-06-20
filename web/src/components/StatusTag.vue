@@ -1,5 +1,5 @@
 <template>
-  <el-tag :type="tagType" disable-transitions>{{ status }}</el-tag>
+  <el-tag :type="tagType" disable-transitions>{{ label }}</el-tag>
 </template>
 
 <script setup>
@@ -11,6 +11,9 @@ import { computed } from 'vue'
  */
 const props = defineProps({
   status: { type: String, default: '' },
+  // 可选展示文案覆盖：用于 active 等同码在不同上下文语义不同的场景
+  // （租户 active=正式，套餐/账号 active=启用）。不传则用内置映射。
+  label: { type: String, default: '' },
 })
 
 // design-system §1.5 状态映射表（业务状态 → Element Plus tag type）。
@@ -38,7 +41,18 @@ const STATUS_TYPE = {
   健康: 'success', 关注: 'warning', 风险: 'danger',
   // 变更单状态（pm_change_request，待回写 design-system §1.5 登记）
   已生效: 'success', 已驳回: 'danger', 已撤回: 'info',
+  // 平台运营后台：租户生命周期状态（英文码，待回写 design-system §1.5 登记）
+  trial: 'info', suspended: 'warning', expired: 'danger', closed: 'info',
+}
+
+// 英文状态码 → 中文展示文案。命中则显示中文，否则原样回显 status
+//（保持现有中文 key 向后兼容）。active 默认「启用」（套餐/账号），
+// 租户「正式」由调用方经 label 覆盖。
+const STATUS_LABEL = {
+  trial: '试用', active: '启用', suspended: '停用', expired: '已过期',
+  closed: '已注销', disabled: '停用',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')
+const label = computed(() => props.label || STATUS_LABEL[props.status] || props.status)
 </script>

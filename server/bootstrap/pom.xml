@@ -27,6 +27,10 @@
         </dependency>
         <dependency>
             <groupId>com.mido.pm</groupId>
+            <artifactId>module-platform</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
             <artifactId>module-org</artifactId>
         </dependency>
         <dependency>
