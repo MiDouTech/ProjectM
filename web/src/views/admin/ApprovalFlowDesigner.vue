@@ -36,7 +36,7 @@
         <el-button :icon="ArrowLeft" @click="backToList">返回</el-button>
         <el-input v-model="form.displayName" placeholder="审批流名称（中文，如 战略级标准流程）" class="afd-editor__name" />
         <el-select v-model="form.bizType" placeholder="业务类型" class="afd-editor__biz">
-          <el-option v-for="b in APPROVAL_BIZ_TYPES" :key="b.value" :label="b.label" :value="b.value" />
+          <el-option v-for="b in bizTypes" :key="b.value" :label="b.label" :value="b.value" />
         </el-select>
         <el-button type="primary" :icon="Check" :loading="saving" @click="save">保存</el-button>
       </div>
@@ -122,7 +122,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, Check, Delete, Rank, ArrowLeft } from '@element-plus/icons-vue'
 import UserSelect from '@/components/UserSelect.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { approvalFlowApi, APPROVAL_BIZ_TYPES } from '@/api/project'
+import { approvalApi, approvalFlowApi } from '@/api/project'
 import { roleApi } from '@/api/org'
 
 const view = ref('list') // 'list' | 'edit'
@@ -135,7 +135,9 @@ const nodes = ref([])
 const form = reactive({ id: null, name: '', displayName: '', bizType: 'project_init', mode: 'fixed' })
 
 let keySeq = 0
-const bizLabel = (v) => APPROVAL_BIZ_TYPES.find((b) => b.value === v)?.label || v || '—'
+// bizType 字典：单一信息源，从后端 /approvals/biz-types 拉取（不再前端硬编码）
+const bizTypes = ref([])
+const bizLabel = (v) => bizTypes.value.find((b) => b.value === v)?.label || v || '—'
 
 // 列表展示用：解析 definition 统计审批节点数
 function nodeCount(row) {
@@ -282,6 +284,11 @@ onMounted(async () => {
   const m = await approvalFlowApi.designerMeta()
   Object.assign(meta, m)
   roles.value = await roleApi.list()
+  try {
+    bizTypes.value = await approvalApi.bizTypes() || []
+  } catch {
+    bizTypes.value = []
+  }
   await loadFlows()
 })
 </script>

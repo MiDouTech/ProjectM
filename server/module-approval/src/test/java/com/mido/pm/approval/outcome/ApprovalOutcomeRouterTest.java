@@ -28,7 +28,7 @@ class ApprovalOutcomeRouterTest {
     void setUp() {
         handler = mock(ApprovalOutcomeHandler.class);
         when(handler.bizType()).thenReturn("x");
-        router = new ApprovalOutcomeRouter(List.of(handler));
+        router = new ApprovalOutcomeRouter(new ApprovalBizTypeRegistry(List.of(handler)));
     }
 
     private DomainEventMessage msg(String type, Object bizType, Object bizId) {

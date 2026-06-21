@@ -23,6 +23,16 @@ public class CostApprovalHandler implements ApprovalOutcomeHandler {
     }
 
     @Override
+    public String label() {
+        return "费用审批";
+    }
+
+    @Override
+    public int order() {
+        return 20;
+    }
+
+    @Override
     public void onApproved(long bizId) {
         costService.applyApprovalResult(bizId, true);
     }

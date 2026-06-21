@@ -23,6 +23,16 @@ public class ChangeApprovalHandler implements ApprovalOutcomeHandler {
     }
 
     @Override
+    public String label() {
+        return "变更审批";
+    }
+
+    @Override
+    public int order() {
+        return 30;
+    }
+
+    @Override
     public void onApproved(long bizId) {
         changeService.onApprovalApproved(bizId);
     }

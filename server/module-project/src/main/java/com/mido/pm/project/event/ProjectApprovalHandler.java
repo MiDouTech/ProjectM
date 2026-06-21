@@ -33,6 +33,16 @@ public class ProjectApprovalHandler implements ApprovalOutcomeHandler {
     }
 
     @Override
+    public String label() {
+        return "立项审批";
+    }
+
+    @Override
+    public int order() {
+        return 10;
+    }
+
+    @Override
     public void onApproved(long bizId) {
         log.info("立项审批通过，驱动项目注册：projectId={}", bizId);
         transition(bizId, new ProjectTransitionDTO(ProjectStatus.REGISTERED.getCode(), true));

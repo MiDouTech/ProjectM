@@ -1,12 +1,14 @@
 package com.mido.pm.approval.controller;
 
 import com.mido.pm.approval.dto.ActDTO;
+import com.mido.pm.approval.dto.ApprovalBizTypeVO;
 import com.mido.pm.approval.dto.InitiatedApprovalVO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
+import com.mido.pm.approval.outcome.ApprovalBizTypeRegistry;
 import com.mido.pm.approval.service.ApprovalService;
 import com.mido.pm.common.api.R;
 import jakarta.validation.Valid;
@@ -25,9 +27,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApprovalController {
 
     private final ApprovalService approvalService;
+    private final ApprovalBizTypeRegistry bizTypeRegistry;
 
-    public ApprovalController(ApprovalService approvalService) {
+    public ApprovalController(ApprovalService approvalService, ApprovalBizTypeRegistry bizTypeRegistry) {
         this.approvalService = approvalService;
+        this.bizTypeRegistry = bizTypeRegistry;
+    }
+
+    /** 审批 bizType 字典（单一信息源）：供前端筛选下拉与审批流设计器消费。 */
+    @GetMapping("/biz-types")
+    public R<List<ApprovalBizTypeVO>> bizTypes() {
+        return R.ok(bizTypeRegistry.list());
     }
 
     @PostMapping("/submit")

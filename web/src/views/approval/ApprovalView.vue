@@ -169,7 +169,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import ChangeCenter from '@/views/ChangeCenter.vue'
-import { approvalApi, projectApi, APPROVAL_BIZ_TYPES, PROJECT_CATEGORIES } from '@/api/project'
+import { approvalApi, projectApi, PROJECT_CATEGORIES } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { userName } from '@/utils/display'
 import { useUserStore } from '@/store/user'
@@ -178,10 +178,12 @@ import { useUserStore } from '@/store/user'
 const userStore = useUserStore()
 const showChange = computed(() => userStore.hasFeature('change'))
 const activeTab = ref('mine')
-// bizType 筛选项随 showChange 收敛：无 change 功能时剔除「变更审批」死选项
+// bizType 字典：单一信息源，挂载时从后端 /approvals/biz-types 拉取（不再前端硬编码）
+const bizTypes = ref([])
+// 筛选项随 showChange 收敛：无 change 功能时剔除「变更审批」死选项
 const bizFilterOptions = computed(() => (showChange.value
-  ? APPROVAL_BIZ_TYPES
-  : APPROVAL_BIZ_TYPES.filter((b) => b.value !== 'change')))
+  ? bizTypes.value
+  : bizTypes.value.filter((b) => b.value !== 'change')))
 
 // 待我审批按 bizType 客户端筛选（数据来自 mine，不增后端请求）
 const mineBizFilter = ref('')
@@ -261,7 +263,7 @@ const statusZh = (s) => STATUS_ZH[s] || s
 const fmtDate = (v) => (v ? String(v).slice(0, 10) : '—')
 const fmtMoney = (v) => (v == null ? '—' : Number(v).toLocaleString('zh-CN'))
 // bizType / 项目类型 码 → 中文标签
-const bizTypeLabel = (t) => APPROVAL_BIZ_TYPES.find((b) => b.value === t)?.label || t
+const bizTypeLabel = (t) => bizTypes.value.find((b) => b.value === t)?.label || t
 const categoryLabel = (c) => PROJECT_CATEGORIES.find((p) => p.value === c)?.label || c || '—'
 
 async function loadMine() {
@@ -276,6 +278,11 @@ const route = useRoute()
 onMounted(async () => {
   // 旧 /change 深链重定向至此，按 tab 参数定位变更台账（无 change 功能则不切，留在待我审批）
   if (route.query.tab === 'change' && showChange.value) activeTab.value = 'change'
+  try {
+    bizTypes.value = await approvalApi.bizTypes() || []
+  } catch {
+    bizTypes.value = []
+  }
   loadMine()
   try {
     members.value = await fetchMembers()

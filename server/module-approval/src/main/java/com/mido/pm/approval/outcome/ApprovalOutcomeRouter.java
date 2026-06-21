@@ -8,15 +8,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * 审批结果统一路由（唯一 listener）：监听 approval.approved/rejected/withdrawn，一处完成
- * 事件解码 + payload guard + bizId 提取 + 异常兜底，按 bizType 路由到对应
- * {@link ApprovalOutcomeHandler}。取代原 project/cost/change 各自重复的 {@code *ApprovalListener}。
+ * 事件解码 + payload guard + bizId 提取 + 异常兜底，经 {@link ApprovalBizTypeRegistry}
+ * 按 bizType 路由到对应 {@link ApprovalOutcomeHandler}。取代原各域重复的 {@code *ApprovalListener}。
  *
  * <p>AFTER_COMMIT：审批事务提交后才驱动（避免审批回滚却联动）；回写异常不得逸出
  * （已提交不可回滚、无重投），统一记错便于人工/补偿处理。各域若有「良性可忽略」异常
@@ -27,12 +24,10 @@ public class ApprovalOutcomeRouter {
 
     private static final Logger log = LoggerFactory.getLogger(ApprovalOutcomeRouter.class);
 
-    private final Map<String, ApprovalOutcomeHandler> handlers;
+    private final ApprovalBizTypeRegistry registry;
 
-    public ApprovalOutcomeRouter(List<ApprovalOutcomeHandler> handlerList) {
-        // 同一 bizType 重复注册即启动期失败（toMap 抛错），避免回写歧义
-        this.handlers = handlerList.stream()
-                .collect(Collectors.toMap(ApprovalOutcomeHandler::bizType, Function.identity()));
+    public ApprovalOutcomeRouter(ApprovalBizTypeRegistry registry) {
+        this.registry = registry;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -48,7 +43,7 @@ public class ApprovalOutcomeRouter {
             return;
         }
         Object bizType = payload.get("bizType");
-        ApprovalOutcomeHandler handler = bizType == null ? null : handlers.get(bizType.toString());
+        ApprovalOutcomeHandler handler = bizType == null ? null : registry.handler(bizType.toString());
         if (handler == null) {
             return;
         }
