@@ -36,6 +36,7 @@
         <module>module-view</module>
         <module>module-report</module>
         <module>module-ai</module>
+        <module>gateway-mcp</module>
         <module>bootstrap</module>
     </modules>
 
@@ -50,6 +51,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <shardingsphere.version>5.5.0</shardingsphere.version>
         <minio.version>8.5.12</minio.version>
+        <mcp.version>0.11.2</mcp.version>
     </properties>
 
     <dependencyManagement>
@@ -140,8 +142,24 @@
                 <artifactId>module-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>gateway-mcp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- 第三方依赖锁版本 -->
+            <!-- MCP（Model Context Protocol）官方 Java SDK + Spring WebMvc SSE 传输：对外提供智能体连接器 -->
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp</artifactId>
+                <version>${mcp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-spring-webmvc</artifactId>
+                <version>${mcp.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
