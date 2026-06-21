@@ -3,6 +3,8 @@ package com.mido.pm.mcp.tool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.collab.dto.CommentCreateDTO;
 import com.mido.pm.collab.service.CommentService;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.mcp.support.McpToolGuard;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
@@ -21,7 +23,8 @@ import static org.mockito.Mockito.when;
 class CollabMcpToolsTest {
 
     private final CommentService commentService = mock(CommentService.class);
-    private final CollabMcpTools tools = new CollabMcpTools(commentService, new ObjectMapper());
+    private final McpToolGuard guard = new McpToolGuard(mock(AuditLogService.class), id -> true);
+    private final CollabMcpTools tools = new CollabMcpTools(commentService, new ObjectMapper(), guard);
 
     @Test
     void 暴露加评论工具() {

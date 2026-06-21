@@ -2,6 +2,8 @@ package com.mido.pm.mcp.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.collab.service.CommentService;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.mcp.support.McpToolProvider;
 import com.mido.pm.mcp.tool.CollabMcpTools;
 import com.mido.pm.mcp.tool.NpssMcpTools;
@@ -35,11 +37,12 @@ class McpServerConfigTest {
     @Test
     void 聚合全部工具构建MCP_Server() {
         WebMvcSseServerTransportProvider transport = config.mcpTransportProvider(objectMapper);
+        McpToolGuard guard = new McpToolGuard(mock(AuditLogService.class), id -> true);
         List<McpToolProvider> providers = List.of(
-                new ProjectMcpTools(mock(ProjectService.class), objectMapper),
-                new TaskMcpTools(mock(TaskService.class), objectMapper),
-                new NpssMcpTools(mock(NpssReviewService.class), objectMapper),
-                new CollabMcpTools(mock(CommentService.class), objectMapper));
+                new ProjectMcpTools(mock(ProjectService.class), objectMapper, guard),
+                new TaskMcpTools(mock(TaskService.class), objectMapper, guard),
+                new NpssMcpTools(mock(NpssReviewService.class), objectMapper, guard),
+                new CollabMcpTools(mock(CommentService.class), objectMapper, guard));
 
         McpSyncServer server = config.mcpSyncServer(transport, providers);
         assertThat(server).isNotNull();

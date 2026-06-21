@@ -20,8 +20,10 @@
 - 携带请求头 `X-API-Key: <PAT>`，复用既有开放平台 API Key 机制（`sys_api_key` / `ApiKeyAuthenticationFilter`）。
 - PAT 绑定某用户：调用**等同该用户身份**，自动继承其租户隔离、数据范围与可见性。返回数据已按调用者范围过滤。
 - 在「组织管理 → API Key」创建 PAT（需 `org:apikey:manage` 权限），明文仅创建时返回一次。
-- **建议**：为智能体单建低权限专用账号再签 PAT，避免使用超管账号。
-- OAuth 2.1 标准授权流为后续阶段（P2）规划，届时与 PAT 并存。
+- **调用范围（scope）**：创建 PAT 时可指定 `scopes`（`mcp:read` 只读 / `mcp:write` 读写，逗号分隔）；
+  缺省授予读写两档。**仅授 `mcp:read` 即可签发"只读连接器"凭证**，写工具将被拒绝。
+  注意：scope 仅约束 MCP 工具调用，不约束 REST；如需彻底限制智能体，建议为其单建低权限专用账号再签 PAT。
+- OAuth 2.1 标准授权流为后续阶段规划，届时与 PAT 并存。
 
 ## 3. 工具清单
 
@@ -55,12 +57,19 @@
 
 ## 5. 治理与边界
 
-- **审计**：写工具经领域 Service 落审计日志（操作人=PAT 绑定用户），与 REST 同源。
+- **scope 校验**：每次工具调用经 `McpToolGuard` 统一校验——只读工具需 `mcp:read`、写工具需 `mcp:write`；
+  缺范围返回错误结果。仅作用于携带 PAT 的调用（JWT 登录用户直连放行）。
+- **调用审计**：每次经 PAT 的工具调用落一条审计（`entityType=mcp`、`entityId=API Key 主键`、
+  `action=mcp_invoke`、detail 含工具名/范围/结果），区分「经 MCP 调用」与具体工具、Key；
+  与领域 Service 自身审计（如 `task.created`）并存互补。
+- **每 Key 限流**：基于 Redis 固定窗口按 API Key 限流，阈值 `mido.mcp.rate-limit.per-minute`（默认 120/分钟）；
+  Redis 故障时放行（fail-open），不阻断正常调用。
 - **租户隔离 / 数据范围**：MyBatis-Plus 拦截器自动注入，工具无需也不得手写 tenant 条件。
-- **线程模型**：WebMvc SSE 在 servlet 请求线程同步处理消息，ThreadLocal 形态的租户/安全上下文对工具天然可见。
+- **线程模型**：WebMvc SSE 在 servlet 请求线程同步处理消息，ThreadLocal 形态的租户/安全/API Key 上下文对工具天然可见。
 
 ## 6. 暂未实现（后续）
 
 - **幂等**：本仓库无通用 Idempotency-Key 组件（REST 的任务创建亦无），故 MCP 写暂不单独引入；如需跨端统一幂等，应作为独立横切任务。
-- **按 Key / 按工具的调用审计**（区分「经 MCP 调用」与具体工具、API Key）：需在认证过滤器侧传播 key 标识，列入 P2。
-- **OAuth 2.1 授权、PAT scope 细粒度限定、Resources、限流**：P2。
+- **scope 细粒度（每工具白名单）/ 三档 read/write/admin**：当前为粗粒度读/写两档。
+- **创建 PAT 的前端 scope 选择项**：后端 `ApiKeyCreateDTO.scopes` 已支持，前端表单字段待补。
+- **OAuth 2.1 授权流、Resources（文档/报表只读资源）、真实平台端到端联调**：后续阶段。

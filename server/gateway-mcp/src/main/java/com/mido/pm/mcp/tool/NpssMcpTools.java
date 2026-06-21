@@ -1,6 +1,7 @@
 package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.mcp.support.McpToolProvider;
 import com.mido.pm.mcp.support.McpToolSupport;
 import com.mido.pm.verify.service.NpssReviewService;
@@ -19,10 +20,12 @@ public class NpssMcpTools implements McpToolProvider {
 
     private final NpssReviewService npssReviewService;
     private final ObjectMapper objectMapper;
+    private final McpToolGuard guard;
 
-    public NpssMcpTools(NpssReviewService npssReviewService, ObjectMapper objectMapper) {
+    public NpssMcpTools(NpssReviewService npssReviewService, ObjectMapper objectMapper, McpToolGuard guard) {
         this.npssReviewService = npssReviewService;
         this.objectMapper = objectMapper;
+        this.guard = guard;
     }
 
     @Override
@@ -42,7 +45,7 @@ public class NpssMcpTools implements McpToolProvider {
                   "required": ["projectId"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.readOnly(tool, (exchange, args) -> {
             try {
                 long projectId = McpToolSupport.requireLong(args, "projectId");
                 return McpToolSupport.ok(objectMapper, npssReviewService.listByProject(projectId));
@@ -64,7 +67,7 @@ public class NpssMcpTools implements McpToolProvider {
                   "required": ["reviewId"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.readOnly(tool, (exchange, args) -> {
             try {
                 long reviewId = McpToolSupport.requireLong(args, "reviewId");
                 return McpToolSupport.ok(objectMapper, npssReviewService.get(reviewId));

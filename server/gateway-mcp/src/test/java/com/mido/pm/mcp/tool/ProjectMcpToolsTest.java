@@ -2,6 +2,8 @@ package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.mcp.support.McpToolProvider;
 import com.mido.pm.project.dto.ProjectQueryDTO;
 import com.mido.pm.project.service.ProjectService;
@@ -23,7 +25,8 @@ import static org.mockito.Mockito.when;
 class ProjectMcpToolsTest {
 
     private final ProjectService projectService = mock(ProjectService.class);
-    private final ProjectMcpTools tools = new ProjectMcpTools(projectService, new ObjectMapper());
+    private final McpToolGuard guard = new McpToolGuard(mock(AuditLogService.class), id -> true);
+    private final ProjectMcpTools tools = new ProjectMcpTools(projectService, new ObjectMapper(), guard);
 
     @Test
     void 暴露三个项目只读工具() {

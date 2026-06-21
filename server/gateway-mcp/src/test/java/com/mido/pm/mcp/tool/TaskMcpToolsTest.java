@@ -2,6 +2,8 @@ package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.task.dto.TaskCreateDTO;
 import com.mido.pm.task.dto.TaskQueryDTO;
 import com.mido.pm.task.service.TaskService;
@@ -23,7 +25,8 @@ import static org.mockito.Mockito.when;
 class TaskMcpToolsTest {
 
     private final TaskService taskService = mock(TaskService.class);
-    private final TaskMcpTools tools = new TaskMcpTools(taskService, new ObjectMapper());
+    private final McpToolGuard guard = new McpToolGuard(mock(AuditLogService.class), id -> true);
+    private final TaskMcpTools tools = new TaskMcpTools(taskService, new ObjectMapper(), guard);
 
     @Test
     void 暴露任务只读与写工具() {

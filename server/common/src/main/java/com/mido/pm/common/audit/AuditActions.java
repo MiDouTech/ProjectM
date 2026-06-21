@@ -14,11 +14,15 @@ public final class AuditActions {
     public static final String STATUS_CHANGED = "status_changed";
     /** 指派/改派（detail = {from,to}，值为用户ID） */
     public static final String ASSIGNED = "assigned";
+    /** MCP 工具调用（detail = {tool, scope, outcome}） */
+    public static final String MCP_INVOKE = "mcp_invoke";
 
     /** 实体类型：项目 */
     public static final String TARGET_PROJECT = "project";
     /** 实体类型：任务 */
     public static final String TARGET_TASK = "task";
+    /** 实体类型：MCP 连接器（entityId = API Key 主键） */
+    public static final String TARGET_MCP = "mcp";
 
     private AuditActions() {
     }

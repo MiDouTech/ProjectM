@@ -38,6 +38,12 @@
             <artifactId>module-collab</artifactId>
         </dependency>
 
+        <!-- 每 Key 限流：Redis 计数（StringRedisTemplate） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- MCP 官方 Java SDK + Spring WebMvc SSE 传输（RouterFunction 注入现有 Spring MVC） -->
         <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>

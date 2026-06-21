@@ -1,6 +1,7 @@
 package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.mcp.support.McpToolProvider;
 import com.mido.pm.mcp.support.McpToolSupport;
 import com.mido.pm.project.dto.ProjectQueryDTO;
@@ -21,10 +22,12 @@ public class ProjectMcpTools implements McpToolProvider {
 
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
+    private final McpToolGuard guard;
 
-    public ProjectMcpTools(ProjectService projectService, ObjectMapper objectMapper) {
+    public ProjectMcpTools(ProjectService projectService, ObjectMapper objectMapper, McpToolGuard guard) {
         this.projectService = projectService;
         this.objectMapper = objectMapper;
+        this.guard = guard;
     }
 
     @Override
@@ -47,7 +50,7 @@ public class ProjectMcpTools implements McpToolProvider {
                   }
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.readOnly(tool, (exchange, args) -> {
             try {
                 ProjectQueryDTO query = new ProjectQueryDTO(
                         McpToolSupport.optLong(args, "page"),
@@ -75,7 +78,7 @@ public class ProjectMcpTools implements McpToolProvider {
                   "required": ["projectId"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.readOnly(tool, (exchange, args) -> {
             try {
                 long projectId = McpToolSupport.requireLong(args, "projectId");
                 return McpToolSupport.ok(objectMapper, projectService.get(projectId));
@@ -91,7 +94,7 @@ public class ProjectMcpTools implements McpToolProvider {
                 """
                 {"type": "object", "properties": {}}
                 """);
-        return new SyncToolSpecification(tool,
+        return guard.readOnly(tool,
                 (exchange, args) -> McpToolSupport.ok(objectMapper, projectService.myProjects()));
     }
 }

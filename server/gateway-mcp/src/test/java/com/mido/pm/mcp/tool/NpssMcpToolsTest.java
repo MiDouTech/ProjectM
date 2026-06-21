@@ -1,6 +1,8 @@
 package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.verify.service.NpssReviewService;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
@@ -18,7 +20,8 @@ import static org.mockito.Mockito.when;
 class NpssMcpToolsTest {
 
     private final NpssReviewService npssReviewService = mock(NpssReviewService.class);
-    private final NpssMcpTools tools = new NpssMcpTools(npssReviewService, new ObjectMapper());
+    private final McpToolGuard guard = new McpToolGuard(mock(AuditLogService.class), id -> true);
+    private final NpssMcpTools tools = new NpssMcpTools(npssReviewService, new ObjectMapper(), guard);
 
     @Test
     void 暴露两个NPSS只读工具() {

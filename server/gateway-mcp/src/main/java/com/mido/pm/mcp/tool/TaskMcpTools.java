@@ -1,6 +1,7 @@
 package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.mcp.support.McpToolProvider;
 import com.mido.pm.mcp.support.McpToolSupport;
 import com.mido.pm.task.dto.TaskCreateDTO;
@@ -22,10 +23,12 @@ public class TaskMcpTools implements McpToolProvider {
 
     private final TaskService taskService;
     private final ObjectMapper objectMapper;
+    private final McpToolGuard guard;
 
-    public TaskMcpTools(TaskService taskService, ObjectMapper objectMapper) {
+    public TaskMcpTools(TaskService taskService, ObjectMapper objectMapper, McpToolGuard guard) {
         this.taskService = taskService;
         this.objectMapper = objectMapper;
+        this.guard = guard;
     }
 
     @Override
@@ -50,7 +53,7 @@ public class TaskMcpTools implements McpToolProvider {
                   }
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.readOnly(tool, (exchange, args) -> {
             try {
                 TaskQueryDTO query = new TaskQueryDTO(
                         McpToolSupport.optLong(args, "page"),
@@ -79,7 +82,7 @@ public class TaskMcpTools implements McpToolProvider {
                   "required": ["taskId"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.readOnly(tool, (exchange, args) -> {
             try {
                 long taskId = McpToolSupport.requireLong(args, "taskId");
                 return McpToolSupport.ok(objectMapper, taskService.get(taskId));
@@ -110,7 +113,7 @@ public class TaskMcpTools implements McpToolProvider {
                   "required": ["projectId", "title"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.write(tool, (exchange, args) -> {
             try {
                 TaskCreateDTO dto = new TaskCreateDTO(
                         McpToolSupport.requireString(args, "title"),
@@ -144,7 +147,7 @@ public class TaskMcpTools implements McpToolProvider {
                   "required": ["taskId", "targetStatus"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.write(tool, (exchange, args) -> {
             try {
                 long taskId = McpToolSupport.requireLong(args, "taskId");
                 String targetStatus = McpToolSupport.requireString(args, "targetStatus");
@@ -169,7 +172,7 @@ public class TaskMcpTools implements McpToolProvider {
                   "required": ["taskId", "assigneeId"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.write(tool, (exchange, args) -> {
             try {
                 long taskId = McpToolSupport.requireLong(args, "taskId");
                 long assigneeId = McpToolSupport.requireLong(args, "assigneeId");

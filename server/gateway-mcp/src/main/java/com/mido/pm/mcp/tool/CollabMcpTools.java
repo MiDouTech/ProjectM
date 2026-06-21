@@ -3,6 +3,7 @@ package com.mido.pm.mcp.tool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.collab.dto.CommentCreateDTO;
 import com.mido.pm.collab.service.CommentService;
+import com.mido.pm.mcp.support.McpToolGuard;
 import com.mido.pm.mcp.support.McpToolProvider;
 import com.mido.pm.mcp.support.McpToolSupport;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
@@ -21,10 +22,12 @@ public class CollabMcpTools implements McpToolProvider {
 
     private final CommentService commentService;
     private final ObjectMapper objectMapper;
+    private final McpToolGuard guard;
 
-    public CollabMcpTools(CommentService commentService, ObjectMapper objectMapper) {
+    public CollabMcpTools(CommentService commentService, ObjectMapper objectMapper, McpToolGuard guard) {
         this.commentService = commentService;
         this.objectMapper = objectMapper;
+        this.guard = guard;
     }
 
     @Override
@@ -47,7 +50,7 @@ public class CollabMcpTools implements McpToolProvider {
                   "required": ["entityType", "entityId", "content"]
                 }
                 """);
-        return new SyncToolSpecification(tool, (exchange, args) -> {
+        return guard.write(tool, (exchange, args) -> {
             try {
                 CommentCreateDTO dto = new CommentCreateDTO(
                         McpToolSupport.requireString(args, "entityType"),
