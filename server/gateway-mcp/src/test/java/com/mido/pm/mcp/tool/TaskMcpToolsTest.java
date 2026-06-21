@@ -2,6 +2,7 @@ package com.mido.pm.mcp.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.task.dto.TaskCreateDTO;
 import com.mido.pm.task.dto.TaskQueryDTO;
 import com.mido.pm.task.service.TaskService;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
@@ -25,9 +26,10 @@ class TaskMcpToolsTest {
     private final TaskMcpTools tools = new TaskMcpTools(taskService, new ObjectMapper());
 
     @Test
-    void 暴露两个任务只读工具() {
+    void 暴露任务只读与写工具() {
         List<String> names = tools.tools().stream().map(s -> s.tool().name()).toList();
-        assertThat(names).containsExactlyInAnyOrder("query_tasks", "get_task");
+        assertThat(names).containsExactlyInAnyOrder(
+                "query_tasks", "get_task", "create_task", "update_task_status", "assign_task");
     }
 
     @Test
@@ -51,6 +53,43 @@ class TaskMcpToolsTest {
         CallToolResult result = invoke("get_task", Map.of());
         assertThat(result.isError()).isTrue();
         assertThat(text(result)).contains("taskId");
+    }
+
+    @Test
+    void create_task_解析参数并委派创建() {
+        when(taskService.create(any())).thenReturn(100L);
+
+        CallToolResult result = invoke("create_task",
+                Map.of("projectId", 3, "title", "采购物料", "assigneeId", 9, "dueDate", "2026-07-01"));
+
+        ArgumentCaptor<TaskCreateDTO> captor = ArgumentCaptor.forClass(TaskCreateDTO.class);
+        verify(taskService).create(captor.capture());
+        TaskCreateDTO dto = captor.getValue();
+        assertThat(dto.title()).isEqualTo("采购物料");
+        assertThat(dto.projectId()).isEqualTo(3L);
+        assertThat(dto.assigneeId()).isEqualTo(9L);
+        assertThat(dto.dueDate()).isEqualTo(java.time.LocalDate.of(2026, 7, 1));
+        verify(taskService).get(100L);
+        assertThat(result.isError()).isFalse();
+    }
+
+    @Test
+    void create_task_缺少标题返回错误结果() {
+        CallToolResult result = invoke("create_task", Map.of("projectId", 3));
+        assertThat(result.isError()).isTrue();
+        assertThat(text(result)).contains("title");
+    }
+
+    @Test
+    void update_task_status_委派状态流转() {
+        invoke("update_task_status", Map.of("taskId", 5, "targetStatus", "已完成"));
+        verify(taskService).changeStatus(5L, "已完成");
+    }
+
+    @Test
+    void assign_task_委派指派() {
+        invoke("assign_task", Map.of("taskId", 5, "assigneeId", 9));
+        verify(taskService).assign(5L, 9L);
     }
 
     private CallToolResult invoke(String toolName, Map<String, Object> args) {

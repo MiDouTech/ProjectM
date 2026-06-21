@@ -33,6 +33,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-verify</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-collab</artifactId>
+        </dependency>
 
         <!-- MCP 官方 Java SDK + Spring WebMvc SSE 传输（RouterFunction 注入现有 Spring MVC） -->
         <dependency>
