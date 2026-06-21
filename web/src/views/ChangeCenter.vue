@@ -1,7 +1,7 @@
 <template>
-  <div class="mido-page">
+  <div :class="{ 'mido-page': !embedded }">
     <div class="cc__bar">
-      <h1 class="mido-h1">变更中心</h1>
+      <h1 v-if="!embedded" class="mido-h1">变更中心</h1>
       <div class="cc__filters">
         <el-select v-model="status" clearable placeholder="全部状态" class="cc__status" @change="load">
           <el-option v-for="s in CHANGE_STATUS" :key="s.value" :label="s.label" :value="s.value" />
@@ -69,6 +69,9 @@ import ApprovalSteps from '@/components/ApprovalSteps.vue'
 import { changeApi, CHANGE_STATUS, CHANGE_TYPES } from '@/api/change'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf, formatDateTime } from '@/utils/display'
+
+// embedded：作为「审批中心」变更台账 Tab 嵌入时，隐藏自身标题与页面外边距
+defineProps({ embedded: { type: Boolean, default: false } })
 
 const loading = ref(false)
 const rows = ref([])

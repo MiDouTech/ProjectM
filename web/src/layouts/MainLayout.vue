@@ -85,7 +85,6 @@ const NAV_FEATURE_MAP = {
   '/goal': 'okr',
   '/doc': 'doc',
   '/report': 'report',
-  '/change': 'change',
 }
 const visibleNavItems = computed(() =>
   navItems.filter((item) => {

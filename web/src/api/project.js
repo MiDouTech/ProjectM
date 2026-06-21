@@ -40,6 +40,10 @@ export const approvalApi = {
   transfer: (id, data) => request.post(`/approvals/instances/${id}/transfer`, data),
   // 待我审批（工作台卡）：我未处理且实例 pending 的待办
   mine: () => request.get('/approvals/mine'),
+  // 我发起的（审批中心）：我提交的审批实例，跨 bizType、任意状态
+  mineInitiated: () => request.get('/approvals/mine-initiated'),
+  // bizType 字典（单一信息源）：[{ value, label }]，供筛选下拉与审批流设计器
+  bizTypes: () => request.get('/approvals/biz-types'),
 }
 
 /** 审批流定义（Step 3 进度渲染 + P2 可视化设计器 CRUD） */
@@ -69,11 +73,6 @@ export const PROJECT_TYPE_COLORS = [
   { value: 'info', label: '中性' },
 ]
 
-/** 立项审批 bizType（与后端 ProjectInitService.BIZ_TYPE 对齐） */
-export const APPROVAL_BIZ_TYPES = [
-  { value: 'project_init', label: '立项审批' },
-  { value: 'cost', label: '费用审批' },
-]
 
 /** 项目类型字典（CLAUDE.md §6：S 战略级 / I 创新级 / O 运营级） */
 export const PROJECT_CATEGORIES = [

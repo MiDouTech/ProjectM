@@ -122,7 +122,7 @@ public class CostService {
         return instanceId;
     }
 
-    /** 审批结果回写费用状态（由 CostApprovalListener 调用）：通过→已发生，驳回→被退回。 */
+    /** 审批结果回写费用状态（由 CostApprovalHandler 调用）：通过→已发生，驳回→被退回。 */
     @Transactional(rollbackFor = Exception.class)
     public void applyApprovalResult(Long costId, boolean approved) {
         PmCost c = costMapper.selectById(costId);

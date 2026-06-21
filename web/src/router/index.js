@@ -8,8 +8,7 @@ export const navItems = [
   { path: '/workbench', title: '工作台', icon: 'Monitor' },
   { path: '/project', title: '项目', icon: 'Folder' },
   { path: '/goal', title: '目标', icon: 'Aim' },
-  { path: '/approval', title: '审批', icon: 'Stamp' },
-  { path: '/change', title: '变更中心', icon: 'RefreshRight' },
+  { path: '/approval', title: '审批中心', icon: 'Stamp' },
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
   { path: '/doc', title: '文档', icon: 'Document' },
   { path: '/admin', title: '管理后台', icon: 'Setting' },
@@ -59,7 +58,8 @@ const routes = [
       { path: 'project/:projectId/stakeholders', component: () => import('@/views/stakeholder/StakeholderView.vue') },
       { path: 'goal', component: () => import('@/views/Goal.vue') },
       { path: 'approval', component: () => import('@/views/approval/ApprovalView.vue') },
-      { path: 'change', component: () => import('@/views/ChangeCenter.vue') },
+      // 变更中心已并入「审批中心」的变更台账 Tab；保留旧路径重定向兼容书签/深链
+      { path: 'change', redirect: { path: '/approval', query: { tab: 'change' } } },
       { path: 'report', component: () => import('@/views/Report.vue') },
       { path: 'doc', component: () => import('@/views/Doc.vue') },
       {
