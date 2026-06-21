@@ -27,6 +27,8 @@ public class ApiKeyService {
     private static final String STATUS_ACTIVE = "active";
     private static final String STATUS_DISABLED = "disabled";
     private static final String PREFIX = "mk_";
+    /** 默认调用范围：读写两档（与 sys_api_key.scopes 列默认值一致）。 */
+    private static final String DEFAULT_SCOPES = "mcp:read,mcp:write";
 
     private final SysApiKeyMapper apiKeyMapper;
 
@@ -53,6 +55,7 @@ public class ApiKeyService {
         entity.setKeyPrefix(raw.substring(0, 11));
         entity.setStatus(STATUS_ACTIVE);
         entity.setExpireAt(dto.expireAt());
+        entity.setScopes(dto.scopes() == null || dto.scopes().isBlank() ? DEFAULT_SCOPES : dto.scopes().trim());
         apiKeyMapper.insert(entity);
         return new ApiKeyCreatedVO(entity.getId(), entity.getName(), raw, entity.getKeyPrefix());
     }

@@ -22,6 +22,8 @@ public class SysApiKey extends BaseEntity {
     private String keyPrefix;
     /** active / disabled */
     private String status;
+    /** MCP 工具调用范围(逗号分隔)：mcp:read 只读 / mcp:write 读写 */
+    private String scopes;
     private LocalDateTime lastUsedAt;
     /** 到期时间，空表示长期有效 */
     private LocalDateTime expireAt;
@@ -64,6 +66,14 @@ public class SysApiKey extends BaseEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getScopes() {
+        return scopes;
+    }
+
+    public void setScopes(String scopes) {
+        this.scopes = scopes;
     }
 
     public LocalDateTime getLastUsedAt() {

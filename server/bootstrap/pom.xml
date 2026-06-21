@@ -85,6 +85,11 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-ai</artifactId>
         </dependency>
+        <!-- 接入层：MCP 连接器 -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>gateway-mcp</artifactId>
+        </dependency>
 
         <!-- 基础设施 starter -->
         <dependency>

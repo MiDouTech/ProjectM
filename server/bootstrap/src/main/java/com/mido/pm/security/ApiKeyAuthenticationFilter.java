@@ -1,5 +1,6 @@
 package com.mido.pm.security;
 
+import com.mido.pm.common.security.ApiKeyContext;
 import com.mido.pm.common.security.CurrentUser;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.common.tenant.TenantContext;
@@ -16,7 +17,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 开放平台 API Key 认证过滤器（租户链，置于 JWT 过滤器之前）：
@@ -46,6 +50,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             UserContext.clear();
+            ApiKeyContext.clear();
             SecurityContextHolder.clearContext();
         }
     }
@@ -67,7 +72,19 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             current.setCustomDeptIds(principal.getCustomDeptIds());
             current.setResourceScopes(principal.getResourceScopes());
             UserContext.set(current);
+            ApiKeyContext.set(new ApiKeyContext.Snapshot(key.getId(), key.getName(), parseScopes(key.getScopes())));
             apiKeyService.touch(key.getId());
         });
+    }
+
+    /** 解析逗号分隔的 scopes；空/空白时宽松回退为读写两档，避免历史 key 误锁定。 */
+    private Set<String> parseScopes(String scopes) {
+        if (scopes == null || scopes.isBlank()) {
+            return Set.of(ApiKeyContext.SCOPE_MCP_READ, ApiKeyContext.SCOPE_MCP_WRITE);
+        }
+        return Arrays.stream(scopes.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 }

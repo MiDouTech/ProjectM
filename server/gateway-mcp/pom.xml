@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.mido.pm</groupId>
+        <artifactId>mido-pm-server</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gateway-mcp</artifactId>
+    <name>gateway-mcp</name>
+    <description>接入层：MCP（Model Context Protocol）连接器，把现有领域 Service 包装为只读工具供智能体平台调用</description>
+
+    <dependencies>
+        <!-- 跨域只经各域 Service 接口暴露能力（合规 CLAUDE.md §4），不查对方表 -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-project</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-task</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-verify</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-collab</artifactId>
+        </dependency>
+
+        <!-- 每 Key 限流：Redis 计数（StringRedisTemplate） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- MCP 官方 Java SDK + Spring WebMvc SSE 传输（RouterFunction 注入现有 Spring MVC） -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-spring-webmvc</artifactId>
+        </dependency>
+    </dependencies>
+</project>

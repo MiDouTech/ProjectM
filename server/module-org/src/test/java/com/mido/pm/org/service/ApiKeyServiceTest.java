@@ -9,6 +9,7 @@ import com.mido.pm.org.mapper.SysApiKeyMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** API Key 服务单测：创建生成明文+哈希前缀；解析校验存在/状态/过期。 */
@@ -51,11 +53,28 @@ class ApiKeyServiceTest {
         u.setUserId(7L);
         UserContext.set(u);
 
-        ApiKeyCreatedVO vo = service.create(new ApiKeyCreateDTO("集成A", null));
+        ApiKeyCreatedVO vo = service.create(new ApiKeyCreateDTO("集成A", null, null));
 
         assertTrue(vo.apiKey().startsWith("mk_"), "明文应带 mk_ 前缀");
         assertEquals(11, vo.keyPrefix().length(), "前缀为 mk_ + 8 位");
         assertTrue(vo.apiKey().startsWith(vo.keyPrefix()));
+
+        ArgumentCaptor<SysApiKey> captor = ArgumentCaptor.forClass(SysApiKey.class);
+        verify(apiKeyMapper).insert(captor.capture());
+        assertEquals("mcp:read,mcp:write", captor.getValue().getScopes(), "未指定 scopes 默认读写两档");
+    }
+
+    @Test
+    void createHonorsExplicitReadOnlyScope() {
+        CurrentUser u = new CurrentUser();
+        u.setUserId(7L);
+        UserContext.set(u);
+
+        service.create(new ApiKeyCreateDTO("只读连接器", null, "mcp:read"));
+
+        ArgumentCaptor<SysApiKey> captor = ArgumentCaptor.forClass(SysApiKey.class);
+        verify(apiKeyMapper).insert(captor.capture());
+        assertEquals("mcp:read", captor.getValue().getScopes(), "应保留显式只读范围");
     }
 
     @Test
