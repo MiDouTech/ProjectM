@@ -25,4 +25,10 @@ export const briefingApi = {
   reviews: (id) => request.get(`/briefings/${id}/reviews`),
   // 提交批注：{ comment, action }
   addReview: (id, data) => request.post(`/briefings/${id}/reviews`, data),
+  // 跟进问题：我提出的或负责的（status 可空）
+  listIssues: (status) => request.get('/briefing-issues', { params: status ? { status } : {} }),
+  // 提出问题：{ briefingId, content, ownerId?, dueDate? }
+  createIssue: (data) => request.post('/briefing-issues', data),
+  // 改问题状态
+  updateIssueStatus: (id, status) => request.patch(`/briefing-issues/${id}/status`, { status }),
 }

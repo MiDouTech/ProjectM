@@ -331,6 +331,14 @@ CREATE TABLE pm_briefing_review (
   comment TEXT, reviewed_at DATETIME,
   -- + 公共字段
   KEY idx_briefing(briefing_id));
+-- 跟进问题（V44）：从可见简报提出，指派负责人、跟踪状态。
+CREATE TABLE pm_briefing_issue (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, briefing_id BIGINT NOT NULL,
+  raised_by BIGINT NOT NULL, owner_id BIGINT, content VARCHAR(512) NOT NULL,
+  status VARCHAR(16) DEFAULT 'open', -- open/following/closed
+  due_date DATE,
+  -- + 公共字段
+  KEY idx_owner(owner_id), KEY idx_raised(raised_by), KEY idx_briefing(briefing_id));
 ```
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）

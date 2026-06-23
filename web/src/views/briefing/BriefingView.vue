@@ -58,6 +58,28 @@
         <el-empty v-if="!myList.length" :description="'暂无' + menuLabel" />
       </template>
 
+      <!-- 跟进的问题 -->
+      <template v-else-if="active === 'issues'">
+        <div class="mido-briefing__head">跟进的问题</div>
+        <el-table :data="issueList" style="width: 100%">
+          <el-table-column prop="content" label="问题" min-width="200" />
+          <el-table-column label="负责人" width="120">
+            <template #default="{ row }">{{ memberName(row.ownerId) }}</template>
+          </el-table-column>
+          <el-table-column label="截止" width="120">
+            <template #default="{ row }">{{ row.dueDate || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="140">
+            <template #default="{ row }">
+              <el-select :model-value="row.status" size="small" @change="(s) => changeIssueStatus(row, s)">
+                <el-option v-for="(label, val) in ISSUE_STATUS" :key="val" :label="label" :value="val" />
+              </el-select>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-if="!issueList.length" description="暂无跟进的问题" />
+      </template>
+
       <!-- 我评审的 / 成员简报 -->
       <template v-else>
         <div class="mido-briefing__head">{{ menuLabel }}</div>
@@ -130,6 +152,18 @@
             class="mido-review__input"
           />
         </template>
+
+        <!-- 提出跟进问题（已存在的简报可提） -->
+        <template v-if="form.id">
+          <el-divider>提出跟进问题</el-divider>
+          <el-input v-model="issueContent" type="textarea" :rows="2" placeholder="待跟进的问题" />
+          <div class="mido-issue__raise">
+            <el-select v-model="issueOwner" placeholder="负责人(默认自己)" clearable style="width: 200px">
+              <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
+            </el-select>
+            <el-button @click="raiseIssue">提出问题</el-button>
+          </div>
+        </template>
       </template>
       <template #footer>
         <el-button @click="drawerVisible = false">关闭</el-button>
@@ -162,7 +196,9 @@ const menus = [
   { key: 'monthly', label: '我的月报' },
   { key: 'review', label: '我评审的' },
   { key: 'members', label: '成员简报' },
+  { key: 'issues', label: '跟进的问题' },
 ]
+const ISSUE_STATUS = { open: '待处理', following: '跟进中', closed: '已关闭' }
 const MINE = ['daily', 'weekly', 'monthly']
 
 const active = ref('submit')
@@ -172,6 +208,7 @@ const myList = ref([])
 const members = ref([])
 const reviewees = ref([])
 const reviewList = ref([])
+const issueList = ref([])
 const memberFilter = reactive({ authorId: null, type: null })
 
 const menuLabel = computed(() => menus.find((m) => m.key === active.value)?.label || '')
@@ -203,7 +240,24 @@ async function selectMenu(key) {
     memberFilter.authorId = null
     memberFilter.type = null
     await loadReviewList()
+  } else if (key === 'issues') {
+    await loadIssues()
   }
+}
+
+async function loadIssues() {
+  loading.value = true
+  try {
+    issueList.value = await briefingApi.listIssues(null)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function changeIssueStatus(row, status) {
+  await briefingApi.updateIssueStatus(row.id, status)
+  ElMessage.success('已更新')
+  await loadIssues()
 }
 
 async function loadReviewList() {
@@ -280,6 +334,8 @@ async function loadBriefingIntoForm(row, asReviewer) {
   form.status = full.status
   reviewMode.value = asReviewer
   reviewComment.value = ''
+  issueContent.value = ''
+  issueOwner.value = null
   reviews.value = await briefingApi.reviews(row.id)
   drawerVisible.value = true
   return true
@@ -307,6 +363,24 @@ async function submitReview() {
   } finally {
     saving.value = false
   }
+}
+
+// 提出跟进问题
+const issueContent = ref('')
+const issueOwner = ref(null)
+async function raiseIssue() {
+  if (!issueContent.value.trim()) {
+    ElMessage.warning('请填写问题内容')
+    return
+  }
+  await briefingApi.createIssue({
+    briefingId: form.id,
+    content: issueContent.value,
+    ownerId: issueOwner.value || undefined,
+  })
+  ElMessage.success('问题已提出')
+  issueContent.value = ''
+  issueOwner.value = null
 }
 
 async function save(submit) {
@@ -440,5 +514,10 @@ onMounted(async () => {
 }
 .mido-review__input {
   margin-top: 12px;
+}
+.mido-issue__raise {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 </style>
