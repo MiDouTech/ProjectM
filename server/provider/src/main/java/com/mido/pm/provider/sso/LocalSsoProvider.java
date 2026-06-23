@@ -119,6 +119,11 @@ public class LocalSsoProvider implements SsoProvider {
         return issueToken(userId, tenantId, impersonatedByAdminId, impersonationTtlMillis);
     }
 
+    @Override
+    public String issueAccessToken(Long userId, Long tenantId) {
+        return issueToken(userId, tenantId, null, ttlMillis);
+    }
+
     private Long asLong(Object claim) {
         return claim instanceof Number n ? n.longValue() : null;
     }

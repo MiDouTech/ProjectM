@@ -29,6 +29,7 @@ export const opsNavItems = [
 
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
+  { path: '/wecom-callback', name: 'wecomCallback', component: () => import('@/views/auth/WecomCallbackView.vue') },
   // ===== 平台运营后台（独立登录/布局，前缀 /ops）=====
   { path: '/ops/login', name: 'opsLogin', component: () => import('@/views/ops/OpsLoginView.vue') },
   {
@@ -101,8 +102,8 @@ router.beforeEach((to) => {
   }
 
   const userStore = useUserStore()
-  // 公开分享页：匿名可访问，跳过登录校验
-  if (to.name === 'publicDoc') {
+  // 公开分享页 / 企微 SSO 回调：匿名可访问，跳过登录校验
+  if (to.name === 'publicDoc' || to.name === 'wecomCallback') {
     return true
   }
   if (to.path !== '/login' && !userStore.token) {

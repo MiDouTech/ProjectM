@@ -22,6 +22,11 @@ public class WecomSsoProvider implements SsoProvider {
     }
 
     @Override
+    public String issueAccessToken(Long userId, Long tenantId) {
+        throw new UnsupportedOperationException("TODO: 企微 SSO 令牌签发，P2 激活");
+    }
+
+    @Override
     public String issueImpersonationToken(Long userId, Long tenantId, Long impersonatedByAdminId) {
         throw new UnsupportedOperationException("TODO: 企微 SSO 模拟登录，P2 激活");
     }

@@ -3,6 +3,7 @@ package com.mido.pm.org.provider;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.org.entity.SysIdentityMap;
 import com.mido.pm.org.mapper.SysIdentityMapMapper;
+import com.mido.pm.provider.message.WecomBinding;
 import com.mido.pm.provider.message.WecomUserResolver;
 import org.springframework.stereotype.Component;
 
@@ -30,5 +31,14 @@ public class OrgWecomUserResolver implements WecomUserResolver {
                 .eq(SysIdentityMap::getProvider, PROVIDER_WECOM)
                 .last("limit 1"));
         return map == null ? null : map.getExternalId();
+    }
+
+    @Override
+    public WecomBinding bindingByExternalId(String externalUserId) {
+        if (externalUserId == null || externalUserId.isBlank()) {
+            return null;
+        }
+        SysIdentityMap map = identityMapMapper.selectByExternalGlobal(PROVIDER_WECOM, externalUserId);
+        return map == null ? null : new WecomBinding(map.getUserId(), map.getTenantId());
     }
 }

@@ -10,4 +10,9 @@ public interface WecomUserResolver {
 
     /** 本地 userId 对应的企微 userid；未绑定返回 null。 */
     String externalUserId(Long userId);
+
+    /**
+     * 企微 userid 反查本地账号绑定（跨租户全局解析，供 SSO 登录用）。未绑定返回 null。
+     */
+    WecomBinding bindingByExternalId(String externalUserId);
 }

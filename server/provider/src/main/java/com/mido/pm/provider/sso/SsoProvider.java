@@ -23,6 +23,12 @@ public interface SsoProvider {
     String refreshToken(String token);
 
     /**
+     * 为已通过外部身份校验（如企微 SSO）的用户签发标准访问令牌。
+     * 不做密码校验，调用方须先确认外部身份合法并解析到本地 userId/tenantId。
+     */
+    String issueAccessToken(Long userId, Long tenantId);
+
+    /**
      * 签发模拟登录令牌（平台运营进租户排障用）：短时有效，携带 impersonatedBy 声明以便审计。
      *
      * @param userId               被模拟的租户用户 ID
