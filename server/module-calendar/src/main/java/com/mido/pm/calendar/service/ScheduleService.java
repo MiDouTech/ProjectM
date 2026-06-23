@@ -330,7 +330,7 @@ public class ScheduleService {
                 s.getStartTime(), s.getEndTime(), s.getAllDay(), s.getLocation(),
                 s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
                 s.getStatus(), participants, resourceIds, RecurrenceExpander.isRecurring(s), null,
-                parseReminder(s.getReminder()));
+                parseReminder(s.getReminder()), s.getRecurRule());
     }
 
     /** 循环展开实例 VO：标题/时间/地点取展开结果，其余沿用主记录。 */
@@ -338,7 +338,7 @@ public class ScheduleService {
         return new ScheduleVO(s.getId(), s.getCalendarId(), o.title(), s.getDescription(),
                 o.start(), o.end(), s.getAllDay(), o.location(),
                 s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
-                s.getStatus(), null, null, true, o.occurrenceDate(), null);
+                s.getStatus(), null, null, true, o.occurrenceDate(), null, s.getRecurRule());
     }
 
     private String toReminderJson(List<Integer> minutes) {

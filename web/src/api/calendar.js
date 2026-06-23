@@ -19,4 +19,10 @@ export const calendarApi = {
   remove: (id) => request.delete(`/schedules/${id}`),
   // RSVP 反馈：{ status: 'accepted'|'tentative'|'declined' }
   rsvp: (id, status) => request.post(`/schedules/${id}/rsvp`, { status }),
+  // 循环日程单次例外：{ occurDate, action: 'cancel'|'modify', override? }
+  addException: (id, data) => request.post(`/schedules/${id}/exceptions`, data),
+  // 资源台账（会议室/设备）
+  listResources: () => request.get('/calendar-resources'),
+  // 日历叠加：当前用户截止日落在 [from,to] 的任务（含里程碑），from/to 为 YYYY-MM-DD
+  tasksInRange: (from, to) => request.get('/tasks/calendar', { params: { from, to } }),
 }

@@ -26,5 +26,6 @@ public record ScheduleVO(
         List<Long> resourceIds,
         Boolean recurring,
         LocalDate occurrenceDate,
-        List<Integer> reminderMinutes) {
+        List<Integer> reminderMinutes,
+        String recurRule) {
 }

@@ -40,12 +40,21 @@
             <div class="mido-month__events">
               <div
                 v-for="s in eventsOf(cell.date)"
-                :key="s.id"
+                :key="s.id + '-' + (s.occurrenceDate || 's')"
                 class="mido-event"
                 @click.stop="openDetail(s)"
               >
                 <span class="mido-event__dot"></span>
                 <span class="mido-event__text">{{ timeShort(s) }} {{ s.title }}</span>
+              </div>
+              <div
+                v-for="t in tasksOf(cell.date)"
+                :key="'t' + t.id"
+                class="mido-event mido-event--task"
+                @click.stop="openTask(t)"
+              >
+                <span class="mido-event__dot mido-event__dot--task"></span>
+                <span class="mido-event__text">{{ t.isMilestone ? '📌' : '✔' }} {{ t.title }}</span>
               </div>
             </div>
           </div>
@@ -58,10 +67,24 @@
           <div class="mido-list__date" :class="{ 'is-today': isToday(day) }">
             {{ day.format('MM-DD') }} 周{{ weekHeads[day.day()] }}
           </div>
-          <div v-if="eventsOf(day).length" class="mido-list__events">
-            <div v-for="s in eventsOf(day)" :key="s.id" class="mido-event" @click="openDetail(s)">
+          <div v-if="eventsOf(day).length || tasksOf(day).length" class="mido-list__events">
+            <div
+              v-for="s in eventsOf(day)"
+              :key="s.id + '-' + (s.occurrenceDate || 's')"
+              class="mido-event"
+              @click="openDetail(s)"
+            >
               <span class="mido-event__dot"></span>
               <span class="mido-event__text">{{ timeShort(s) }} {{ s.title }}</span>
+            </div>
+            <div
+              v-for="t in tasksOf(day)"
+              :key="'t' + t.id"
+              class="mido-event mido-event--task"
+              @click="openTask(t)"
+            >
+              <span class="mido-event__dot mido-event__dot--task"></span>
+              <span class="mido-event__text">{{ t.isMilestone ? '📌' : '✔' }} {{ t.title }}</span>
             </div>
           </div>
           <div v-else class="mido-list__empty">无日程</div>
@@ -74,10 +97,24 @@
           <div class="mido-list__date" :class="{ 'is-today': isToday(anchor) }">
             {{ anchor.format('YYYY-MM-DD') }} 周{{ weekHeads[anchor.day()] }}
           </div>
-          <div v-if="eventsOf(anchor).length" class="mido-list__events">
-            <div v-for="s in eventsOf(anchor)" :key="s.id" class="mido-event" @click="openDetail(s)">
+          <div v-if="eventsOf(anchor).length || tasksOf(anchor).length" class="mido-list__events">
+            <div
+              v-for="s in eventsOf(anchor)"
+              :key="s.id + '-' + (s.occurrenceDate || 's')"
+              class="mido-event"
+              @click="openDetail(s)"
+            >
               <span class="mido-event__dot"></span>
               <span class="mido-event__text">{{ timeShort(s) }} {{ s.title }}</span>
+            </div>
+            <div
+              v-for="t in tasksOf(anchor)"
+              :key="'t' + t.id"
+              class="mido-event mido-event--task"
+              @click="openTask(t)"
+            >
+              <span class="mido-event__dot mido-event__dot--task"></span>
+              <span class="mido-event__text">{{ t.isMilestone ? '📌' : '✔' }} {{ t.title }}</span>
             </div>
           </div>
           <el-empty v-else description="今日无日程" />
@@ -133,6 +170,37 @@
             <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
           </el-select>
         </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="重复">
+              <el-select v-model="form.recurrence" style="width: 100%">
+                <el-option v-for="o in RECUR_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="提醒">
+              <el-select v-model="form.reminderMinutes" multiple placeholder="可多选" style="width: 100%">
+                <el-option v-for="o in REMINDER_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="资源（会议室/设备）">
+          <el-select
+            v-model="form.resourceIds"
+            multiple
+            placeholder="选择资源（冲突将被拦截）"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="r in resources"
+              :key="r.id"
+              :label="r.name + (r.location ? '（' + r.location + '）' : '')"
+              :value="r.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="地点">
           <el-input v-model="form.location" placeholder="请输入地点" />
         </el-form-item>
@@ -153,6 +221,7 @@
         <p class="mido-detail__time">
           {{ fmt(detail.startTime) }} ~ {{ fmt(detail.endTime) }}
           <el-tag v-if="detail.allDay" size="small" type="info">全天</el-tag>
+          <el-tag v-if="detail.recurring" size="small" type="success">循环</el-tag>
         </p>
         <p v-if="detail.location">📍 {{ detail.location }}</p>
         <p v-if="detail.description" class="mido-detail__desc">{{ detail.description }}</p>
@@ -170,8 +239,12 @@
         </div>
       </template>
       <template #footer>
+        <el-button
+          v-if="canEdit && detailOccurrenceDate"
+          @click="cancelThisOccurrence"
+        >取消该次</el-button>
         <el-button v-if="canEdit" type="primary" @click="openEdit">编辑</el-button>
-        <el-button v-if="canEdit" type="danger" @click="remove">删除</el-button>
+        <el-button v-if="canEdit" type="danger" @click="remove">删除{{ detail && detail.recurring ? '整个循环' : '' }}</el-button>
       </template>
     </el-drawer>
   </div>
@@ -179,6 +252,7 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Plus } from '@element-plus/icons-vue'
@@ -187,7 +261,35 @@ import { fetchMembers } from '@/api/org'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
+const router = useRouter()
 const weekHeads = ['日', '一', '二', '三', '四', '五', '六']
+
+// 循环/提醒可选项
+const RECUR_OPTIONS = [
+  { label: '不重复', value: '' },
+  { label: '每天', value: 'DAILY' },
+  { label: '每周', value: 'WEEKLY' },
+  { label: '每月', value: 'MONTHLY' },
+  { label: '每年', value: 'YEARLY' },
+]
+const REMINDER_OPTIONS = [
+  { label: '提前 5 分钟', value: 5 },
+  { label: '提前 15 分钟', value: 15 },
+  { label: '提前 30 分钟', value: 30 },
+  { label: '提前 1 小时', value: 60 },
+  { label: '提前 1 天', value: 1440 },
+]
+function buildRecurRule(freq) {
+  return freq ? JSON.stringify({ freq, interval: 1 }) : null
+}
+function parseFreq(recurRule) {
+  if (!recurRule) return ''
+  try {
+    return JSON.parse(recurRule).freq || ''
+  } catch {
+    return ''
+  }
+}
 
 const viewMode = ref('month')
 const anchor = ref(dayjs())
@@ -195,6 +297,8 @@ const loading = ref(false)
 const schedules = ref([])
 const calendars = ref([])
 const members = ref([])
+const resources = ref([])
+const tasks = ref([])
 
 const unitLabel = computed(() => ({ month: '月', week: '周', day: '日' }[viewMode.value]))
 const periodLabel = computed(() => {
@@ -249,6 +353,15 @@ function eventsOf(date) {
   return schedules.value.filter((s) => dayjs(s.startTime).format('YYYY-MM-DD') === key)
 }
 
+function tasksOf(date) {
+  const key = date.format('YYYY-MM-DD')
+  return tasks.value.filter((t) => t.dueDate === key)
+}
+
+function openTask(t) {
+  router.push(`/project/${t.projectId}/task/${t.id}`)
+}
+
 function isToday(d) {
   return d.isSame(dayjs(), 'day')
 }
@@ -275,10 +388,12 @@ async function load() {
   loading.value = true
   try {
     const { from, to } = visibleRange.value
-    schedules.value = await calendarApi.range(
-      from.format('YYYY-MM-DDTHH:mm:ss'),
-      to.format('YYYY-MM-DDTHH:mm:ss'),
-    )
+    const [sch, tk] = await Promise.all([
+      calendarApi.range(from.format('YYYY-MM-DDTHH:mm:ss'), to.format('YYYY-MM-DDTHH:mm:ss')),
+      calendarApi.tasksInRange(from.format('YYYY-MM-DD'), to.format('YYYY-MM-DD')),
+    ])
+    schedules.value = sch
+    tasks.value = tk
   } finally {
     loading.value = false
   }
@@ -307,6 +422,9 @@ const form = reactive({
   location: '',
   description: '',
   participantUserIds: [],
+  recurrence: '',
+  reminderMinutes: [],
+  resourceIds: [],
 })
 
 function resetForm(date) {
@@ -321,6 +439,9 @@ function resetForm(date) {
   form.location = ''
   form.description = ''
   form.participantUserIds = []
+  form.recurrence = ''
+  form.reminderMinutes = []
+  form.resourceIds = []
 }
 
 function openCreate(date) {
@@ -349,6 +470,9 @@ async function submit() {
       location: form.location,
       allowFeedback: form.allowFeedback,
       participants,
+      resourceIds: form.resourceIds,
+      recurRule: buildRecurRule(form.recurrence),
+      reminderMinutes: form.reminderMinutes,
     }
     if (form.id) {
       await calendarApi.update(form.id, payload)
@@ -368,13 +492,27 @@ async function submit() {
 // ===== 详情 =====
 const detailVisible = ref(false)
 const detail = ref(null)
+const detailOccurrenceDate = ref(null)
 const canEdit = computed(
   () => detail.value && String(detail.value.organizerId) === String(userStore.userId),
 )
 
 async function openDetail(s) {
+  detailOccurrenceDate.value = s.occurrenceDate || null
   detail.value = await calendarApi.get(s.id)
   detailVisible.value = true
+}
+
+// 取消循环日程的「这一次」
+async function cancelThisOccurrence() {
+  await ElMessageBox.confirm('仅取消该次循环日程？', '提示', { type: 'warning' })
+  await calendarApi.addException(detail.value.id, {
+    occurDate: detailOccurrenceDate.value,
+    action: 'cancel',
+  })
+  ElMessage.success('已取消该次')
+  detailVisible.value = false
+  await load()
 }
 
 function openEdit() {
@@ -390,6 +528,9 @@ function openEdit() {
   form.participantUserIds = (d.participants || [])
     .filter((p) => p.role !== 'organizer' && p.userId)
     .map((p) => p.userId)
+  form.resourceIds = d.resourceIds || []
+  form.recurrence = parseFreq(d.recurRule)
+  form.reminderMinutes = d.reminderMinutes || []
   formVisible.value = true
 }
 
@@ -408,9 +549,10 @@ async function doRsvp(status) {
 }
 
 onMounted(async () => {
-  ;[calendars.value, members.value] = await Promise.all([
+  ;[calendars.value, members.value, resources.value] = await Promise.all([
     calendarApi.listCalendars(),
     fetchMembers(),
+    calendarApi.listResources(),
   ])
   await load()
 })
@@ -506,6 +648,13 @@ onMounted(async () => {
   border-radius: 50%;
   background: var(--el-color-primary);
   flex-shrink: 0;
+}
+.mido-event--task .mido-event__text {
+  color: var(--el-color-warning);
+}
+.mido-event__dot--task {
+  background: var(--el-color-warning);
+  border-radius: 2px;
 }
 .mido-event__text {
   overflow: hidden;
