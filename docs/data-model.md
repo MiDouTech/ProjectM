@@ -249,6 +249,7 @@ CREATE TABLE pm_calendar (
   name VARCHAR(64) NOT NULL, type VARCHAR(16) DEFAULT 'personal',  -- personal/meeting/team/resource
   owner_id BIGINT, color VARCHAR(16), visibility VARCHAR(16) DEFAULT 'private', -- private/busy/public
   is_default TINYINT DEFAULT 0,            -- 用户默认「我的日程」(每用户至多一个)
+  subscribe_token VARCHAR(64),            -- ics 匿名订阅 token(P2 惰性生成)，全局唯一
   status VARCHAR(16) DEFAULT 'active',     -- active/archived
   -- + 公共字段
   KEY idx_owner(tenant_id, owner_id));

@@ -30,4 +30,6 @@ export const calendarApi = {
     request.get('/schedules/free-busy', { params: { userIds: userIds.join(','), from, to } }),
   // 排期小助手：找所有参选人皆空闲的空档 { userIds, date, durationMinutes, dayStart?, dayEnd? }
   findSlots: (data) => request.post('/schedules/find-slots', data),
+  // 获取/生成日历 ics 订阅地址 → { token, icsUrl }
+  subscribe: (calendarId) => request.post(`/calendars/${calendarId}/subscribe`),
 }

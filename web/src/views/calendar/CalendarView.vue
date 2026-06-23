@@ -30,6 +30,7 @@
       >
         <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
       </el-select>
+      <el-button :icon="Connection" @click="subscribeCalendar">订阅</el-button>
       <el-button type="primary" :icon="Plus" @click="openCreate()">新建日程</el-button>
     </div>
 
@@ -320,7 +321,7 @@ import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, Plus } from '@element-plus/icons-vue'
+import { Calendar, Plus, Connection } from '@element-plus/icons-vue'
 import { calendarApi } from '@/api/calendar'
 import { fetchMembers } from '@/api/org'
 import { useUserStore } from '@/store/user'
@@ -476,6 +477,23 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function subscribeCalendar() {
+  const def = calendars.value.find((c) => c.isDefault) || calendars.value[0]
+  if (!def) {
+    ElMessage.warning('暂无可订阅日历')
+    return
+  }
+  const { icsUrl } = await calendarApi.subscribe(def.id)
+  const fullUrl = location.origin + icsUrl
+  try {
+    await navigator.clipboard.writeText(fullUrl)
+    ElMessage.success('订阅地址已复制到剪贴板')
+  } catch {
+    // 剪贴板不可用时弹出地址供手动复制
+  }
+  ElMessageBox.alert(fullUrl, '日历订阅地址（ics）', { confirmButtonText: '知道了' })
 }
 
 function shift(n) {

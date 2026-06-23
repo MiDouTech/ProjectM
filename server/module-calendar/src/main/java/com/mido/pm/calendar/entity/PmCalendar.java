@@ -16,6 +16,7 @@ public class PmCalendar extends BaseEntity {
     private String color;
     private String visibility;
     private Integer isDefault;
+    private String subscribeToken;
     private String status;
 
     public String getName() { return name; }
@@ -30,6 +31,8 @@ public class PmCalendar extends BaseEntity {
     public void setVisibility(String visibility) { this.visibility = visibility; }
     public Integer getIsDefault() { return isDefault; }
     public void setIsDefault(Integer isDefault) { this.isDefault = isDefault; }
+    public String getSubscribeToken() { return subscribeToken; }
+    public void setSubscribeToken(String subscribeToken) { this.subscribeToken = subscribeToken; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 }
