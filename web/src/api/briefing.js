@@ -6,6 +6,12 @@ import request from './request'
 export const briefingApi = {
   // 模板列表（内置日/周/月报，惰性生成）
   templates: () => request.get('/briefing-templates'),
+  // 新建自定义模板：{ name, type, fields:[{key,label,type}] }
+  createTemplate: (data) => request.post('/briefing-templates', data),
+  // 停用自定义模板
+  disableTemplate: (id) => request.delete(`/briefing-templates/${id}`),
+  // 设置指派：{ userIds, deptIds }
+  assignTemplate: (id, data) => request.put(`/briefing-templates/${id}/assignments`, data),
   // 我的简报列表（type=daily/weekly/monthly，可空取全部）
   listMine: (type) => request.get('/briefings', { params: type ? { type } : {} }),
   // 简报详情

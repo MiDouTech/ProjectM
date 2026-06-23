@@ -18,7 +18,10 @@
     <div class="mido-briefing__main" v-loading="loading">
       <!-- 提交简报：模板卡片 -->
       <template v-if="active === 'submit'">
-        <div class="mido-briefing__head">提交简报</div>
+        <div class="mido-briefing__headrow">
+          <div class="mido-briefing__head">提交简报</div>
+          <el-button type="primary" :icon="Plus" @click="openTemplateDialog">添加模板</el-button>
+        </div>
         <div class="mido-briefing__cards">
           <div
             v-for="t in templates"
@@ -28,6 +31,20 @@
           >
             <div class="mido-card__icon" :class="'is-' + t.type">{{ typeShort(t.type) }}</div>
             <div class="mido-card__name">{{ t.name }}</div>
+            <el-dropdown
+              v-if="!t.isBuiltin"
+              trigger="click"
+              @click.stop
+              @command="(cmd) => onTemplateCmd(cmd, t)"
+            >
+              <el-icon class="mido-card__more" @click.stop><MoreFilled /></el-icon>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="assign">指派成员</el-dropdown-item>
+                  <el-dropdown-item command="disable">停用</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
       </template>
@@ -197,13 +214,52 @@
         </template>
       </template>
     </el-drawer>
+
+    <!-- 添加自定义模板 -->
+    <el-dialog v-model="templateDialogVisible" title="添加模板" width="480px">
+      <el-form label-width="80px">
+        <el-form-item label="名称">
+          <el-input v-model="tplForm.name" placeholder="模板名称" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="tplForm.type" style="width: 100%">
+            <el-option label="日报" value="daily" />
+            <el-option label="周报" value="weekly" />
+            <el-option label="月报" value="monthly" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="字段">
+          <div v-for="(f, i) in tplForm.fields" :key="i" class="mido-tpl__field">
+            <el-input v-model="f.label" placeholder="字段名，如：今日完成" />
+            <el-button link type="danger" @click="removeTplField(i)">删除</el-button>
+          </div>
+          <el-button link type="primary" @click="addTplField">+ 添加字段</el-button>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="templateDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveTemplate">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 指派成员 -->
+    <el-dialog v-model="assignDialogVisible" title="指派成员" width="420px">
+      <el-select v-model="assignUserIds" multiple filterable placeholder="选择成员" style="width: 100%">
+        <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
+      </el-select>
+      <template #footer>
+        <el-button @click="assignDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveAssign">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, MoreFilled } from '@element-plus/icons-vue'
 import { briefingApi } from '@/api/briefing'
 import { fetchMembers } from '@/api/org'
 
@@ -441,6 +497,56 @@ async function save(submit) {
   }
 }
 
+// ===== 自定义模板 / 指派 =====
+const templateDialogVisible = ref(false)
+const tplForm = reactive({ name: '', type: 'daily', fields: [{ label: '' }] })
+function openTemplateDialog() {
+  tplForm.name = ''
+  tplForm.type = 'daily'
+  tplForm.fields = [{ label: '' }]
+  templateDialogVisible.value = true
+}
+function addTplField() {
+  tplForm.fields.push({ label: '' })
+}
+function removeTplField(i) {
+  tplForm.fields.splice(i, 1)
+}
+async function saveTemplate() {
+  const fields = tplForm.fields
+    .filter((f) => f.label.trim())
+    .map((f, i) => ({ key: 'f' + (i + 1), label: f.label.trim(), type: 'textarea' }))
+  if (!tplForm.name.trim() || !fields.length) {
+    ElMessage.warning('请填写模板名称与至少一个字段')
+    return
+  }
+  await briefingApi.createTemplate({ name: tplForm.name, type: tplForm.type, fields })
+  ElMessage.success('模板已创建')
+  templateDialogVisible.value = false
+  templates.value = await briefingApi.templates()
+}
+
+const assignDialogVisible = ref(false)
+const assignTpl = ref(null)
+const assignUserIds = ref([])
+async function onTemplateCmd(cmd, t) {
+  if (cmd === 'disable') {
+    await ElMessageBox.confirm(`停用模板「${t.name}」？`, '提示', { type: 'warning' })
+    await briefingApi.disableTemplate(t.id)
+    ElMessage.success('已停用')
+    templates.value = await briefingApi.templates()
+  } else if (cmd === 'assign') {
+    assignTpl.value = t
+    assignUserIds.value = []
+    assignDialogVisible.value = true
+  }
+}
+async function saveAssign() {
+  await briefingApi.assignTemplate(assignTpl.value.id, { userIds: assignUserIds.value, deptIds: [] })
+  ElMessage.success('指派已保存')
+  assignDialogVisible.value = false
+}
+
 onMounted(async () => {
   ;[templates.value, members.value] = await Promise.all([briefingApi.templates(), fetchMembers()])
 })
@@ -526,6 +632,21 @@ onMounted(async () => {
 }
 .mido-card__name {
   font-size: 15px;
+  flex: 1;
+}
+.mido-card__more {
+  color: var(--el-text-color-secondary);
+}
+.mido-briefing__headrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mido-tpl__field {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  width: 100%;
 }
 .mido-briefing__period {
   margin-bottom: 12px;

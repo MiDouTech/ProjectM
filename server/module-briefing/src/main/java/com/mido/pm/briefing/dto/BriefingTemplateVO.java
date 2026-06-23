@@ -8,5 +8,6 @@ public record BriefingTemplateVO(
         String name,
         String type,
         List<FieldDefVO> fields,
+        Integer isBuiltin,
         String status) {
 }

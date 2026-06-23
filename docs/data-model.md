@@ -339,7 +339,14 @@ CREATE TABLE pm_briefing_issue (
   due_date DATE,
   -- + 公共字段
   KEY idx_owner(owner_id), KEY idx_raised(raised_by), KEY idx_briefing(briefing_id));
+-- 模板指派（V45）：模板指派给用户/部门，决定「我应交」。
+CREATE TABLE pm_briefing_assignment (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, template_id BIGINT NOT NULL,
+  target_type VARCHAR(16) DEFAULT 'user', target_id BIGINT NOT NULL, -- user/dept
+  -- + 公共字段
+  KEY idx_template(template_id), KEY idx_target(target_type, target_id));
 ```
+> 模板 is_builtin=1 为内置(不可改/停用)；自定义模板可增删改与指派。
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`
