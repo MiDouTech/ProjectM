@@ -2,6 +2,7 @@ package com.mido.pm.calendar.controller;
 
 import com.mido.pm.calendar.dto.RsvpDTO;
 import com.mido.pm.calendar.dto.ScheduleCreateDTO;
+import com.mido.pm.calendar.dto.ScheduleExceptionDTO;
 import com.mido.pm.calendar.dto.ScheduleUpdateDTO;
 import com.mido.pm.calendar.dto.ScheduleVO;
 import com.mido.pm.calendar.service.ScheduleService;
@@ -66,6 +67,13 @@ public class ScheduleController {
     @PostMapping("/{id}/rsvp")
     public R<Void> rsvp(@PathVariable Long id, @Valid @RequestBody RsvpDTO dto) {
         scheduleService.rsvp(id, dto);
+        return R.ok();
+    }
+
+    /** 循环日程单次例外：action=cancel 取消 / modify 改期（override 传覆盖内容）。 */
+    @PostMapping("/{id}/exceptions")
+    public R<Void> addException(@PathVariable Long id, @Valid @RequestBody ScheduleExceptionDTO dto) {
+        scheduleService.addException(id, dto);
         return R.ok();
     }
 }

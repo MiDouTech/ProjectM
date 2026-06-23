@@ -6,16 +6,21 @@ import com.mido.pm.calendar.dto.ParticipantVO;
 import com.mido.pm.calendar.dto.RsvpDTO;
 import com.mido.pm.calendar.dto.ScheduleCreateDTO;
 import com.mido.pm.calendar.dto.ScheduleUpdateDTO;
+import com.mido.pm.calendar.dto.ScheduleExceptionDTO;
 import com.mido.pm.calendar.dto.ScheduleVO;
+import com.mido.pm.calendar.domain.RecurrenceExpander;
 import com.mido.pm.calendar.entity.PmSchedule;
+import com.mido.pm.calendar.entity.PmScheduleException;
 import com.mido.pm.calendar.entity.PmScheduleParticipant;
 import com.mido.pm.calendar.event.CalendarEvents;
+import com.mido.pm.calendar.mapper.PmScheduleExceptionMapper;
 import com.mido.pm.calendar.mapper.PmScheduleMapper;
 import com.mido.pm.calendar.mapper.PmScheduleParticipantMapper;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.security.UserContext;
+import cn.hutool.json.JSONUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,17 +43,20 @@ public class ScheduleService {
 
     private final PmScheduleMapper scheduleMapper;
     private final PmScheduleParticipantMapper participantMapper;
+    private final PmScheduleExceptionMapper exceptionMapper;
     private final CalendarService calendarService;
     private final ResourceService resourceService;
     private final DomainEventPublisher eventPublisher;
 
     public ScheduleService(PmScheduleMapper scheduleMapper,
                            PmScheduleParticipantMapper participantMapper,
+                           PmScheduleExceptionMapper exceptionMapper,
                            CalendarService calendarService,
                            ResourceService resourceService,
                            DomainEventPublisher eventPublisher) {
         this.scheduleMapper = scheduleMapper;
         this.participantMapper = participantMapper;
+        this.exceptionMapper = exceptionMapper;
         this.calendarService = calendarService;
         this.resourceService = resourceService;
         this.eventPublisher = eventPublisher;
@@ -68,6 +76,7 @@ public class ScheduleService {
         s.setEndTime(dto.endTime());
         s.setAllDay(boolToInt(dto.allDay(), 0));
         s.setLocation(dto.location());
+        s.setRecurRule(blankToNull(dto.recurRule()));
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), 1));
         s.setSourceType("manual");
         s.setOrganizerId(organizerId);
@@ -99,6 +108,7 @@ public class ScheduleService {
         s.setEndTime(dto.endTime());
         s.setAllDay(boolToInt(dto.allDay(), s.getAllDay()));
         s.setLocation(dto.location());
+        s.setRecurRule(blankToNull(dto.recurRule()));
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), s.getAllowFeedback()));
         scheduleMapper.updateById(s);
 
@@ -142,7 +152,8 @@ public class ScheduleService {
 
     /**
      * 按时间段查询当前用户可见日程：归属其日历的，或其作为参与人的。两者皆空返回空。
-     * 重叠判定：start_time &le; to 且 end_time &ge; from。
+     * 非循环：重叠判定 start_time &le; to 且 end_time &ge; from。
+     * 循环：取全部循环主记录，按规则展开到 [from,to]（套用例外），每个实例一条 VO。
      */
     public List<ScheduleVO> range(LocalDateTime from, LocalDateTime to) {
         if (from == null || to == null || to.isBefore(from)) {
@@ -154,18 +165,58 @@ public class ScheduleService {
             return List.of();
         }
         List<Long> cals = calendarIds.isEmpty() ? List.of(NONE_SENTINEL) : calendarIds;
-        List<PmSchedule> rows = scheduleMapper.selectList(Wrappers.<PmSchedule>lambdaQuery()
-                .and(w -> {
-                    w.in(PmSchedule::getCalendarId, cals);
-                    if (!participatedIds.isEmpty()) {
-                        w.or().in(PmSchedule::getId, participatedIds);
-                    }
-                })
+
+        // 非循环：仅取与区间重叠的
+        List<PmSchedule> singles = scheduleMapper.selectList(membership(cals, participatedIds)
+                .and(w -> w.isNull(PmSchedule::getRecurRule).or().eq(PmSchedule::getRecurRule, ""))
                 .le(PmSchedule::getStartTime, to)
                 .ge(PmSchedule::getEndTime, from)
-                .eq(PmSchedule::getStatus, "confirmed")
-                .orderByAsc(PmSchedule::getStartTime));
-        return rows.stream().map(s -> toVO(s, null, null)).toList();
+                .eq(PmSchedule::getStatus, "confirmed"));
+        // 循环主记录：全部取出再展开
+        List<PmSchedule> recurring = scheduleMapper.selectList(membership(cals, participatedIds)
+                .isNotNull(PmSchedule::getRecurRule)
+                .ne(PmSchedule::getRecurRule, "")
+                .eq(PmSchedule::getStatus, "confirmed"));
+
+        List<ScheduleVO> result = new ArrayList<>();
+        for (PmSchedule s : singles) {
+            result.add(toVO(s, null, null));
+        }
+        for (PmSchedule s : recurring) {
+            List<PmScheduleException> exceptions = exceptionMapper.selectList(
+                    Wrappers.<PmScheduleException>lambdaQuery().eq(PmScheduleException::getScheduleId, s.getId()));
+            for (RecurrenceExpander.Occurrence o : RecurrenceExpander.expand(s, exceptions, from, to)) {
+                result.add(occurrenceVO(s, o));
+            }
+        }
+        result.sort((a, b) -> a.startTime().compareTo(b.startTime()));
+        return result;
+    }
+
+    /** 创建循环日程的单次例外（取消/改期）。仅组织者。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void addException(Long scheduleId, ScheduleExceptionDTO dto) {
+        PmSchedule s = requireOrganizer(scheduleId);
+        if (!RecurrenceExpander.isRecurring(s)) {
+            throw new BizException(ErrorCode.CONFLICT, "非循环日程无例外");
+        }
+        String action = "modify".equals(dto.action()) ? "modify" : "cancel";
+        PmScheduleException ex = new PmScheduleException();
+        ex.setScheduleId(scheduleId);
+        ex.setOccurDate(dto.occurDate());
+        ex.setAction(action);
+        if ("modify".equals(action) && dto.override() != null) {
+            ex.setOverride(JSONUtil.toJsonStr(dto.override()));
+        }
+        exceptionMapper.insert(ex);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("scheduleId", scheduleId);
+        payload.put("occurDate", dto.occurDate().toString());
+        payload.put("action", action);
+        payload.put("operatorId", currentUserId());
+        payload.put("occurredAt", LocalDateTime.now().toString());
+        eventPublisher.publish(CalendarEvents.SCHEDULE_UPDATED, payload);
     }
 
     /** 参与人对日程作出 RSVP 反馈（参加/暂定/谢绝）。 */
@@ -276,7 +327,30 @@ public class ScheduleService {
         return new ScheduleVO(s.getId(), s.getCalendarId(), s.getTitle(), s.getDescription(),
                 s.getStartTime(), s.getEndTime(), s.getAllDay(), s.getLocation(),
                 s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
-                s.getStatus(), participants, resourceIds);
+                s.getStatus(), participants, resourceIds, RecurrenceExpander.isRecurring(s), null);
+    }
+
+    /** 循环展开实例 VO：标题/时间/地点取展开结果，其余沿用主记录。 */
+    private ScheduleVO occurrenceVO(PmSchedule s, RecurrenceExpander.Occurrence o) {
+        return new ScheduleVO(s.getId(), s.getCalendarId(), o.title(), s.getDescription(),
+                o.start(), o.end(), s.getAllDay(), o.location(),
+                s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
+                s.getStatus(), null, null, true, o.occurrenceDate());
+    }
+
+    /** 成员关系谓词：归属当前用户日历(cals) 或 当前用户参与(participatedIds)。每次新建 wrapper。 */
+    private com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PmSchedule> membership(
+            List<Long> cals, List<Long> participatedIds) {
+        return Wrappers.<PmSchedule>lambdaQuery().and(w -> {
+            w.in(PmSchedule::getCalendarId, cals);
+            if (!participatedIds.isEmpty()) {
+                w.or().in(PmSchedule::getId, participatedIds);
+            }
+        });
+    }
+
+    private String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v;
     }
 
     private int boolToInt(Boolean v, Integer fallback) {

@@ -256,7 +256,8 @@ CREATE TABLE pm_schedule (
   id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, calendar_id BIGINT NOT NULL,
   title VARCHAR(256) NOT NULL, description TEXT,
   start_time DATETIME NOT NULL, end_time DATETIME NOT NULL, all_day TINYINT DEFAULT 0,
-  location VARCHAR(256), recur_rule VARCHAR(512), reminder JSON,  -- recur_rule/reminder 预留(P1)
+  location VARCHAR(256), recur_rule VARCHAR(512), reminder JSON,
+  -- recur_rule(V40 启用)紧凑 JSON {freq:DAILY|WEEKLY|MONTHLY|YEARLY,interval,count,until} 空=不循环；reminder 预留(P1 提醒)
   allow_feedback TINYINT DEFAULT 1,        -- 是否允许参与人 RSVP
   source_type VARCHAR(16) DEFAULT 'manual',-- manual/task/meeting
   source_id BIGINT, organizer_id BIGINT, status VARCHAR(16) DEFAULT 'confirmed', -- confirmed/cancelled
@@ -280,6 +281,13 @@ CREATE TABLE pm_schedule_resource (
   id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL, resource_id BIGINT NOT NULL,
   -- + 公共字段
   KEY idx_sch(schedule_id), KEY idx_res(resource_id));
+-- 循环例外（V40）：对循环日程的单次取消/改期；occur_date=被改实例原始开始日，override=modify 覆盖内容。
+CREATE TABLE pm_schedule_exception (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL,
+  occur_date DATE NOT NULL, action VARCHAR(16) DEFAULT 'cancel', -- cancel/modify
+  override JSON,                           -- modify: {startTime,endTime,title,location}
+  -- + 公共字段
+  KEY idx_sch_date(schedule_id, occur_date));
 ```
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）
@@ -289,6 +297,7 @@ CREATE TABLE pm_schedule_resource (
 - NPSS result_level：`success / mixed / failure`
 - 通知 channel：`inapp / wecom`
 - 日历类型 type：`personal / meeting / team / resource`；日程 status：`confirmed / cancelled`；RSVP：`pending / accepted / tentative / declined`
+- 循环 freq：`DAILY / WEEKLY / MONTHLY / YEARLY`；循环例外 action：`cancel / modify`；资源 type：`room / device`
 - 数据范围 scope：`self / dept / dept_and_sub / all / custom`
 - 租户状态（平台域）：`trial 试用 / active 正式 / suspended 停用 / expired 已过期 / closed 已注销`
 - 套餐/平台账号状态（平台域）：`active 启用 / disabled 停用`；订阅状态：`active / expired / cancelled`

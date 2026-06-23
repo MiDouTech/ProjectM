@@ -20,5 +20,6 @@ public record ScheduleCreateDTO(
         String location,
         Boolean allowFeedback,
         List<ParticipantInputDTO> participants,
-        List<Long> resourceIds) {
+        List<Long> resourceIds,
+        String recurRule) {
 }
