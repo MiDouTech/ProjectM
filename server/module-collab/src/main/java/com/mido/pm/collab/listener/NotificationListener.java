@@ -109,6 +109,40 @@ public class NotificationListener {
                             "project", projectId, link);
                 }
             }
+            case "briefing.submitted" -> {
+                // 通知评审人：有简报待评审（事件携带 reviewerIds）
+                if (payload.get("reviewerIds") instanceof List<?> reviewers) {
+                    Long briefingId = asLong(payload.get("briefingId"));
+                    for (Object rv : reviewers) {
+                        Long uid = asLong(rv);
+                        if (uid != null) {
+                            notify(eventType, uid, "简报待评审", "有一份简报已提交，待你评审。",
+                                    "briefing", briefingId, "/briefing");
+                        }
+                    }
+                }
+            }
+            case "briefing.reviewed" -> {
+                Long author = asLong(payload.get("authorId"));
+                if (author != null) {
+                    notify(eventType, author, "简报评审", "你的简报收到了评审批注。",
+                            "briefing", asLong(payload.get("briefingId")), "/briefing");
+                }
+            }
+            case "briefing.reminder.due" -> {
+                Long author = asLong(payload.get("authorId"));
+                if (author != null) {
+                    notify(eventType, author, "简报催交", "你有简报未提交，请尽快填写提交。",
+                            "briefing", asLong(payload.get("briefingId")), "/briefing");
+                }
+            }
+            case "briefing.issue.raised" -> {
+                Long owner = asLong(payload.get("ownerId"));
+                if (owner != null) {
+                    notify(eventType, owner, "跟进问题", "有一个简报跟进问题指派给你。",
+                            "briefing", asLong(payload.get("briefingId")), "/briefing");
+                }
+            }
             default -> {
                 // 其余事件暂不通知（需要时按"事件携带收件人 ID"模式补分支）
             }

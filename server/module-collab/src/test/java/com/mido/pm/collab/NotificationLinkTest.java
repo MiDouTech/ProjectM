@@ -66,4 +66,26 @@ class NotificationLinkTest {
         // 1 审批人 + 2 知会人 各一条站内信
         verify(notificationMapper, times(3)).insert(any(PmNotification.class));
     }
+
+    @Test
+    void briefingSubmittedNotifiesReviewers() {
+        listener().onDomainEvent(new DomainEventMessage(
+                "briefing.submitted",
+                Map.of("briefingId", 9L, "authorId", 100L, "reviewerIds", List.of(300L)), 1L));
+
+        ArgumentCaptor<PmNotification> captor = ArgumentCaptor.forClass(PmNotification.class);
+        verify(notificationMapper).insert(captor.capture());
+        assertEquals(300L, captor.getValue().getUserId(), "评审人应收到待评审通知");
+    }
+
+    @Test
+    void briefingIssueRaisedNotifiesOwner() {
+        listener().onDomainEvent(new DomainEventMessage(
+                "briefing.issue.raised",
+                Map.of("issueId", 1L, "briefingId", 9L, "ownerId", 500L, "raisedBy", 100L), 1L));
+
+        ArgumentCaptor<PmNotification> captor = ArgumentCaptor.forClass(PmNotification.class);
+        verify(notificationMapper).insert(captor.capture());
+        assertEquals(500L, captor.getValue().getUserId(), "负责人应收到跟进问题通知");
+    }
 }

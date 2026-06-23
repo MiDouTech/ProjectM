@@ -90,13 +90,14 @@ public class BriefingService {
         b.setStatus(STATUS_SUBMITTED);
         b.setSubmittedAt(LocalDateTime.now());
         briefingMapper.updateById(b);
-        reviewService.assignReviewer(b);
+        Long reviewerId = reviewService.assignReviewer(b);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("briefingId", b.getId());
         payload.put("type", b.getType());
         payload.put("authorId", b.getAuthorId());
         payload.put("periodKey", b.getPeriodKey());
+        payload.put("reviewerIds", reviewerId == null ? List.of() : List.of(reviewerId));
         payload.put("occurredAt", LocalDateTime.now().toString());
         eventPublisher.publish(BriefingEvents.SUBMITTED, payload);
     }

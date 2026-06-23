@@ -50,25 +50,30 @@ public class BriefingReviewService {
         this.eventPublisher = eventPublisher;
     }
 
-    /** 提交时落评审人=作者部门负责人（非作者本人、且未重复）。 */
+    /**
+     * 提交时落评审人=作者部门负责人（非作者本人、且未重复）。
+     *
+     * @return 评审人 id；无负责人/即作者本人时返回 null
+     */
     @Transactional(rollbackFor = Exception.class)
-    public void assignReviewer(PmBriefing b) {
+    public Long assignReviewer(PmBriefing b) {
         Long reviewer = deptService.leaderOf(b.getDeptId());
         if (reviewer == null || reviewer.equals(b.getAuthorId())) {
-            return;
+            return null;
         }
         Long exists = recipientMapper.selectCount(Wrappers.<PmBriefingRecipient>lambdaQuery()
                 .eq(PmBriefingRecipient::getBriefingId, b.getId())
                 .eq(PmBriefingRecipient::getUserId, reviewer)
                 .eq(PmBriefingRecipient::getType, TYPE_REVIEWER));
         if (exists != null && exists > 0) {
-            return;
+            return reviewer;
         }
         PmBriefingRecipient r = new PmBriefingRecipient();
         r.setBriefingId(b.getId());
         r.setUserId(reviewer);
         r.setType(TYPE_REVIEWER);
         recipientMapper.insert(r);
+        return reviewer;
     }
 
     public boolean isReviewer(Long briefingId, Long userId) {
