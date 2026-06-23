@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,11 +100,13 @@ public class BusyService {
                 })
                 .eq(PmSchedule::getStatus, "confirmed"));
 
+        // 批量加载循环日程例外，避免每个循环日程一次查询(N+1)
+        Map<Long, List<PmScheduleException>> exBySchedule = exceptionsBySchedule(schedules.stream()
+                .filter(RecurrenceExpander::isRecurring).map(PmSchedule::getId).toList());
         List<BusyVO> busy = new ArrayList<>();
         for (PmSchedule s : schedules) {
             if (RecurrenceExpander.isRecurring(s)) {
-                List<PmScheduleException> ex = exceptionMapper.selectList(
-                        Wrappers.<PmScheduleException>lambdaQuery().eq(PmScheduleException::getScheduleId, s.getId()));
+                List<PmScheduleException> ex = exBySchedule.getOrDefault(s.getId(), List.of());
                 for (RecurrenceExpander.Occurrence o : RecurrenceExpander.expand(s, ex, from, to)) {
                     busy.add(new BusyVO(uid, o.start(), o.end(), s.getAllDay()));
                 }
@@ -115,5 +119,15 @@ public class BusyService {
 
     private boolean overlaps(LocalDateTime s, LocalDateTime e, LocalDateTime from, LocalDateTime to) {
         return s.isBefore(to) && e.isAfter(from);
+    }
+
+    /** 一次性按 scheduleId 批量加载例外并分组（避免 N+1）。 */
+    private Map<Long, List<PmScheduleException>> exceptionsBySchedule(List<Long> scheduleIds) {
+        if (scheduleIds.isEmpty()) {
+            return Map.of();
+        }
+        return exceptionMapper.selectList(Wrappers.<PmScheduleException>lambdaQuery()
+                        .in(PmScheduleException::getScheduleId, scheduleIds))
+                .stream().collect(Collectors.groupingBy(PmScheduleException::getScheduleId));
     }
 }

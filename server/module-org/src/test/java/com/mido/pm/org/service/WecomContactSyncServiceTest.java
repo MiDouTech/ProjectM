@@ -58,7 +58,7 @@ class WecomContactSyncServiceTest {
         when(contactClient.listMembers())
                 .thenReturn(List.of(new WecomMember("zhangsan", "张三", "13800000000", List.of(2L))));
         when(deptMapper.selectOne(any())).thenReturn(null); // 部门不存在 → 新建
-        when(identityMapMapper.selectOne(any())).thenReturn(null); // 未映射 → 新建用户
+        when(identityMapMapper.selectList(any())).thenReturn(java.util.List.of()); // 无映射 → 新建用户
         lenient().when(passwordEncoder.encode(any())).thenReturn("hash");
 
         WecomSyncResultVO r = service.sync();
@@ -78,7 +78,8 @@ class WecomContactSyncServiceTest {
                 .thenReturn(List.of(new WecomMember("lisi", "李四", "13900000000", List.of())));
         SysIdentityMap mapping = new SysIdentityMap();
         mapping.setUserId(50L);
-        when(identityMapMapper.selectOne(any())).thenReturn(mapping);
+        mapping.setExternalId("lisi");
+        when(identityMapMapper.selectList(any())).thenReturn(java.util.List.of(mapping));
         when(userMapper.selectById(50L)).thenReturn(new SysUser());
 
         WecomSyncResultVO r = service.sync();

@@ -115,17 +115,19 @@ public class WecomContactSyncService {
 
     /** upsert 成员；返回 [created, updated]。 */
     private int[] upsertMembers(List<WecomMember> members, Map<Long, Long> deptIdMap) {
+        // 预加载本租户全部企微身份映射，避免每个成员一次 selectOne(N+1)
+        Map<String, Long> externalToUserId = identityMapMapper.selectList(Wrappers.<SysIdentityMap>lambdaQuery()
+                        .eq(SysIdentityMap::getProvider, PROVIDER_WECOM))
+                .stream().collect(java.util.stream.Collectors.toMap(SysIdentityMap::getExternalId,
+                        SysIdentityMap::getUserId, (a, b) -> a));
         int created = 0;
         int updated = 0;
         for (WecomMember m : members) {
             Long localDept = m.departmentIds() == null || m.departmentIds().isEmpty()
                     ? null : deptIdMap.get(m.departmentIds().get(0));
-            SysIdentityMap mapping = identityMapMapper.selectOne(Wrappers.<SysIdentityMap>lambdaQuery()
-                    .eq(SysIdentityMap::getProvider, PROVIDER_WECOM)
-                    .eq(SysIdentityMap::getExternalId, m.userId())
-                    .last("limit 1"));
-            if (mapping != null) {
-                SysUser u = userMapper.selectById(mapping.getUserId());
+            Long mappedUserId = externalToUserId.get(m.userId());
+            if (mappedUserId != null) {
+                SysUser u = userMapper.selectById(mappedUserId);
                 if (u != null) {
                     u.setName(m.name());
                     if (m.mobile() != null && !m.mobile().isBlank()) {

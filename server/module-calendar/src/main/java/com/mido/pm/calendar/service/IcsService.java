@@ -22,6 +22,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 日历 ics 订阅服务：为日历惰性生成订阅 token 并产出匿名可拉取的 iCalendar 源。
@@ -73,11 +75,12 @@ public class IcsService {
             List<PmSchedule> schedules = scheduleMapper.selectList(Wrappers.<PmSchedule>lambdaQuery()
                     .eq(PmSchedule::getCalendarId, cal.getId())
                     .eq(PmSchedule::getStatus, "confirmed"));
+            Map<Long, List<PmScheduleException>> exBySchedule = exceptionsBySchedule(schedules.stream()
+                    .filter(RecurrenceExpander::isRecurring).map(PmSchedule::getId).toList());
             List<IcsWriter.VEvent> events = new ArrayList<>();
             for (PmSchedule s : schedules) {
                 if (RecurrenceExpander.isRecurring(s)) {
-                    List<PmScheduleException> ex = exceptionMapper.selectList(
-                            Wrappers.<PmScheduleException>lambdaQuery().eq(PmScheduleException::getScheduleId, s.getId()));
+                    List<PmScheduleException> ex = exBySchedule.getOrDefault(s.getId(), List.of());
                     for (RecurrenceExpander.Occurrence o : RecurrenceExpander.expand(s, ex, from, to)) {
                         events.add(new IcsWriter.VEvent(
                                 "sch-" + s.getId() + "-" + o.occurrenceDate() + "@mido",
@@ -100,5 +103,15 @@ public class IcsService {
 
     private boolean isAllDay(PmSchedule s) {
         return s.getAllDay() != null && s.getAllDay() == 1;
+    }
+
+    /** 一次性按 scheduleId 批量加载例外并分组（避免 N+1）。 */
+    private Map<Long, List<PmScheduleException>> exceptionsBySchedule(List<Long> scheduleIds) {
+        if (scheduleIds.isEmpty()) {
+            return Map.of();
+        }
+        return exceptionMapper.selectList(Wrappers.<PmScheduleException>lambdaQuery()
+                        .in(PmScheduleException::getScheduleId, scheduleIds))
+                .stream().collect(Collectors.groupingBy(PmScheduleException::getScheduleId));
     }
 }

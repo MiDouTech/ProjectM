@@ -185,15 +185,26 @@ public class ScheduleService {
         for (PmSchedule s : singles) {
             result.add(toVO(s, null, null));
         }
+        Map<Long, List<PmScheduleException>> exBySchedule = exceptionsBySchedule(
+                recurring.stream().map(PmSchedule::getId).toList());
         for (PmSchedule s : recurring) {
-            List<PmScheduleException> exceptions = exceptionMapper.selectList(
-                    Wrappers.<PmScheduleException>lambdaQuery().eq(PmScheduleException::getScheduleId, s.getId()));
+            List<PmScheduleException> exceptions = exBySchedule.getOrDefault(s.getId(), List.of());
             for (RecurrenceExpander.Occurrence o : RecurrenceExpander.expand(s, exceptions, from, to)) {
                 result.add(occurrenceVO(s, o));
             }
         }
         result.sort((a, b) -> a.startTime().compareTo(b.startTime()));
         return result;
+    }
+
+    /** 一次性按 scheduleId 批量加载例外并分组（避免每个循环日程一次查询 N+1）。 */
+    private Map<Long, List<PmScheduleException>> exceptionsBySchedule(List<Long> scheduleIds) {
+        if (scheduleIds.isEmpty()) {
+            return Map.of();
+        }
+        return exceptionMapper.selectList(Wrappers.<PmScheduleException>lambdaQuery()
+                        .in(PmScheduleException::getScheduleId, scheduleIds))
+                .stream().collect(java.util.stream.Collectors.groupingBy(PmScheduleException::getScheduleId));
     }
 
     /** 创建循环日程的单次例外（取消/改期）。仅组织者。 */
