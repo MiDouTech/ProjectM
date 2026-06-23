@@ -418,7 +418,11 @@ const weekDays = computed(() => {
 
 function eventsOf(date) {
   const key = date.format('YYYY-MM-DD')
-  return schedules.value.filter((s) => dayjs(s.startTime).format('YYYY-MM-DD') === key)
+  return schedules.value.filter((s) => {
+    const sd = dayjs(s.startTime).format('YYYY-MM-DD')
+    const ed = dayjs(s.endTime).format('YYYY-MM-DD')
+    return key >= sd && key <= ed
+  })
 }
 
 function tasksOf(date) {
@@ -428,7 +432,11 @@ function tasksOf(date) {
 
 function busyOf(date) {
   const key = date.format('YYYY-MM-DD')
-  return busyBlocks.value.filter((b) => dayjs(b.start).format('YYYY-MM-DD') === key)
+  return busyBlocks.value.filter((b) => {
+    const sd = dayjs(b.start).format('YYYY-MM-DD')
+    const ed = dayjs(b.end).format('YYYY-MM-DD')
+    return key >= sd && key <= ed
+  })
 }
 
 function openTask(t) {
