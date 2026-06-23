@@ -34,6 +34,17 @@ class WecomMessageClientTest {
     }
 
     @Test
+    void differentCorpRefetchesToken() throws Exception {
+        WecomMessageClient client = spy(new WecomMessageClient());
+        doReturn(tokenOk()).when(client).getJson(anyString());
+
+        client.accessToken("corpA", "secA");
+        client.accessToken("corpB", "secB"); // 不同 corp/secret → 不复用缓存
+
+        verify(client, times(2)).getJson(anyString());
+    }
+
+    @Test
     void gettokenErrorReturnsNull() throws Exception {
         WecomMessageClient client = spy(new WecomMessageClient());
         doReturn(new JSONObject().set("errcode", 40013).set("errmsg", "invalid corpid"))

@@ -4,10 +4,13 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.mido.pm.calendar.entity.PmSchedule;
 import com.mido.pm.calendar.entity.PmScheduleException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,7 +25,9 @@ import java.util.Map;
  */
 public final class RecurrenceExpander {
 
-    /** 防御性上限，避免规则异常导致无限展开。 */
+    private static final Logger log = LoggerFactory.getLogger(RecurrenceExpander.class);
+
+    /** 单次区间内最多展开的实例数（已快进到窗口，此为窗口内实例上限）。 */
     private static final int MAX_OCCURRENCES = 1000;
 
     private RecurrenceExpander() {
@@ -39,6 +44,7 @@ public final class RecurrenceExpander {
 
     /**
      * 将循环主记录展开为区间 [from,to] 内的实例列表（已套用例外）。非循环主记录返回空。
+     * 解析失败（recur_rule 非法）记日志并返回空，避免单条坏数据导致整次区间查询失败。
      */
     public static List<Occurrence> expand(PmSchedule master, List<PmScheduleException> exceptions,
                                           LocalDateTime from, LocalDateTime to) {
@@ -46,23 +52,35 @@ public final class RecurrenceExpander {
         if (!isRecurring(master)) {
             return result;
         }
-        JSONObject rule = JSONUtil.parseObj(master.getRecurRule());
-        String freq = rule.getStr("freq");
-        if (freq == null || freq.isBlank()) {
+        String freq;
+        int interval;
+        Integer count;
+        LocalDate until;
+        try {
+            JSONObject rule = JSONUtil.parseObj(master.getRecurRule());
+            freq = rule.getStr("freq");
+            if (freq == null || freq.isBlank()) {
+                return result;
+            }
+            interval = Math.max(1, rule.getInt("interval", 1));
+            Integer c = rule.getInt("count", -1);
+            count = (c != null && c <= 0) ? null : c;
+            until = rule.getStr("until") == null ? null : LocalDate.parse(rule.getStr("until"));
+        } catch (Exception e) {
+            log.warn("循环规则解析失败 scheduleId={} recurRule={}: {}",
+                    master.getId(), master.getRecurRule(), e.getMessage());
             return result;
         }
-        int interval = Math.max(1, rule.getInt("interval", 1));
-        Integer count = rule.getInt("count", -1);
-        if (count != null && count <= 0) {
-            count = null;
-        }
-        LocalDate until = rule.getStr("until") == null ? null : LocalDate.parse(rule.getStr("until"));
 
         Duration duration = Duration.between(master.getStartTime(), master.getEndTime());
         Map<LocalDate, PmScheduleException> exMap = indexExceptions(exceptions);
 
-        LocalDateTime occ = master.getStartTime();
-        for (int idx = 0; idx < MAX_OCCURRENCES; idx++) {
+        // 快进到查询窗口附近：避免从久远的起始日逐次步进、在到达窗口前撞上 MAX_OCCURRENCES 上限而漏掉实例。
+        // skip 为完全早于 from 的整周期数（保守回退 1），idx 仍按全局序号计，使 count/until 语义不变。
+        long skip = skipPeriods(master.getStartTime(), from, freq, interval);
+        LocalDateTime occ = advance(master.getStartTime(), freq, skip * interval);
+
+        for (long idx = skip; idx < skip + MAX_OCCURRENCES; idx++) {
             if (count != null && idx >= count) {
                 break;
             }
@@ -83,6 +101,32 @@ public final class RecurrenceExpander {
             occ = step(occ, freq, interval);
         }
         return result;
+    }
+
+    /** 完全早于 windowStart 的整周期数（保守回退 1，由主循环的 occEnd&gt;from 过滤精确边界）。 */
+    private static long skipPeriods(LocalDateTime start, LocalDateTime windowStart, String freq, int interval) {
+        long between = switch (freq) {
+            case "DAILY" -> ChronoUnit.DAYS.between(start, windowStart);
+            case "WEEKLY" -> ChronoUnit.WEEKS.between(start, windowStart);
+            case "MONTHLY" -> ChronoUnit.MONTHS.between(start, windowStart);
+            case "YEARLY" -> ChronoUnit.YEARS.between(start, windowStart);
+            default -> 0L;
+        };
+        if (between <= 0) {
+            return 0;
+        }
+        return Math.max(0, between / interval - 1);
+    }
+
+    /** 从 start 前进 units 个时间单位（units = 周期数 × interval）。 */
+    private static LocalDateTime advance(LocalDateTime start, String freq, long units) {
+        return switch (freq) {
+            case "DAILY" -> start.plusDays(units);
+            case "WEEKLY" -> start.plusWeeks(units);
+            case "MONTHLY" -> start.plusMonths(units);
+            case "YEARLY" -> start.plusYears(units);
+            default -> start;
+        };
     }
 
     private static Occurrence applyException(LocalDateTime start, LocalDateTime end, LocalDate occDate,

@@ -74,4 +74,28 @@ class RecurrenceExpanderTest {
         PmSchedule s = weekly(null);
         assertTrue(RecurrenceExpander.expand(s, List.of(), from, to).isEmpty());
     }
+
+    @Test
+    void longRunningDailyFastForwardsIntoWindow() {
+        // 起始于 ~5 年前的每日循环、无 count/until；查询近期 7 天窗口应得 7 次（而非因 1000 步上限漏空）。
+        PmSchedule s = new PmSchedule();
+        s.setId(1L);
+        s.setTitle("站会");
+        s.setStartTime(LocalDateTime.of(2021, 1, 1, 9, 0));
+        s.setEndTime(LocalDateTime.of(2021, 1, 1, 9, 30));
+        s.setRecurRule("{\"freq\":\"DAILY\",\"interval\":1}");
+        LocalDateTime w0 = LocalDateTime.of(2026, 6, 23, 0, 0);
+        LocalDateTime w1 = LocalDateTime.of(2026, 6, 29, 23, 59);
+        var occ = RecurrenceExpander.expand(s, List.of(), w0, w1);
+        assertEquals(7, occ.size());
+        assertEquals(LocalDate.of(2026, 6, 23), occ.get(0).occurrenceDate());
+    }
+
+    @Test
+    void malformedRuleReturnsEmptyNotThrow() {
+        PmSchedule s = weekly("not-json");
+        assertTrue(RecurrenceExpander.expand(s, List.of(), from, to).isEmpty());
+        PmSchedule s2 = weekly("{\"freq\":\"WEEKLY\",\"until\":\"2026-13-99\"}");
+        assertTrue(RecurrenceExpander.expand(s2, List.of(), from, to).isEmpty());
+    }
 }

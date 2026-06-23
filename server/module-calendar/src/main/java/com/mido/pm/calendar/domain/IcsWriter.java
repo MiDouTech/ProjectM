@@ -34,8 +34,12 @@ public final class IcsWriter {
             sb.append("UID:").append(e.uid()).append(CRLF);
             sb.append("DTSTAMP:").append(stamp).append(CRLF);
             if (e.allDay()) {
-                sb.append("DTSTART;VALUE=DATE:").append(e.start().format(DATE)).append(CRLF);
-                sb.append("DTEND;VALUE=DATE:").append(e.end().format(DATE)).append(CRLF);
+                // RFC 5545：全天 DTEND 为「最后一天的次日」(排他)；末日取 max(start,end) 再 +1，避免零长度。
+                java.time.LocalDate startDate = e.start().toLocalDate();
+                java.time.LocalDate lastDate = e.end().toLocalDate().isBefore(startDate)
+                        ? startDate : e.end().toLocalDate();
+                sb.append("DTSTART;VALUE=DATE:").append(startDate.format(DATE)).append(CRLF);
+                sb.append("DTEND;VALUE=DATE:").append(lastDate.plusDays(1).format(DATE)).append(CRLF);
             } else {
                 sb.append("DTSTART:").append(e.start().format(DT)).append(CRLF);
                 sb.append("DTEND:").append(e.end().format(DT)).append(CRLF);

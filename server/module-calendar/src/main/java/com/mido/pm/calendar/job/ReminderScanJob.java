@@ -28,6 +28,7 @@ public class ReminderScanJob {
 
     private static final Logger log = LoggerFactory.getLogger(ReminderScanJob.class);
     private static final int LOOKAHEAD_HOURS = 24;
+    private static final int GRACE_DAYS = 1;
 
     private final PmScheduleMapper scheduleMapper;
     private final PmScheduleReminderLogMapper reminderLogMapper;
@@ -44,12 +45,13 @@ public class ReminderScanJob {
     @Scheduled(cron = "0 */5 * * * ?")
     public void scan() {
         LocalDateTime now = LocalDateTime.now();
+        // 下界回看 GRACE_DAYS：覆盖宕机恢复后「提醒点已过但事件刚开始/未久」的漏发，配合去重日志只发一次。
         List<PmSchedule> upcoming = scheduleMapper.selectList(Wrappers.<PmSchedule>lambdaQuery()
                 .eq(PmSchedule::getStatus, "confirmed")
                 .isNull(PmSchedule::getRecurRule)
                 .isNotNull(PmSchedule::getReminder)
                 .ne(PmSchedule::getReminder, "")
-                .ge(PmSchedule::getStartTime, now)
+                .ge(PmSchedule::getStartTime, now.minusDays(GRACE_DAYS))
                 .le(PmSchedule::getStartTime, now.plusHours(LOOKAHEAD_HOURS)));
         for (PmSchedule s : upcoming) {
             try {

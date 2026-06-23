@@ -39,6 +39,7 @@ import java.util.Set;
 public class ScheduleService {
 
     private static final Set<String> RSVP_STATUSES = Set.of("accepted", "tentative", "declined");
+    private static final Set<String> RECUR_FREQS = Set.of("DAILY", "WEEKLY", "MONTHLY", "YEARLY");
     private static final long NONE_SENTINEL = -1L;
 
     private final PmScheduleMapper scheduleMapper;
@@ -76,7 +77,7 @@ public class ScheduleService {
         s.setEndTime(dto.endTime());
         s.setAllDay(boolToInt(dto.allDay(), 0));
         s.setLocation(dto.location());
-        s.setRecurRule(blankToNull(dto.recurRule()));
+        s.setRecurRule(validateRecurRule(dto.recurRule()));
         s.setReminder(toReminderJson(dto.reminderMinutes()));
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), 1));
         s.setSourceType("manual");
@@ -109,7 +110,7 @@ public class ScheduleService {
         s.setEndTime(dto.endTime());
         s.setAllDay(boolToInt(dto.allDay(), s.getAllDay()));
         s.setLocation(dto.location());
-        s.setRecurRule(blankToNull(dto.recurRule()));
+        s.setRecurRule(validateRecurRule(dto.recurRule()));
         s.setReminder(toReminderJson(dto.reminderMinutes()));
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), s.getAllowFeedback()));
         scheduleMapper.updateById(s);
@@ -367,8 +368,28 @@ public class ScheduleService {
         });
     }
 
-    private String blankToNull(String v) {
-        return v == null || v.isBlank() ? null : v;
+    /** 校验并归一化 recur_rule：空→null；非空须为 {freq:DAILY|WEEKLY|MONTHLY|YEARLY,...} 合法 JSON，否则 400。 */
+    private String validateRecurRule(String v) {
+        if (v == null || v.isBlank()) {
+            return null;
+        }
+        try {
+            String freq = cn.hutool.json.JSONUtil.parseObj(v).getStr("freq");
+            if (!RECUR_FREQS.contains(freq)) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "循环规则 freq 非法");
+            }
+            if (v.contains("until")) {
+                String until = cn.hutool.json.JSONUtil.parseObj(v).getStr("until");
+                if (until != null) {
+                    java.time.LocalDate.parse(until);
+                }
+            }
+            return v;
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "循环规则格式非法");
+        }
     }
 
     private int boolToInt(Boolean v, Integer fallback) {

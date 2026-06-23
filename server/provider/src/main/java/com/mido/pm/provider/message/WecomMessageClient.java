@@ -30,6 +30,7 @@ public class WecomMessageClient {
     private final HttpClient http = HttpClient.newHttpClient();
     private final Object lock = new Object();
     private volatile String cachedToken;
+    private volatile String cachedKey;
     private volatile long tokenExpireAt;
 
     /** 异步投递文本应用消息。touser 为企微 userid。 */
@@ -48,8 +49,10 @@ public class WecomMessageClient {
 
     /** 取/缓存 access_token；TTL 内复用缓存，过期或缺失则重新拉取。 */
     String accessToken(String corpId, String secret) throws Exception {
+        String key = corpId + "" + secret;
         synchronized (lock) {
-            if (cachedToken != null && System.currentTimeMillis() < tokenExpireAt) {
+            // 缓存键含 corpId+secret：多 corp/换密钥时不复用他方令牌。
+            if (cachedToken != null && key.equals(cachedKey) && System.currentTimeMillis() < tokenExpireAt) {
                 return cachedToken;
             }
             JSONObject resp = getJson(BASE + "/gettoken?corpid=" + enc(corpId) + "&corpsecret=" + enc(secret));
@@ -58,6 +61,7 @@ public class WecomMessageClient {
                 return null;
             }
             cachedToken = resp.getStr("access_token");
+            cachedKey = key;
             long ttlSec = resp.getLong("expires_in", 7200L);
             tokenExpireAt = System.currentTimeMillis() + ttlSec * 1000L - EXPIRE_BUFFER_MS;
             return cachedToken;

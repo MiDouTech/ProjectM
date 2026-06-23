@@ -17,7 +17,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,30 +62,55 @@ public class WecomContactSyncService {
         return new WecomSyncResultVO(depts.size(), uc[0], uc[1]);
     }
 
-    /** upsert 部门，返回 企微部门 id → 本地部门 id 映射（企微根部门 1 → 本地顶级 0）。 */
+    /**
+     * upsert 部门，返回 企微部门 id → 本地部门 id 映射（企微根部门 1 → 本地顶级 0）。
+     * 按依赖关系递归解析父部门，不依赖企微返回顺序或 id 大小（父 id 未必小于子 id）。
+     */
     private Map<Long, Long> upsertDepts(List<WecomDept> depts) {
         Map<Long, Long> map = new HashMap<>();
         map.put(WECOM_ROOT_DEPT, LOCAL_ROOT_PARENT);
-        depts.stream().sorted(Comparator.comparingLong(WecomDept::id)).forEach(d -> {
-            if (d.id() == WECOM_ROOT_DEPT) {
-                return;
-            }
-            long localParent = map.getOrDefault(d.parentId(), LOCAL_ROOT_PARENT);
-            SysDept existing = deptMapper.selectOne(Wrappers.<SysDept>lambdaQuery()
-                    .eq(SysDept::getName, d.name())
-                    .eq(SysDept::getParentId, localParent)
-                    .last("limit 1"));
-            if (existing != null) {
-                map.put(d.id(), existing.getId());
-            } else {
-                SysDept dept = new SysDept();
-                dept.setName(d.name());
-                dept.setParentId(localParent);
-                deptMapper.insert(dept);
-                map.put(d.id(), dept.getId());
-            }
-        });
+        Map<Long, WecomDept> byId = new HashMap<>();
+        for (WecomDept d : depts) {
+            byId.put(d.id(), d);
+        }
+        for (WecomDept d : depts) {
+            resolveDept(d.id(), byId, map);
+        }
         return map;
+    }
+
+    /** 递归解析并 upsert 单个企微部门，返回其本地部门 id；已解析的走缓存，防环（缺父→挂顶级）。 */
+    private Long resolveDept(long wecomId, Map<Long, WecomDept> byId, Map<Long, Long> map) {
+        if (map.containsKey(wecomId)) {
+            return map.get(wecomId);
+        }
+        WecomDept d = byId.get(wecomId);
+        if (d == null) {
+            return LOCAL_ROOT_PARENT;
+        }
+        map.put(wecomId, LOCAL_ROOT_PARENT); // 占位防环：环或缺父先挂顶级，下方覆盖为真实 id
+        Long localParent;
+        if (d.parentId() == WECOM_ROOT_DEPT || d.parentId() == 0) {
+            localParent = LOCAL_ROOT_PARENT;
+        } else {
+            localParent = resolveDept(d.parentId(), byId, map);
+        }
+        SysDept existing = deptMapper.selectOne(Wrappers.<SysDept>lambdaQuery()
+                .eq(SysDept::getName, d.name())
+                .eq(SysDept::getParentId, localParent)
+                .last("limit 1"));
+        Long localId;
+        if (existing != null) {
+            localId = existing.getId();
+        } else {
+            SysDept dept = new SysDept();
+            dept.setName(d.name());
+            dept.setParentId(localParent);
+            deptMapper.insert(dept);
+            localId = dept.getId();
+        }
+        map.put(wecomId, localId);
+        return localId;
     }
 
     /** upsert 成员；返回 [created, updated]。 */

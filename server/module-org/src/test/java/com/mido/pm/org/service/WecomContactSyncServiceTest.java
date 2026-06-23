@@ -2,6 +2,7 @@ package com.mido.pm.org.service;
 
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.org.dto.WecomSyncResultVO;
+import com.mido.pm.org.entity.SysDept;
 import com.mido.pm.org.entity.SysIdentityMap;
 import com.mido.pm.org.entity.SysUser;
 import com.mido.pm.org.mapper.SysDeptMapper;
@@ -19,11 +20,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -81,5 +88,29 @@ class WecomContactSyncServiceTest {
         verify(userMapper).updateById(any(SysUser.class));
         verify(userMapper, never()).insert(any(SysUser.class));
         verify(identityMapMapper, never()).insert(any(SysIdentityMap.class));
+    }
+
+    @Test
+    void deptParentResolvedRegardlessOfListOrder() {
+        when(contactClient.enabled()).thenReturn(true);
+        // 子部门(id=5,parent=10) 列在父部门(id=10,parent=1) 之前——父 id 大于子 id
+        when(contactClient.listDepartments()).thenReturn(List.of(
+                new WecomDept(5L, "测试组", 10L), new WecomDept(10L, "研发部", 1L)));
+        when(contactClient.listMembers()).thenReturn(List.of());
+        when(deptMapper.selectOne(any())).thenReturn(null);
+        AtomicLong seq = new AtomicLong(100);
+        doAnswer(inv -> {
+            ((SysDept) inv.getArgument(0)).setId(seq.incrementAndGet());
+            return 1;
+        }).when(deptMapper).insert(any(SysDept.class));
+        org.mockito.ArgumentCaptor<SysDept> cap = org.mockito.ArgumentCaptor.forClass(SysDept.class);
+
+        service.sync();
+
+        verify(deptMapper, times(2)).insert(cap.capture());
+        Map<String, SysDept> byName = cap.getAllValues().stream()
+                .collect(Collectors.toMap(SysDept::getName, x -> x));
+        assertEquals(0L, byName.get("研发部").getParentId()); // 研发部挂顶级
+        assertEquals(byName.get("研发部").getId(), byName.get("测试组").getParentId()); // 测试组挂研发部
     }
 }

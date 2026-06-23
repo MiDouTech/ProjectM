@@ -33,6 +33,8 @@ class IcsWriterTest {
                 new VEvent("u2", "假期", LocalDateTime.of(2026, 6, 23, 0, 0),
                         LocalDateTime.of(2026, 6, 24, 0, 0), null, true)));
         assertTrue(ics.contains("DTSTART;VALUE=DATE:20260623"));
+        // RFC 5545：全天 DTEND 排他（末日 06-24 → DTEND 06-25），不得等于 DTSTART
+        assertTrue(ics.contains("DTEND;VALUE=DATE:20260625"));
         assertFalse(ics.contains("LOCATION:"));
     }
 
