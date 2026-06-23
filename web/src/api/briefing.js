@@ -18,6 +18,8 @@ export const briefingApi = {
   review: (type) => request.get('/briefings/review', { params: type ? { type } : {} }),
   // 成员简报：我评审范围内的成员 id
   reviewees: () => request.get('/briefings/reviewees'),
+  // 简报统计：我评审范围内某类型提交概览
+  stats: (type) => request.get('/briefings/stats', { params: type ? { type } : {} }),
   // 成员简报：某成员的已提交简报
   members: (type, authorId) =>
     request.get('/briefings/members', { params: { ...(type ? { type } : {}), ...(authorId ? { authorId } : {}) } }),

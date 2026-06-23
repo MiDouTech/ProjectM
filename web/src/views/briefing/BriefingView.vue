@@ -58,6 +58,24 @@
         <el-empty v-if="!myList.length" :description="'暂无' + menuLabel" />
       </template>
 
+      <!-- 简报统计 -->
+      <template v-else-if="active === 'stats'">
+        <div class="mido-briefing__head">简报统计</div>
+        <el-radio-group v-model="statsType" @change="loadStats" style="margin-bottom: 16px">
+          <el-radio-button value="daily">日报</el-radio-button>
+          <el-radio-button value="weekly">周报</el-radio-button>
+          <el-radio-button value="monthly">月报</el-radio-button>
+        </el-radio-group>
+        <div v-if="stats" class="mido-stats__total">已提交合计：<b>{{ stats.total }}</b> 份</div>
+        <el-table v-if="stats" :data="stats.members" style="width: 100%; margin-top: 12px">
+          <el-table-column label="成员">
+            <template #default="{ row }">{{ memberName(row.authorId) }}</template>
+          </el-table-column>
+          <el-table-column prop="submittedCount" label="已提交份数" width="160" />
+        </el-table>
+        <el-empty v-if="stats && !stats.members.length" description="暂无提交" />
+      </template>
+
       <!-- 跟进的问题 -->
       <template v-else-if="active === 'issues'">
         <div class="mido-briefing__head">跟进的问题</div>
@@ -197,6 +215,7 @@ const menus = [
   { key: 'review', label: '我评审的' },
   { key: 'members', label: '成员简报' },
   { key: 'issues', label: '跟进的问题' },
+  { key: 'stats', label: '简报统计' },
 ]
 const ISSUE_STATUS = { open: '待处理', following: '跟进中', closed: '已关闭' }
 const MINE = ['daily', 'weekly', 'monthly']
@@ -209,6 +228,8 @@ const members = ref([])
 const reviewees = ref([])
 const reviewList = ref([])
 const issueList = ref([])
+const stats = ref(null)
+const statsType = ref('daily')
 const memberFilter = reactive({ authorId: null, type: null })
 
 const menuLabel = computed(() => menus.find((m) => m.key === active.value)?.label || '')
@@ -242,6 +263,18 @@ async function selectMenu(key) {
     await loadReviewList()
   } else if (key === 'issues') {
     await loadIssues()
+  } else if (key === 'stats') {
+    statsType.value = 'daily'
+    await loadStats()
+  }
+}
+
+async function loadStats() {
+  loading.value = true
+  try {
+    stats.value = await briefingApi.stats(statsType.value)
+  } finally {
+    loading.value = false
   }
 }
 

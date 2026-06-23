@@ -146,6 +146,19 @@ public class BriefingReviewService {
                 .stream().map(this::toVO).toList();
     }
 
+    /** 简报统计：我评审范围内某类型的提交总数与按成员分布。 */
+    public com.mido.pm.briefing.dto.BriefingStatsVO stats(String type) {
+        List<BriefingVO> list = reviewBriefings(type, null);
+        java.util.Map<Long, Long> byAuthor = new java.util.LinkedHashMap<>();
+        for (BriefingVO v : list) {
+            byAuthor.merge(v.authorId(), 1L, Long::sum);
+        }
+        List<com.mido.pm.briefing.dto.BriefingStatsVO.MemberStat> members = byAuthor.entrySet().stream()
+                .map(e -> new com.mido.pm.briefing.dto.BriefingStatsVO.MemberStat(e.getKey(), e.getValue()))
+                .toList();
+        return new com.mido.pm.briefing.dto.BriefingStatsVO(type, list.size(), members);
+    }
+
     /** 我评审范围内的成员（作者 id 去重）。 */
     public List<Long> reviewees() {
         List<Long> ids = myReviewBriefingIds();
@@ -153,7 +166,6 @@ public class BriefingReviewService {
             return List.of();
         }
         return briefingMapper.selectList(Wrappers.<PmBriefing>lambdaQuery()
-                        .select(PmBriefing::getAuthorId)
                         .in(PmBriefing::getId, ids)
                         .eq(PmBriefing::getStatus, STATUS_SUBMITTED))
                 .stream().map(PmBriefing::getAuthorId).distinct().toList();
@@ -161,7 +173,6 @@ public class BriefingReviewService {
 
     private List<Long> myReviewBriefingIds() {
         return recipientMapper.selectList(Wrappers.<PmBriefingRecipient>lambdaQuery()
-                        .select(PmBriefingRecipient::getBriefingId)
                         .eq(PmBriefingRecipient::getUserId, currentUserId())
                         .eq(PmBriefingRecipient::getType, TYPE_REVIEWER))
                 .stream().map(PmBriefingRecipient::getBriefingId).toList();

@@ -102,4 +102,18 @@ class BriefingReviewServiceTest {
         verify(reviewMapper).insert(any(PmBriefingReview.class));
         verify(eventPublisher).publish(eq(BriefingEvents.REVIEWED), any());
     }
+
+    @Test
+    void statsGroupsByAuthor() {
+        PmBriefingRecipient r1 = new PmBriefingRecipient();
+        r1.setBriefingId(1L);
+        when(recipientMapper.selectList(any())).thenReturn(java.util.List.of(r1));
+        when(briefingMapper.selectList(any()))
+                .thenReturn(java.util.List.of(briefing(10L, 7L), briefing(10L, 7L), briefing(20L, 7L)));
+
+        com.mido.pm.briefing.dto.BriefingStatsVO stats = service.stats("daily");
+
+        org.junit.jupiter.api.Assertions.assertEquals(3, stats.total());
+        org.junit.jupiter.api.Assertions.assertEquals(2, stats.members().size());
+    }
 }

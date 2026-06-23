@@ -49,6 +49,12 @@ public class BriefingController {
         return R.ok(reviewService.reviewees());
     }
 
+    /** 简报统计：我评审范围内某类型的提交概览。 */
+    @GetMapping("/stats")
+    public R<com.mido.pm.briefing.dto.BriefingStatsVO> stats(@RequestParam(required = false) String type) {
+        return R.ok(reviewService.stats(type));
+    }
+
     /** 成员简报：某成员的已提交简报（须在我评审范围内）。 */
     @GetMapping("/members")
     public R<List<BriefingVO>> members(@RequestParam(required = false) String type,
