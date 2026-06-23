@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.mido.pm</groupId>
+        <artifactId>mido-pm-server</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>module-briefing</artifactId>
+    <name>module-briefing</name>
+    <description>简报域：人工日/周/月报模板与填报，区别于 PMO 度量 module-report</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <!-- 跨域：评审人=作者部门负责人，经 SysDeptService.leaderOf 解析（不查 org 表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-org</artifactId>
+        </dependency>
+        <!-- 跨域：草稿生成拉本人周期内任务流水，经 TaskService（不查 task 表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-task</artifactId>
+        </dependency>
+    </dependencies>
+</project>

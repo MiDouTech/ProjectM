@@ -4,6 +4,11 @@ import request from './request'
 export const authApi = {
   // tenantCode 可选（多租户登录隔离）：留空时后端回落自用租户，行为与原先一致。
   login: (data) => request.post('/auth/login', data),
+  // 企微 SSO 授权地址：{ enabled, url }。redirectUri 为前端回调页。
+  wecomAuthorizeUrl: (redirectUri) =>
+    request.get('/auth/wecom/authorize-url', { params: { redirectUri } }),
+  // 企微 SSO 登录：用授权 code 换令牌
+  wecomLogin: (code) => request.post('/auth/wecom/login', { code }),
 }
 
 /** 用户/成员（Step 1-1） */
@@ -14,6 +19,8 @@ export const userApi = {
   update: (id, data) => request.put(`/users/${id}`, data),
   remove: (id) => request.delete(`/users/${id}`),
   assignRoles: (id, roleIds) => request.put(`/users/${id}/roles`, { roleIds }),
+  // 企微通讯录全量同步（部门/成员 → sys_dept/sys_user + sys_identity_map）
+  syncWecomContacts: () => request.post('/wecom/contacts/sync'),
 }
 
 /**

@@ -51,6 +51,8 @@ const STATUS_TYPE = {
   pending: 'info', processing: 'warning', done: 'success', failed: 'danger',
   // 平台运营后台：租户注销后物理清除状态（待回写 design-system §1.5 登记）
   purged: 'info',
+  // 简报状态（pm_briefing.status，待回写 design-system §1.5 登记）
+  submitted: 'success',
 }
 
 // 英文状态码 → 中文展示文案。命中则显示中文，否则原样回显 status
@@ -67,6 +69,8 @@ const STATUS_LABEL = {
   pending: '待处理', processing: '处理中', done: '已完成', failed: '失败',
   // 租户注销后物理清除状态
   purged: '已清除',
+  // 简报状态
+  submitted: '已提交',
 }
 
 const tagType = computed(() => STATUS_TYPE[props.status] || 'info')

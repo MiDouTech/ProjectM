@@ -68,6 +68,14 @@
           >
             登 录
           </el-button>
+          <el-button
+            v-if="wecomEnabled"
+            size="large"
+            class="login__btn"
+            @click="wecomLogin"
+          >
+            企微登录
+          </el-button>
         </el-form>
 
         <footer class="login__feats">
@@ -85,7 +93,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Grid, User, Lock, OfficeBuilding } from '@element-plus/icons-vue'
 import { authApi } from '@/api/org'
@@ -95,6 +103,25 @@ const router = useRouter()
 const formRef = ref()
 const loading = ref(false)
 const logoOk = ref(true)
+const wecomEnabled = ref(false)
+const WECOM_REDIRECT = window.location.origin + '/wecom-callback'
+
+onMounted(async () => {
+  try {
+    const res = await authApi.wecomAuthorizeUrl(WECOM_REDIRECT)
+    wecomEnabled.value = !!res.enabled
+  } catch {
+    wecomEnabled.value = false
+  }
+})
+
+function wecomLogin() {
+  authApi.wecomAuthorizeUrl(WECOM_REDIRECT).then((res) => {
+    if (res.enabled && res.url) {
+      window.location.href = res.url
+    }
+  })
+}
 const form = reactive({ username: '13800000000', password: '', tenantCode: '' })
 const rules = {
   username: [{ required: true, message: '请输入手机号或用户名', trigger: 'blur' }],

@@ -147,6 +147,21 @@ public class TaskService {
         return PageResult.of(list, result.getTotal(), pageNo, size);
     }
 
+    /** 日历叠加：当前用户可见、截止日落在 [from,to] 的任务（含里程碑标记），供日历视图叠加显示。 */
+    public List<com.mido.pm.task.dto.CalendarTaskVO> calendarTasks(LocalDate from, LocalDate to) {
+        LambdaQueryWrapper<PmTask> wrapper = Wrappers.<PmTask>lambdaQuery()
+                .isNotNull(PmTask::getDueDate)
+                .ge(PmTask::getDueDate, from)
+                .le(PmTask::getDueDate, to)
+                .orderByAsc(PmTask::getDueDate);
+        List<PmTask> rows = DataScopeContext.scoped(ScopeResource.TASK, "dept_id", "assignee_id",
+                "project_id", projectService.myVisibleProjectIds(),
+                () -> taskMapper.selectList(wrapper));
+        return rows.stream().map(t -> new com.mido.pm.task.dto.CalendarTaskVO(
+                t.getId(), t.getProjectId(), t.getTitle(), t.getDueDate(),
+                t.getIsMilestone(), t.getStatus())).toList();
+    }
+
     /** 项目下全部任务 id（供跨域聚合，如项目文件汇总任务附件）。 */
     public List<Long> taskIdsByProject(Long projectId) {
         return taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()

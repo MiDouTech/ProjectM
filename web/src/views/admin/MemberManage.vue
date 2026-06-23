@@ -4,6 +4,7 @@
       <h2 class="mido-h2">成员管理</h2>
       <div class="bar__right">
         <el-input v-model="keyword" placeholder="搜索用户名" clearable class="bar__search" @keyup.enter="load" />
+        <el-button :icon="Connection" :loading="syncing" @click="syncWecom">企微同步</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新建成员</el-button>
       </div>
     </div>
@@ -88,7 +89,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Connection } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import AvatarUpload from '@/components/AvatarUpload.vue'
 import { userApi, roleApi, deptApi } from '@/api/org'
@@ -96,6 +97,7 @@ import { attachmentApi } from '@/api/attachment'
 
 const loading = ref(false)
 const saving = ref(false)
+const syncing = ref(false)
 const rows = ref([])
 const roles = ref([])
 const deptTree = ref([])
@@ -137,6 +139,17 @@ async function load() {
     resolveAvatars()
   } finally {
     loading.value = false
+  }
+}
+
+async function syncWecom() {
+  syncing.value = true
+  try {
+    const r = await userApi.syncWecomContacts()
+    ElMessage.success(`同步完成：部门 ${r.deptCount}，新建 ${r.userCreated}，更新 ${r.userUpdated}`)
+    await load()
+  } finally {
+    syncing.value = false
   }
 }
 // 解析当前页头像 URL（按附件 ID 去重，仅解析有头像的成员）

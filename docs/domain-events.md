@@ -86,6 +86,26 @@
 | `doc.moved` | 节点移动/改父或排序 | 活动流 |
 | `doc.deleted` | 删除文档/目录(逻辑删) | 活动流 |
 
+## 5.2 日历/日程域 calendar.*（独立事件型日程）
+| 事件 | 触发 | 订阅方 |
+|---|---|---|
+| `calendar.schedule.created` | 新建日程（payload 含 participantIds） | 消息(邀请通知·P1)、活动流 |
+| `calendar.schedule.updated` | 编辑日程 | 消息(变更通知·P1)、活动流 |
+| `calendar.schedule.deleted` | 删除日程(逻辑删) | 消息(取消通知·P1)、活动流 |
+| `calendar.rsvp.responded` | 参与人 RSVP 反馈(参加/暂定/谢绝) | 消息(通知组织者·P1) |
+| `calendar.reminder.due` | 定时扫描到点提醒(提前 N 分钟) | 消息(提醒参与人·P2) |
+
+> 说明：阶段一事件照常入库，消息订阅（邀请/变更/RSVP/提醒 站内信）为后续接入；事件已发布、消费者待建。
+
+## 5.3 简报域 briefing.*（人工日/周/月报，区别于 PMO 度量 report）
+| 事件 | 触发 | 订阅方 |
+|---|---|---|
+| `briefing.submitted` | 提交简报(落评审人=作者部门负责人) | 消息(通知评审人·P1)、活动流 |
+| `briefing.reviewed` | 评审人批注/已阅 | 消息(通知作者·P1)、活动流 |
+| `briefing.reminder.due` | 定时扫描到点未提交草稿 | 消息(催交作者·P1) |
+| `briefing.issue.raised` | 从简报提出跟进问题 | 消息(通知负责人·P2)、活动流 |
+| `briefing.issue.closed` | 跟进问题关闭 | 活动流 |
+
 ## 6. 订阅方说明
 - **消息(MessageProvider)**：阶段一站内信；激活后企微推送。按事件类型路由到 `pm_notification` 或企微应用消息。
 - **AI 编排器**：阶段一不启用（事件照常入库，无消费者）；阶段二/三按 §5.2 能力顺序订阅。

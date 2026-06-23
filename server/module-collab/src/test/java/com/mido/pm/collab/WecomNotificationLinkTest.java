@@ -5,7 +5,9 @@ import com.mido.pm.collab.listener.NotificationListener;
 import com.mido.pm.collab.mapper.PmNotificationMapper;
 import com.mido.pm.collab.provider.InAppMessageProvider;
 import com.mido.pm.common.outbox.DomainEventMessage;
+import com.mido.pm.provider.message.WecomMessageClient;
 import com.mido.pm.provider.message.WecomMessageProvider;
+import com.mido.pm.provider.message.WecomUserResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -16,6 +18,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -37,9 +40,15 @@ class WecomNotificationLinkTest {
         return new NotificationListener(List.of(new InAppMessageProvider(notificationMapper), wecom));
     }
 
+    /** 默认关的企微 Provider（Mock 预演，不外呼）；解析/客户端用 mock，禁用态下不会被触达。 */
+    private WecomMessageProvider newWecom() {
+        return new WecomMessageProvider(false, "", "", "",
+                mock(WecomUserResolver.class), mock(WecomMessageClient.class));
+    }
+
     @Test
     void taskAssignedAlsoPushesWecomMock() {
-        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", "")); // 默认关：Mock 预演
+        WecomMessageProvider wecom = spy(newWecom()); // 默认关：Mock 预演
 
         listenerWith(wecom).onDomainEvent(new DomainEventMessage(
                 "task.assigned", Map.of("taskId", 55L, "assigneeId", 100L), 1L));
@@ -52,7 +61,7 @@ class WecomNotificationLinkTest {
 
     @Test
     void npssReviewStartedNotifiesEachRecipientBothChannels() {
-        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+        WecomMessageProvider wecom = spy(newWecom());
 
         listenerWith(wecom).onDomainEvent(new DomainEventMessage(
                 "npss.review.started",
@@ -66,7 +75,7 @@ class WecomNotificationLinkTest {
 
     @Test
     void budgetExceededNotifiesLeaderBothChannels() {
-        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+        WecomMessageProvider wecom = spy(newWecom());
 
         listenerWith(wecom).onDomainEvent(new DomainEventMessage(
                 "project.budget.exceeded",
@@ -78,7 +87,7 @@ class WecomNotificationLinkTest {
 
     @Test
     void approvalSubmittedNotifiesEachApproverBothChannels() {
-        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+        WecomMessageProvider wecom = spy(newWecom());
 
         listenerWith(wecom).onDomainEvent(new DomainEventMessage(
                 "approval.submitted",
@@ -91,7 +100,7 @@ class WecomNotificationLinkTest {
 
     @Test
     void nodeApprovedNotifiesNextApproversBothChannels() {
-        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+        WecomMessageProvider wecom = spy(newWecom());
 
         listenerWith(wecom).onDomainEvent(new DomainEventMessage(
                 "approval.node.approved",
@@ -105,7 +114,7 @@ class WecomNotificationLinkTest {
 
     @Test
     void commentMentionStaysInAppOnly() {
-        WecomMessageProvider wecom = spy(new WecomMessageProvider(false, "", "", ""));
+        WecomMessageProvider wecom = spy(newWecom());
 
         listenerWith(wecom).onDomainEvent(new DomainEventMessage(
                 "comment.created", Map.of("mention", List.of(100L)), 1L));

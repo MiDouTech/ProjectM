@@ -238,12 +238,125 @@ CREATE TABLE sys_tenant_export (          -- 租户数据导出任务(异步: pe
 > P1 多租户登录隔离：`sys_user` 唯一约束由【全局唯一手机号 uk_user_phone】改为【租户内唯一 uk_user_tenant_phone(tenant_id, phone)】（V29）。
 > 登录令牌携带租户声明（tid），登录按租户编码 + 账号定位用户；模拟登录令牌额外携带 imp（发起运营账号）声明。
 
+## 日历/日程域（calendar.*，V38）
+
+> 独立「事件型日程」域，区别于任务日历视图（`pm_view` type=calendar 按截止日渲染任务），二者不共表。
+> 日历叠加任务截止/里程碑由前端聚合读取（P1），本域不复制 `pm_task`。落地见 V38 migration。
+
+```sql
+CREATE TABLE pm_calendar (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL, type VARCHAR(16) DEFAULT 'personal',  -- personal/meeting/team/resource
+  owner_id BIGINT, color VARCHAR(16), visibility VARCHAR(16) DEFAULT 'private', -- private/busy/public
+  is_default TINYINT DEFAULT 0,            -- 用户默认「我的日程」(每用户至多一个)
+  subscribe_token VARCHAR(64),            -- ics 匿名订阅 token(P2 惰性生成)，全局唯一
+  status VARCHAR(16) DEFAULT 'active',     -- active/archived
+  -- + 公共字段
+  KEY idx_owner(tenant_id, owner_id));
+CREATE TABLE pm_schedule (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, calendar_id BIGINT NOT NULL,
+  title VARCHAR(256) NOT NULL, description TEXT,
+  start_time DATETIME NOT NULL, end_time DATETIME NOT NULL, all_day TINYINT DEFAULT 0,
+  location VARCHAR(256), recur_rule VARCHAR(512), reminder JSON,
+  -- recur_rule(V40 启用)紧凑 JSON {freq:DAILY|WEEKLY|MONTHLY|YEARLY,interval,count,until} 空=不循环
+  -- reminder(V41 启用)提前提醒分钟数 JSON 数组 [15,60]，由定时任务扫描发 calendar.reminder.due
+  allow_feedback TINYINT DEFAULT 1,        -- 是否允许参与人 RSVP
+  source_type VARCHAR(16) DEFAULT 'manual',-- manual/task/meeting
+  source_id BIGINT, organizer_id BIGINT, status VARCHAR(16) DEFAULT 'confirmed', -- confirmed/cancelled
+  -- + 公共字段
+  KEY idx_cal(calendar_id), KEY idx_range(tenant_id, start_time, end_time));
+CREATE TABLE pm_schedule_participant (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL,
+  user_id BIGINT, external_name VARCHAR(128),
+  role VARCHAR(16) DEFAULT 'required',     -- organizer/required/optional
+  rsvp_status VARCHAR(16) DEFAULT 'pending', -- pending/accepted/tentative/declined
+  -- + 公共字段
+  KEY idx_sch(schedule_id), KEY idx_user(tenant_id, user_id));
+-- 资源 + 占用（V39）：会议室/设备与日程占用，用于冲突检测(同资源时间重叠即冲突)。
+CREATE TABLE pm_calendar_resource (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL, type VARCHAR(16) DEFAULT 'room', -- room/device
+  capacity INT, location VARCHAR(256), status VARCHAR(16) DEFAULT 'active', -- active/disabled
+  -- + 公共字段
+  KEY idx_tenant(tenant_id));
+CREATE TABLE pm_schedule_resource (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL, resource_id BIGINT NOT NULL,
+  -- + 公共字段
+  KEY idx_sch(schedule_id), KEY idx_res(resource_id));
+-- 循环例外（V40）：对循环日程的单次取消/改期；occur_date=被改实例原始开始日，override=modify 覆盖内容。
+CREATE TABLE pm_schedule_exception (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL,
+  occur_date DATE NOT NULL, action VARCHAR(16) DEFAULT 'cancel', -- cancel/modify
+  override JSON,                           -- modify: {startTime,endTime,title,location}
+  -- + 公共字段
+  KEY idx_sch_date(schedule_id, occur_date));
+-- 提醒去重日志（V41）：记录某日程某提醒档已发，定时扫描据此不重发。
+CREATE TABLE pm_schedule_reminder_log (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL,
+  remind_minute INT NOT NULL, sent_at DATETIME,
+  -- + 公共字段
+  KEY idx_sch(schedule_id));
+```
+
+## 简报域（briefing.*，V42）
+
+> 人工日/周/月报，区别于 PMO 度量 module-report。内置模板由 BriefingTemplateService 按租户惰性生成。
+
+```sql
+CREATE TABLE pm_briefing_template (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL, type VARCHAR(16) NOT NULL,  -- daily/weekly/monthly
+  schema JSON,                             -- 字段定义数组 [{key,label,type}]
+  scope VARCHAR(16) DEFAULT 'tenant', is_builtin TINYINT DEFAULT 0, status VARCHAR(16) DEFAULT 'active',
+  -- + 公共字段
+  KEY idx_tenant_type(tenant_id, type));
+CREATE TABLE pm_briefing (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, template_id BIGINT NOT NULL,
+  type VARCHAR(16) NOT NULL, author_id BIGINT NOT NULL, dept_id BIGINT,
+  period_key VARCHAR(32) NOT NULL,         -- 2026-06-23 / 2026-W26 / 2026-06
+  period_start DATE, period_end DATE, content JSON,
+  status VARCHAR(16) DEFAULT 'draft',      -- draft/submitted
+  submitted_at DATETIME,
+  -- + 公共字段
+  KEY idx_author_type(author_id, type), KEY idx_period(tenant_id, template_id, author_id, period_key));
+-- 评审（V43）：提交时按作者部门负责人(sys_dept.leader_id)落 reviewer，评审人批注。
+CREATE TABLE pm_briefing_recipient (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, briefing_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL, type VARCHAR(16) DEFAULT 'reviewer', -- reviewer/cc
+  -- + 公共字段
+  KEY idx_user_type(user_id, type), KEY idx_briefing(briefing_id));
+CREATE TABLE pm_briefing_review (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, briefing_id BIGINT NOT NULL,
+  reviewer_id BIGINT NOT NULL, action VARCHAR(16) DEFAULT 'comment', -- comment/approve
+  comment TEXT, reviewed_at DATETIME,
+  -- + 公共字段
+  KEY idx_briefing(briefing_id));
+-- 跟进问题（V44）：从可见简报提出，指派负责人、跟踪状态。
+CREATE TABLE pm_briefing_issue (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, briefing_id BIGINT NOT NULL,
+  raised_by BIGINT NOT NULL, owner_id BIGINT, content VARCHAR(512) NOT NULL,
+  status VARCHAR(16) DEFAULT 'open', -- open/following/closed
+  due_date DATE,
+  -- + 公共字段
+  KEY idx_owner(owner_id), KEY idx_raised(raised_by), KEY idx_briefing(briefing_id));
+-- 模板指派（V45）：模板指派给用户/部门，决定「我应交」。
+CREATE TABLE pm_briefing_assignment (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, template_id BIGINT NOT NULL,
+  target_type VARCHAR(16) DEFAULT 'user', target_id BIGINT NOT NULL, -- user/dept
+  -- + 公共字段
+  KEY idx_template(template_id), KEY idx_target(target_type, target_id));
+```
+> 模板 is_builtin=1 为内置(不可改/停用)；自定义模板可增删改与指派。
+
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`
 - 任务状态（默认流，可工作流自定义）：`未开始 / 进行中 / 已完成 / 已验收`
 - 审批实例：`pending / approved / rejected`；审批动作：`approve / reject / transfer`
 - NPSS result_level：`success / mixed / failure`
 - 通知 channel：`inapp / wecom`
+- 日历类型 type：`personal / meeting / team / resource`；日程 status：`confirmed / cancelled`；RSVP：`pending / accepted / tentative / declined`
+- 循环 freq：`DAILY / WEEKLY / MONTHLY / YEARLY`；循环例外 action：`cancel / modify`；资源 type：`room / device`
+- 简报 type：`daily / weekly / monthly`；简报 status：`draft / submitted`
 - 数据范围 scope：`self / dept / dept_and_sub / all / custom`
 - 租户状态（平台域）：`trial 试用 / active 正式 / suspended 停用 / expired 已过期 / closed 已注销`
 - 套餐/平台账号状态（平台域）：`active 启用 / disabled 停用`；订阅状态：`active / expired / cancelled`

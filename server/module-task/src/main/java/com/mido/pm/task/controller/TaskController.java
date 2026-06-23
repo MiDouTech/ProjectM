@@ -94,6 +94,16 @@ public class TaskController {
         return R.ok(taskService.kanban(projectId));
     }
 
+    /** 日历叠加：当前用户可见、截止日落在 [from,to] 的任务(含里程碑)，供日历视图叠加显示。 */
+    @GetMapping("/calendar")
+    public R<List<com.mido.pm.task.dto.CalendarTaskVO>> calendarTasks(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return R.ok(taskService.calendarTasks(from, to));
+    }
+
     /** 批量改状态（逐条校验工作流合法性，任一非法整批回滚，每条各自发 task.status.changed）。 */
     @PostMapping("/batch/transition")
     public R<Void> batchTransition(@Valid @RequestBody TaskBatchStatusDTO dto) {

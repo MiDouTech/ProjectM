@@ -11,6 +11,8 @@ export const navItems = [
   { path: '/approval', title: '审批中心', icon: 'Stamp' },
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
   { path: '/doc', title: '文档', icon: 'Document' },
+  { path: '/calendar', title: '日历', icon: 'Calendar' },
+  { path: '/briefing', title: '简报', icon: 'Notebook' },
   { path: '/admin', title: '管理后台', icon: 'Setting' },
 ]
 
@@ -27,6 +29,7 @@ export const opsNavItems = [
 
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
+  { path: '/wecom-callback', name: 'wecomCallback', component: () => import('@/views/auth/WecomCallbackView.vue') },
   // ===== 平台运营后台（独立登录/布局，前缀 /ops）=====
   { path: '/ops/login', name: 'opsLogin', component: () => import('@/views/ops/OpsLoginView.vue') },
   {
@@ -62,6 +65,8 @@ const routes = [
       { path: 'change', redirect: { path: '/approval', query: { tab: 'change' } } },
       { path: 'report', component: () => import('@/views/Report.vue') },
       { path: 'doc', component: () => import('@/views/Doc.vue') },
+      { path: 'calendar', component: () => import('@/views/calendar/CalendarView.vue') },
+      { path: 'briefing', component: () => import('@/views/briefing/BriefingView.vue') },
       {
         path: 'admin',
         component: () => import('@/views/admin/AdminLayout.vue'),
@@ -97,8 +102,8 @@ router.beforeEach((to) => {
   }
 
   const userStore = useUserStore()
-  // 公开分享页：匿名可访问，跳过登录校验
-  if (to.name === 'publicDoc') {
+  // 公开分享页 / 企微 SSO 回调：匿名可访问，跳过登录校验
+  if (to.name === 'publicDoc' || to.name === 'wecomCallback') {
     return true
   }
   if (to.path !== '/login' && !userStore.token) {
