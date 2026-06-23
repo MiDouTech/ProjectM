@@ -238,12 +238,46 @@ CREATE TABLE sys_tenant_export (          -- 租户数据导出任务(异步: pe
 > P1 多租户登录隔离：`sys_user` 唯一约束由【全局唯一手机号 uk_user_phone】改为【租户内唯一 uk_user_tenant_phone(tenant_id, phone)】（V29）。
 > 登录令牌携带租户声明（tid），登录按租户编码 + 账号定位用户；模拟登录令牌额外携带 imp（发起运营账号）声明。
 
+## 日历/日程域（calendar.*，V38）
+
+> 独立「事件型日程」域，区别于任务日历视图（`pm_view` type=calendar 按截止日渲染任务），二者不共表。
+> 日历叠加任务截止/里程碑由前端聚合读取（P1），本域不复制 `pm_task`。落地见 V38 migration。
+
+```sql
+CREATE TABLE pm_calendar (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL, type VARCHAR(16) DEFAULT 'personal',  -- personal/meeting/team/resource
+  owner_id BIGINT, color VARCHAR(16), visibility VARCHAR(16) DEFAULT 'private', -- private/busy/public
+  is_default TINYINT DEFAULT 0,            -- 用户默认「我的日程」(每用户至多一个)
+  status VARCHAR(16) DEFAULT 'active',     -- active/archived
+  -- + 公共字段
+  KEY idx_owner(tenant_id, owner_id));
+CREATE TABLE pm_schedule (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, calendar_id BIGINT NOT NULL,
+  title VARCHAR(256) NOT NULL, description TEXT,
+  start_time DATETIME NOT NULL, end_time DATETIME NOT NULL, all_day TINYINT DEFAULT 0,
+  location VARCHAR(256), recur_rule VARCHAR(512), reminder JSON,  -- recur_rule/reminder 预留(P1)
+  allow_feedback TINYINT DEFAULT 1,        -- 是否允许参与人 RSVP
+  source_type VARCHAR(16) DEFAULT 'manual',-- manual/task/meeting
+  source_id BIGINT, organizer_id BIGINT, status VARCHAR(16) DEFAULT 'confirmed', -- confirmed/cancelled
+  -- + 公共字段
+  KEY idx_cal(calendar_id), KEY idx_range(tenant_id, start_time, end_time));
+CREATE TABLE pm_schedule_participant (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL,
+  user_id BIGINT, external_name VARCHAR(128),
+  role VARCHAR(16) DEFAULT 'required',     -- organizer/required/optional
+  rsvp_status VARCHAR(16) DEFAULT 'pending', -- pending/accepted/tentative/declined
+  -- + 公共字段
+  KEY idx_sch(schedule_id), KEY idx_user(tenant_id, user_id));
+```
+
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`
 - 任务状态（默认流，可工作流自定义）：`未开始 / 进行中 / 已完成 / 已验收`
 - 审批实例：`pending / approved / rejected`；审批动作：`approve / reject / transfer`
 - NPSS result_level：`success / mixed / failure`
 - 通知 channel：`inapp / wecom`
+- 日历类型 type：`personal / meeting / team / resource`；日程 status：`confirmed / cancelled`；RSVP：`pending / accepted / tentative / declined`
 - 数据范围 scope：`self / dept / dept_and_sub / all / custom`
 - 租户状态（平台域）：`trial 试用 / active 正式 / suspended 停用 / expired 已过期 / closed 已注销`
 - 套餐/平台账号状态（平台域）：`active 启用 / disabled 停用`；订阅状态：`active / expired / cancelled`

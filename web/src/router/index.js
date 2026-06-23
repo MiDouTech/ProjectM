@@ -11,6 +11,7 @@ export const navItems = [
   { path: '/approval', title: '审批中心', icon: 'Stamp' },
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
   { path: '/doc', title: '文档', icon: 'Document' },
+  { path: '/calendar', title: '日历', icon: 'Calendar' },
   { path: '/admin', title: '管理后台', icon: 'Setting' },
 ]
 
@@ -62,6 +63,7 @@ const routes = [
       { path: 'change', redirect: { path: '/approval', query: { tab: 'change' } } },
       { path: 'report', component: () => import('@/views/Report.vue') },
       { path: 'doc', component: () => import('@/views/Doc.vue') },
+      { path: 'calendar', component: () => import('@/views/calendar/CalendarView.vue') },
       {
         path: 'admin',
         component: () => import('@/views/admin/AdminLayout.vue'),

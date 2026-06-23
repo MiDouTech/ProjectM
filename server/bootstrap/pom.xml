@@ -83,6 +83,10 @@
         </dependency>
         <dependency>
             <groupId>com.mido.pm</groupId>
+            <artifactId>module-calendar</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
             <artifactId>module-ai</artifactId>
         </dependency>
         <!-- 接入层：MCP 连接器 -->

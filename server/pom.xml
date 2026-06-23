@@ -35,6 +35,7 @@
         <module>module-doc</module>
         <module>module-view</module>
         <module>module-report</module>
+        <module>module-calendar</module>
         <module>module-ai</module>
         <module>gateway-mcp</module>
         <module>bootstrap</module>
@@ -135,6 +136,11 @@
             <dependency>
                 <groupId>com.mido.pm</groupId>
                 <artifactId>module-report</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-calendar</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
