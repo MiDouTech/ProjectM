@@ -24,16 +24,22 @@ public class WecomMessageProvider implements MessageProvider {
     private final String corpId;
     private final String secret;
     private final String agentId;
+    private final WecomUserResolver userResolver;
+    private final WecomMessageClient messageClient;
 
     public WecomMessageProvider(
             @Value("${mido.wecom.message.enabled:false}") boolean enabled,
             @Value("${mido.wecom.corp-id:}") String corpId,
             @Value("${mido.wecom.message.secret:}") String secret,
-            @Value("${mido.wecom.message.agent-id:}") String agentId) {
+            @Value("${mido.wecom.message.agent-id:}") String agentId,
+            WecomUserResolver userResolver,
+            WecomMessageClient messageClient) {
         this.enabled = enabled;
         this.corpId = corpId;
         this.secret = secret;
         this.agentId = agentId;
+        this.userResolver = userResolver;
+        this.messageClient = messageClient;
     }
 
     @Override
@@ -56,12 +62,16 @@ public class WecomMessageProvider implements MessageProvider {
     }
 
     /**
-     * 真实企微应用消息投递（P2 接入企微 message/send API）。
-     * 当前为沙箱占位：仅记录将要外呼的事实，不在仓库内置任何凭证或真实外呼逻辑。
+     * 真实企微应用消息投递：解析企微 userid → 异步调 message/send。
+     * 未绑定企微的用户跳过外呼；外呼失败由 {@link WecomMessageClient} 内部告警。
      */
     protected void dispatch(Long userId, String title, String content) {
-        log.info("[企微·真发] (沙箱占位) corpId={} agentId={} -> userId={} | {} | {}",
-                corpId, maskedAgentId(), userId, title, content);
+        String touser = userResolver.externalUserId(userId);
+        if (touser == null || touser.isBlank()) {
+            log.info("[企微] userId={} 未绑定企微，跳过外呼", userId);
+            return;
+        }
+        messageClient.push(corpId, secret, agentId, touser, title, content);
     }
 
     /** agentId 仅日志展示，做轻度脱敏，避免明文落日志。 */
