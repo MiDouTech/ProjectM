@@ -19,6 +19,17 @@
         </el-button-group>
         <span class="mido-calendar__period">{{ periodLabel }}</span>
       </div>
+      <el-select
+        v-model="busyUserIds"
+        multiple
+        collapse-tags
+        clearable
+        placeholder="成员忙闲"
+        size="small"
+        style="width: 180px"
+      >
+        <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
+      </el-select>
       <el-button type="primary" :icon="Plus" @click="openCreate()">新建日程</el-button>
     </div>
 
@@ -56,6 +67,14 @@
                 <span class="mido-event__dot mido-event__dot--task"></span>
                 <span class="mido-event__text">{{ t.isMilestone ? '📌' : '✔' }} {{ t.title }}</span>
               </div>
+              <div
+                v-for="(b, i) in busyOf(cell.date)"
+                :key="'b' + i"
+                class="mido-event mido-event--busy"
+              >
+                <span class="mido-event__dot mido-event__dot--busy"></span>
+                <span class="mido-event__text">忙·{{ memberName(b.userId) }} {{ busyTime(b) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -67,7 +86,7 @@
           <div class="mido-list__date" :class="{ 'is-today': isToday(day) }">
             {{ day.format('MM-DD') }} 周{{ weekHeads[day.day()] }}
           </div>
-          <div v-if="eventsOf(day).length || tasksOf(day).length" class="mido-list__events">
+          <div v-if="eventsOf(day).length || tasksOf(day).length || busyOf(day).length" class="mido-list__events">
             <div
               v-for="s in eventsOf(day)"
               :key="s.id + '-' + (s.occurrenceDate || 's')"
@@ -86,6 +105,10 @@
               <span class="mido-event__dot mido-event__dot--task"></span>
               <span class="mido-event__text">{{ t.isMilestone ? '📌' : '✔' }} {{ t.title }}</span>
             </div>
+            <div v-for="(b, i) in busyOf(day)" :key="'b' + i" class="mido-event mido-event--busy">
+              <span class="mido-event__dot mido-event__dot--busy"></span>
+              <span class="mido-event__text">忙·{{ memberName(b.userId) }} {{ busyTime(b) }}</span>
+            </div>
           </div>
           <div v-else class="mido-list__empty">无日程</div>
         </div>
@@ -97,7 +120,7 @@
           <div class="mido-list__date" :class="{ 'is-today': isToday(anchor) }">
             {{ anchor.format('YYYY-MM-DD') }} 周{{ weekHeads[anchor.day()] }}
           </div>
-          <div v-if="eventsOf(anchor).length || tasksOf(anchor).length" class="mido-list__events">
+          <div v-if="eventsOf(anchor).length || tasksOf(anchor).length || busyOf(anchor).length" class="mido-list__events">
             <div
               v-for="s in eventsOf(anchor)"
               :key="s.id + '-' + (s.occurrenceDate || 's')"
@@ -115,6 +138,10 @@
             >
               <span class="mido-event__dot mido-event__dot--task"></span>
               <span class="mido-event__text">{{ t.isMilestone ? '📌' : '✔' }} {{ t.title }}</span>
+            </div>
+            <div v-for="(b, i) in busyOf(anchor)" :key="'b' + i" class="mido-event mido-event--busy">
+              <span class="mido-event__dot mido-event__dot--busy"></span>
+              <span class="mido-event__text">忙·{{ memberName(b.userId) }} {{ busyTime(b) }}</span>
             </div>
           </div>
           <el-empty v-else description="今日无日程" />
@@ -299,6 +326,8 @@ const calendars = ref([])
 const members = ref([])
 const resources = ref([])
 const tasks = ref([])
+const busyUserIds = ref([])
+const busyBlocks = ref([])
 
 const unitLabel = computed(() => ({ month: '月', week: '周', day: '日' }[viewMode.value]))
 const periodLabel = computed(() => {
@@ -358,6 +387,11 @@ function tasksOf(date) {
   return tasks.value.filter((t) => t.dueDate === key)
 }
 
+function busyOf(date) {
+  const key = date.format('YYYY-MM-DD')
+  return busyBlocks.value.filter((b) => dayjs(b.start).format('YYYY-MM-DD') === key)
+}
+
 function openTask(t) {
   router.push(`/project/${t.projectId}/task/${t.id}`)
 }
@@ -368,6 +402,10 @@ function isToday(d) {
 
 function timeShort(s) {
   return s.allDay ? '全天' : dayjs(s.startTime).format('HH:mm')
+}
+
+function busyTime(b) {
+  return b.allDay ? '全天' : `${dayjs(b.start).format('HH:mm')}-${dayjs(b.end).format('HH:mm')}`
 }
 
 function fmt(t) {
@@ -394,6 +432,9 @@ async function load() {
     ])
     schedules.value = sch
     tasks.value = tk
+    busyBlocks.value = busyUserIds.value.length
+      ? await calendarApi.freeBusy(busyUserIds.value, from.format('YYYY-MM-DDTHH:mm:ss'), to.format('YYYY-MM-DDTHH:mm:ss'))
+      : []
   } finally {
     loading.value = false
   }
@@ -406,7 +447,7 @@ function goToday() {
   anchor.value = dayjs()
 }
 
-watch([viewMode, anchor], load)
+watch([viewMode, anchor, busyUserIds], load)
 
 // ===== 表单 =====
 const formVisible = ref(false)
@@ -655,6 +696,12 @@ onMounted(async () => {
 .mido-event__dot--task {
   background: var(--el-color-warning);
   border-radius: 2px;
+}
+.mido-event--busy .mido-event__text {
+  color: var(--el-text-color-secondary);
+}
+.mido-event__dot--busy {
+  background: var(--el-text-color-secondary);
 }
 .mido-event__text {
   overflow: hidden;

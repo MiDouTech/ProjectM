@@ -25,4 +25,7 @@ export const calendarApi = {
   listResources: () => request.get('/calendar-resources'),
   // 日历叠加：当前用户截止日落在 [from,to] 的任务（含里程碑），from/to 为 YYYY-MM-DD
   tasksInRange: (from, to) => request.get('/tasks/calendar', { params: { from, to } }),
+  // 成员忙闲：userIds 在 [from,to] 的忙闲区间（仅起止）
+  freeBusy: (userIds, from, to) =>
+    request.get('/schedules/free-busy', { params: { userIds: userIds.join(','), from, to } }),
 }

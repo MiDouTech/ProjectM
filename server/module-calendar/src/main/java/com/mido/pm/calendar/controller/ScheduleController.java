@@ -1,10 +1,12 @@
 package com.mido.pm.calendar.controller;
 
+import com.mido.pm.calendar.dto.BusyVO;
 import com.mido.pm.calendar.dto.RsvpDTO;
 import com.mido.pm.calendar.dto.ScheduleCreateDTO;
 import com.mido.pm.calendar.dto.ScheduleExceptionDTO;
 import com.mido.pm.calendar.dto.ScheduleUpdateDTO;
 import com.mido.pm.calendar.dto.ScheduleVO;
+import com.mido.pm.calendar.service.BusyService;
 import com.mido.pm.calendar.service.ScheduleService;
 import com.mido.pm.common.api.R;
 import jakarta.validation.Valid;
@@ -28,9 +30,11 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final BusyService busyService;
 
-    public ScheduleController(ScheduleService scheduleService) {
+    public ScheduleController(ScheduleService scheduleService, BusyService busyService) {
         this.scheduleService = scheduleService;
+        this.busyService = busyService;
     }
 
     /** 时间段查询：from/to 为 ISO-8601，月/周/日视图按可见区间取数。 */
@@ -39,6 +43,15 @@ public class ScheduleController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         return R.ok(scheduleService.range(from, to));
+    }
+
+    /** 成员忙闲：返回 userIds 在 [from,to] 的忙闲区间(仅起止，不含详情)，供日历叠加。 */
+    @GetMapping("/free-busy")
+    public R<List<BusyVO>> freeBusy(
+            @RequestParam List<Long> userIds,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        return R.ok(busyService.busyForUsers(userIds, from, to));
     }
 
     @GetMapping("/{id}")
