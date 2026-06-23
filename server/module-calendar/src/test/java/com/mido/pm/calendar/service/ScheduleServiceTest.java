@@ -45,6 +45,7 @@ class ScheduleServiceTest {
     @Mock private PmScheduleMapper scheduleMapper;
     @Mock private PmScheduleParticipantMapper participantMapper;
     @Mock private CalendarService calendarService;
+    @Mock private ResourceService resourceService;
     @Mock private DomainEventPublisher eventPublisher;
     @InjectMocks private ScheduleService service;
 
@@ -62,7 +63,7 @@ class ScheduleServiceTest {
 
     private ScheduleCreateDTO createDTO(LocalDateTime start, LocalDateTime end) {
         return new ScheduleCreateDTO(null, "周会", null, start, end,
-                false, "会议室A", true, List.of(new ParticipantInputDTO(200L, null, "required")));
+                false, "会议室A", true, List.of(new ParticipantInputDTO(200L, null, "required")), null);
     }
 
     @Test
@@ -135,7 +136,7 @@ class ScheduleServiceTest {
         when(scheduleMapper.selectById(5L)).thenReturn(s);
 
         ScheduleUpdateDTO dto = new ScheduleUpdateDTO("改标题", null, start, start.plusHours(1),
-                false, null, true, null);
+                false, null, true, null, null);
         assertThrows(BizException.class, () -> service.update(5L, dto));
         verify(scheduleMapper, never()).updateById(any(PmSchedule.class));
     }

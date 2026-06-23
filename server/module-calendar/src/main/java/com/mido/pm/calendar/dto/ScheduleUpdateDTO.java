@@ -17,5 +17,6 @@ public record ScheduleUpdateDTO(
         Boolean allDay,
         String location,
         Boolean allowFeedback,
-        List<ParticipantInputDTO> participants) {
+        List<ParticipantInputDTO> participants,
+        List<Long> resourceIds) {
 }

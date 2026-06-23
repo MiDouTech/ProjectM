@@ -18,5 +18,6 @@ public record ScheduleVO(
         Long sourceId,
         Long organizerId,
         String status,
-        List<ParticipantVO> participants) {
+        List<ParticipantVO> participants,
+        List<Long> resourceIds) {
 }

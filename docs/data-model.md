@@ -269,6 +269,17 @@ CREATE TABLE pm_schedule_participant (
   rsvp_status VARCHAR(16) DEFAULT 'pending', -- pending/accepted/tentative/declined
   -- + 公共字段
   KEY idx_sch(schedule_id), KEY idx_user(tenant_id, user_id));
+-- 资源 + 占用（V39）：会议室/设备与日程占用，用于冲突检测(同资源时间重叠即冲突)。
+CREATE TABLE pm_calendar_resource (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL, type VARCHAR(16) DEFAULT 'room', -- room/device
+  capacity INT, location VARCHAR(256), status VARCHAR(16) DEFAULT 'active', -- active/disabled
+  -- + 公共字段
+  KEY idx_tenant(tenant_id));
+CREATE TABLE pm_schedule_resource (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL, resource_id BIGINT NOT NULL,
+  -- + 公共字段
+  KEY idx_sch(schedule_id), KEY idx_res(resource_id));
 ```
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）

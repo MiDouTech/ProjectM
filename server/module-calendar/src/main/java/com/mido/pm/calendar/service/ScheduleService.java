@@ -39,15 +39,18 @@ public class ScheduleService {
     private final PmScheduleMapper scheduleMapper;
     private final PmScheduleParticipantMapper participantMapper;
     private final CalendarService calendarService;
+    private final ResourceService resourceService;
     private final DomainEventPublisher eventPublisher;
 
     public ScheduleService(PmScheduleMapper scheduleMapper,
                            PmScheduleParticipantMapper participantMapper,
                            CalendarService calendarService,
+                           ResourceService resourceService,
                            DomainEventPublisher eventPublisher) {
         this.scheduleMapper = scheduleMapper;
         this.participantMapper = participantMapper;
         this.calendarService = calendarService;
+        this.resourceService = resourceService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -71,6 +74,7 @@ public class ScheduleService {
         s.setStatus("confirmed");
         scheduleMapper.insert(s);
 
+        resourceService.bookOrThrow(s.getId(), dto.resourceIds(), s.getStartTime(), s.getEndTime(), null);
         List<Long> invited = saveParticipants(s.getId(), organizerId, dto.participants());
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -98,6 +102,8 @@ public class ScheduleService {
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), s.getAllowFeedback()));
         scheduleMapper.updateById(s);
 
+        resourceService.clearBookings(id);
+        resourceService.bookOrThrow(id, dto.resourceIds(), s.getStartTime(), s.getEndTime(), id);
         if (dto.participants() != null) {
             replaceParticipants(id, s.getOrganizerId(), dto.participants());
         }
@@ -115,6 +121,7 @@ public class ScheduleService {
         scheduleMapper.deleteById(id);
         participantMapper.delete(Wrappers.<PmScheduleParticipant>lambdaQuery()
                 .eq(PmScheduleParticipant::getScheduleId, id));
+        resourceService.clearBookings(id);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("scheduleId", id);
@@ -130,7 +137,7 @@ public class ScheduleService {
         if (s == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "日程不存在");
         }
-        return toVO(s, listParticipants(id));
+        return toVO(s, listParticipants(id), resourceService.resourceIdsOf(id));
     }
 
     /**
@@ -158,7 +165,7 @@ public class ScheduleService {
                 .ge(PmSchedule::getEndTime, from)
                 .eq(PmSchedule::getStatus, "confirmed")
                 .orderByAsc(PmSchedule::getStartTime));
-        return rows.stream().map(s -> toVO(s, null)).toList();
+        return rows.stream().map(s -> toVO(s, null, null)).toList();
     }
 
     /** 参与人对日程作出 RSVP 反馈（参加/暂定/谢绝）。 */
@@ -265,11 +272,11 @@ public class ScheduleService {
                 .stream().map(PmScheduleParticipant::getScheduleId).toList();
     }
 
-    private ScheduleVO toVO(PmSchedule s, List<ParticipantVO> participants) {
+    private ScheduleVO toVO(PmSchedule s, List<ParticipantVO> participants, List<Long> resourceIds) {
         return new ScheduleVO(s.getId(), s.getCalendarId(), s.getTitle(), s.getDescription(),
                 s.getStartTime(), s.getEndTime(), s.getAllDay(), s.getLocation(),
                 s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
-                s.getStatus(), participants);
+                s.getStatus(), participants, resourceIds);
     }
 
     private int boolToInt(Boolean v, Integer fallback) {
