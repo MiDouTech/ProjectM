@@ -56,9 +56,7 @@
           <el-table-column prop="periodKey" label="周期" width="160" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag size="small" :type="row.status === 'submitted' ? 'success' : 'info'">
-                {{ row.status === 'submitted' ? '已提交' : '草稿' }}
-              </el-tag>
+              <StatusTag :status="row.status" />
             </template>
           </el-table-column>
           <el-table-column label="提交时间" width="180">
@@ -154,7 +152,7 @@
       <template v-if="currentTemplate">
         <div class="mido-briefing__period">
           周期：{{ form.periodKey }}
-          <el-tag v-if="form.status === 'submitted'" size="small" type="success">已提交</el-tag>
+          <StatusTag v-if="form.status === 'submitted'" status="submitted" />
           <el-button
             v-if="!readOnly && !reviewMode"
             link
@@ -269,6 +267,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, MoreFilled } from '@element-plus/icons-vue'
 import { briefingApi } from '@/api/briefing'
 import { fetchMembers } from '@/api/org'
+import StatusTag from '@/components/StatusTag.vue'
 
 const menus = [
   { key: 'submit', label: '提交简报' },
@@ -638,7 +637,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--el-color-white);
   font-weight: 600;
 }
 .mido-card__icon.is-daily {
