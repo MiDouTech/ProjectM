@@ -298,6 +298,29 @@ CREATE TABLE pm_schedule_reminder_log (
   KEY idx_sch(schedule_id));
 ```
 
+## 简报域（briefing.*，V42）
+
+> 人工日/周/月报，区别于 PMO 度量 module-report。内置模板由 BriefingTemplateService 按租户惰性生成。
+
+```sql
+CREATE TABLE pm_briefing_template (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  name VARCHAR(64) NOT NULL, type VARCHAR(16) NOT NULL,  -- daily/weekly/monthly
+  schema JSON,                             -- 字段定义数组 [{key,label,type}]
+  scope VARCHAR(16) DEFAULT 'tenant', is_builtin TINYINT DEFAULT 0, status VARCHAR(16) DEFAULT 'active',
+  -- + 公共字段
+  KEY idx_tenant_type(tenant_id, type));
+CREATE TABLE pm_briefing (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, template_id BIGINT NOT NULL,
+  type VARCHAR(16) NOT NULL, author_id BIGINT NOT NULL, dept_id BIGINT,
+  period_key VARCHAR(32) NOT NULL,         -- 2026-06-23 / 2026-W26 / 2026-06
+  period_start DATE, period_end DATE, content JSON,
+  status VARCHAR(16) DEFAULT 'draft',      -- draft/submitted
+  submitted_at DATETIME,
+  -- + 公共字段
+  KEY idx_author_type(author_id, type), KEY idx_period(tenant_id, template_id, author_id, period_key));
+```
+
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`
 - 任务状态（默认流，可工作流自定义）：`未开始 / 进行中 / 已完成 / 已验收`
@@ -306,6 +329,7 @@ CREATE TABLE pm_schedule_reminder_log (
 - 通知 channel：`inapp / wecom`
 - 日历类型 type：`personal / meeting / team / resource`；日程 status：`confirmed / cancelled`；RSVP：`pending / accepted / tentative / declined`
 - 循环 freq：`DAILY / WEEKLY / MONTHLY / YEARLY`；循环例外 action：`cancel / modify`；资源 type：`room / device`
+- 简报 type：`daily / weekly / monthly`；简报 status：`draft / submitted`
 - 数据范围 scope：`self / dept / dept_and_sub / all / custom`
 - 租户状态（平台域）：`trial 试用 / active 正式 / suspended 停用 / expired 已过期 / closed 已注销`
 - 套餐/平台账号状态（平台域）：`active 启用 / disabled 停用`；订阅状态：`active / expired / cancelled`

@@ -12,6 +12,7 @@ export const navItems = [
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
   { path: '/doc', title: '文档', icon: 'Document' },
   { path: '/calendar', title: '日历', icon: 'Calendar' },
+  { path: '/briefing', title: '简报', icon: 'Notebook' },
   { path: '/admin', title: '管理后台', icon: 'Setting' },
 ]
 
@@ -64,6 +65,7 @@ const routes = [
       { path: 'report', component: () => import('@/views/Report.vue') },
       { path: 'doc', component: () => import('@/views/Doc.vue') },
       { path: 'calendar', component: () => import('@/views/calendar/CalendarView.vue') },
+      { path: 'briefing', component: () => import('@/views/briefing/BriefingView.vue') },
       {
         path: 'admin',
         component: () => import('@/views/admin/AdminLayout.vue'),

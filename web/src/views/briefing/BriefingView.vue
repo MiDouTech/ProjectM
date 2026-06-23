@@ -1,0 +1,300 @@
+<template>
+  <div class="mido-briefing">
+    <!-- 左栏 -->
+    <div class="mido-briefing__side">
+      <div class="mido-briefing__title">简报</div>
+      <div
+        v-for="m in menus"
+        :key="m.key"
+        class="mido-briefing__menu"
+        :class="{ 'is-active': active === m.key }"
+        @click="selectMenu(m.key)"
+      >
+        {{ m.label }}
+      </div>
+    </div>
+
+    <!-- 主区 -->
+    <div class="mido-briefing__main" v-loading="loading">
+      <!-- 提交简报：模板卡片 -->
+      <template v-if="active === 'submit'">
+        <div class="mido-briefing__head">提交简报</div>
+        <div class="mido-briefing__cards">
+          <div
+            v-for="t in templates"
+            :key="t.id"
+            class="mido-card"
+            @click="openNew(t)"
+          >
+            <div class="mido-card__icon" :class="'is-' + t.type">{{ typeShort(t.type) }}</div>
+            <div class="mido-card__name">{{ t.name }}</div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 我的日/周/月报：列表 -->
+      <template v-else>
+        <div class="mido-briefing__head">{{ menuLabel }}</div>
+        <el-table :data="myList" style="width: 100%">
+          <el-table-column prop="periodKey" label="周期" width="160" />
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.status === 'submitted' ? 'success' : 'info'">
+                {{ row.status === 'submitted' ? '已提交' : '草稿' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="提交时间" width="180">
+            <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
+          </el-table-column>
+          <el-table-column label="操作">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openExisting(row)">
+                {{ row.status === 'submitted' ? '查看' : '编辑' }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-if="!myList.length" :description="'暂无' + menuLabel" />
+      </template>
+    </div>
+
+    <!-- 填报/查看 抽屉 -->
+    <el-drawer v-model="drawerVisible" :title="drawerTitle" size="520px">
+      <template v-if="currentTemplate">
+        <div class="mido-briefing__period">
+          周期：{{ form.periodKey }}
+          <el-tag v-if="form.status === 'submitted'" size="small" type="success">已提交</el-tag>
+        </div>
+        <el-form label-position="top">
+          <el-form-item v-for="f in currentTemplate.fields" :key="f.key" :label="f.label">
+            <el-input
+              v-model="form.content[f.key]"
+              type="textarea"
+              :rows="3"
+              :disabled="readOnly"
+              :placeholder="readOnly ? '' : '请输入' + f.label"
+            />
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="drawerVisible = false">关闭</el-button>
+        <template v-if="!readOnly">
+          <el-button :loading="saving" @click="save(false)">保存草稿</el-button>
+          <el-button type="primary" :loading="saving" @click="save(true)">提交</el-button>
+        </template>
+      </template>
+    </el-drawer>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
+import { briefingApi } from '@/api/briefing'
+
+const menus = [
+  { key: 'submit', label: '提交简报' },
+  { key: 'daily', label: '我的日报' },
+  { key: 'weekly', label: '我的周报' },
+  { key: 'monthly', label: '我的月报' },
+]
+
+const active = ref('submit')
+const loading = ref(false)
+const templates = ref([])
+const myList = ref([])
+
+const menuLabel = computed(() => menus.find((m) => m.key === active.value)?.label || '')
+
+function typeShort(type) {
+  return { daily: '日', weekly: '周', monthly: '月' }[type] || '报'
+}
+function fmt(t) {
+  return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : ''
+}
+
+async function selectMenu(key) {
+  active.value = key
+  if (key !== 'submit') {
+    await loadMine(key)
+  }
+}
+
+async function loadMine(type) {
+  loading.value = true
+  try {
+    myList.value = await briefingApi.listMine(type)
+  } finally {
+    loading.value = false
+  }
+}
+
+// ===== 填报 =====
+const drawerVisible = ref(false)
+const saving = ref(false)
+const currentTemplate = ref(null)
+const form = reactive({ id: null, periodKey: '', periodStart: '', periodEnd: '', content: {}, status: 'draft' })
+const readOnly = computed(() => form.status === 'submitted')
+const drawerTitle = computed(() => (currentTemplate.value ? currentTemplate.value.name : '简报'))
+
+function periodOf(type) {
+  const now = dayjs()
+  if (type === 'weekly') {
+    const mon = now.day(1)
+    return { key: mon.format('YYYY-MM-DD'), start: mon.format('YYYY-MM-DD'), end: mon.add(6, 'day').format('YYYY-MM-DD') }
+  }
+  if (type === 'monthly') {
+    const s = now.startOf('month')
+    return { key: s.format('YYYY-MM'), start: s.format('YYYY-MM-DD'), end: now.endOf('month').format('YYYY-MM-DD') }
+  }
+  return { key: now.format('YYYY-MM-DD'), start: now.format('YYYY-MM-DD'), end: now.format('YYYY-MM-DD') }
+}
+
+function openNew(template) {
+  currentTemplate.value = template
+  const p = periodOf(template.type)
+  form.id = null
+  form.periodKey = p.key
+  form.periodStart = p.start
+  form.periodEnd = p.end
+  form.content = {}
+  form.status = 'draft'
+  drawerVisible.value = true
+}
+
+async function openExisting(row) {
+  const tpl = templates.value.find((t) => t.id === row.templateId)
+  if (!tpl) {
+    ElMessage.warning('模板不存在')
+    return
+  }
+  const full = await briefingApi.get(row.id)
+  currentTemplate.value = tpl
+  form.id = full.id
+  form.periodKey = full.periodKey
+  form.periodStart = full.periodStart
+  form.periodEnd = full.periodEnd
+  form.content = { ...(full.content || {}) }
+  form.status = full.status
+  drawerVisible.value = true
+}
+
+async function save(submit) {
+  saving.value = true
+  try {
+    const id = await briefingApi.save({
+      templateId: currentTemplate.value.id,
+      periodKey: form.periodKey,
+      periodStart: form.periodStart,
+      periodEnd: form.periodEnd,
+      content: form.content,
+    })
+    if (submit) {
+      await briefingApi.submit(id)
+      ElMessage.success('已提交')
+    } else {
+      ElMessage.success('已保存草稿')
+    }
+    drawerVisible.value = false
+    if (active.value !== 'submit') {
+      await loadMine(active.value)
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(async () => {
+  templates.value = await briefingApi.templates()
+})
+</script>
+
+<style scoped>
+.mido-briefing {
+  display: flex;
+  height: 100%;
+}
+.mido-briefing__side {
+  width: 200px;
+  border-right: 1px solid var(--el-border-color-lighter);
+  padding: 16px 8px;
+  flex-shrink: 0;
+}
+.mido-briefing__title {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 0 12px 12px;
+}
+.mido-briefing__menu {
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+}
+.mido-briefing__menu:hover {
+  background: var(--el-fill-color-light);
+}
+.mido-briefing__menu.is-active {
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+.mido-briefing__main {
+  flex: 1;
+  padding: 16px 24px;
+  overflow-y: auto;
+}
+.mido-briefing__head {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.mido-briefing__cards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.mido-card {
+  width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mido-card:hover {
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
+}
+.mido-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+}
+.mido-card__icon.is-daily {
+  background: var(--el-color-success);
+}
+.mido-card__icon.is-weekly {
+  background: var(--el-color-danger);
+}
+.mido-card__icon.is-monthly {
+  background: var(--el-color-primary);
+}
+.mido-card__name {
+  font-size: 15px;
+}
+.mido-briefing__period {
+  margin-bottom: 12px;
+  color: var(--el-text-color-secondary);
+}
+</style>
