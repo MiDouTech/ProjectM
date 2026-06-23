@@ -26,6 +26,8 @@ export const briefingApi = {
   reviewees: () => request.get('/briefings/reviewees'),
   // 简报统计：我评审范围内某类型提交概览
   stats: (type) => request.get('/briefings/stats', { params: type ? { type } : {} }),
+  // 一键生成草稿（规则式拉任务流水）：from/to 为 YYYY-MM-DD
+  draft: (templateId, from, to) => request.get('/briefings/draft', { params: { templateId, from, to } }),
   // 成员简报：某成员的已提交简报
   members: (type, authorId) =>
     request.get('/briefings/members', { params: { ...(type ? { type } : {}), ...(authorId ? { authorId } : {}) } }),

@@ -25,5 +25,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-org</artifactId>
         </dependency>
+        <!-- 跨域：草稿生成拉本人周期内任务流水，经 TaskService（不查 task 表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-task</artifactId>
+        </dependency>
     </dependencies>
 </project>

@@ -155,6 +155,13 @@
         <div class="mido-briefing__period">
           周期：{{ form.periodKey }}
           <el-tag v-if="form.status === 'submitted'" size="small" type="success">已提交</el-tag>
+          <el-button
+            v-if="!readOnly && !reviewMode"
+            link
+            type="primary"
+            :loading="drafting"
+            @click="genDraft"
+          >一键生成草稿</el-button>
         </div>
         <el-form label-position="top">
           <el-form-item v-for="f in currentTemplate.fields" :key="f.key" :label="f.label">
@@ -451,6 +458,19 @@ async function submitReview() {
     reviews.value = await briefingApi.reviews(form.id)
   } finally {
     saving.value = false
+  }
+}
+
+// 一键生成草稿（规则式）
+const drafting = ref(false)
+async function genDraft() {
+  drafting.value = true
+  try {
+    const content = await briefingApi.draft(currentTemplate.value.id, form.periodStart, form.periodEnd)
+    form.content = { ...form.content, ...content }
+    ElMessage.success('已生成草稿，可继续编辑')
+  } finally {
+    drafting.value = false
   }
 }
 

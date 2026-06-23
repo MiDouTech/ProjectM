@@ -4,9 +4,11 @@ import com.mido.pm.briefing.dto.BriefingReviewDTO;
 import com.mido.pm.briefing.dto.BriefingReviewVO;
 import com.mido.pm.briefing.dto.BriefingSaveDTO;
 import com.mido.pm.briefing.dto.BriefingVO;
+import com.mido.pm.briefing.service.BriefingDraftService;
 import com.mido.pm.briefing.service.BriefingReviewService;
 import com.mido.pm.briefing.service.BriefingService;
 import com.mido.pm.common.api.R;
+import org.springframework.format.annotation.DateTimeFormat;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,10 +27,22 @@ public class BriefingController {
 
     private final BriefingService briefingService;
     private final BriefingReviewService reviewService;
+    private final BriefingDraftService draftService;
 
-    public BriefingController(BriefingService briefingService, BriefingReviewService reviewService) {
+    public BriefingController(BriefingService briefingService, BriefingReviewService reviewService,
+                              BriefingDraftService draftService) {
         this.briefingService = briefingService;
         this.reviewService = reviewService;
+        this.draftService = draftService;
+    }
+
+    /** 一键生成草稿：汇总本人周期内任务流水到模板首字段（规则式，预留 AI provider）。 */
+    @GetMapping("/draft")
+    public R<java.util.Map<String, Object>> draft(
+            @RequestParam Long templateId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return R.ok(draftService.generate(templateId, from, to));
     }
 
     /** 我的简报列表（type=daily/weekly/monthly，可空取全部）。 */
