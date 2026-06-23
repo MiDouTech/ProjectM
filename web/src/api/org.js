@@ -19,6 +19,8 @@ export const userApi = {
   update: (id, data) => request.put(`/users/${id}`, data),
   remove: (id) => request.delete(`/users/${id}`),
   assignRoles: (id, roleIds) => request.put(`/users/${id}/roles`, { roleIds }),
+  // 企微通讯录全量同步（部门/成员 → sys_dept/sys_user + sys_identity_map）
+  syncWecomContacts: () => request.post('/wecom/contacts/sync'),
 }
 
 /**

@@ -82,6 +82,10 @@ mido:
       enabled: ${MIDO_WECOM_SSO_ENABLED:false}
       secret: ${MIDO_WECOM_SSO_SECRET:}
       agent-id: ${MIDO_WECOM_SSO_AGENT_ID:}
+    contacts:
+      # 是否启用企微通讯录同步（拉部门/成员 upsert + 写 sys_identity_map）；默认关。通讯录 secret 走环境变量
+      enabled: ${MIDO_WECOM_CONTACTS_ENABLED:false}
+      secret: ${MIDO_WECOM_CONTACTS_SECRET:}
 
 # Swagger / OpenAPI 3.0
 springdoc:
