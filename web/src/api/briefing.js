@@ -14,4 +14,15 @@ export const briefingApi = {
   save: (data) => request.post('/briefings', data),
   // 提交
   submit: (id) => request.post(`/briefings/${id}/submit`),
+  // 我评审的（type 可空）
+  review: (type) => request.get('/briefings/review', { params: type ? { type } : {} }),
+  // 成员简报：我评审范围内的成员 id
+  reviewees: () => request.get('/briefings/reviewees'),
+  // 成员简报：某成员的已提交简报
+  members: (type, authorId) =>
+    request.get('/briefings/members', { params: { ...(type ? { type } : {}), ...(authorId ? { authorId } : {}) } }),
+  // 评审批注列表
+  reviews: (id) => request.get(`/briefings/${id}/reviews`),
+  // 提交批注：{ comment, action }
+  addReview: (id, data) => request.post(`/briefings/${id}/reviews`, data),
 }

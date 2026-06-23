@@ -4,6 +4,8 @@ package com.mido.pm.briefing.event;
 public final class BriefingEvents {
 
     public static final String SUBMITTED = "briefing.submitted";
+    public static final String REVIEWED = "briefing.reviewed";
+    public static final String REMINDER_DUE = "briefing.reminder.due";
 
     private BriefingEvents() {
     }

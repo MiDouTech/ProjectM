@@ -319,6 +319,18 @@ CREATE TABLE pm_briefing (
   submitted_at DATETIME,
   -- + 公共字段
   KEY idx_author_type(author_id, type), KEY idx_period(tenant_id, template_id, author_id, period_key));
+-- 评审（V43）：提交时按作者部门负责人(sys_dept.leader_id)落 reviewer，评审人批注。
+CREATE TABLE pm_briefing_recipient (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, briefing_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL, type VARCHAR(16) DEFAULT 'reviewer', -- reviewer/cc
+  -- + 公共字段
+  KEY idx_user_type(user_id, type), KEY idx_briefing(briefing_id));
+CREATE TABLE pm_briefing_review (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, briefing_id BIGINT NOT NULL,
+  reviewer_id BIGINT NOT NULL, action VARCHAR(16) DEFAULT 'comment', -- comment/approve
+  comment TEXT, reviewed_at DATETIME,
+  -- + 公共字段
+  KEY idx_briefing(briefing_id));
 ```
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）

@@ -20,5 +20,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>common</artifactId>
         </dependency>
+        <!-- 跨域：评审人=作者部门负责人，经 SysDeptService.leaderOf 解析（不查 org 表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-org</artifactId>
+        </dependency>
     </dependencies>
 </project>

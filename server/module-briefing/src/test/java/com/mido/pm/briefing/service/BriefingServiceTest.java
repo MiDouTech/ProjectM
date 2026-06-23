@@ -36,6 +36,7 @@ class BriefingServiceTest {
 
     @Mock private PmBriefingMapper briefingMapper;
     @Mock private BriefingTemplateService templateService;
+    @Mock private BriefingReviewService reviewService;
     @Mock private DomainEventPublisher eventPublisher;
     @InjectMocks private BriefingService service;
 

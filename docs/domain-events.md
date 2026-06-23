@@ -100,9 +100,11 @@
 ## 5.3 简报域 briefing.*（人工日/周/月报，区别于 PMO 度量 report）
 | 事件 | 触发 | 订阅方 |
 |---|---|---|
-| `briefing.submitted` | 提交简报 | 消息(通知评审人·P1)、活动流 |
+| `briefing.submitted` | 提交简报(落评审人=作者部门负责人) | 消息(通知评审人·P1)、活动流 |
+| `briefing.reviewed` | 评审人批注/已阅 | 消息(通知作者·P1)、活动流 |
+| `briefing.reminder.due` | 定时扫描到点未提交草稿 | 消息(催交作者·P1) |
 
-> 说明：评审(briefing.reviewed)、跟进问题(briefing.issue.*)随 P1/P2 能力登记。
+> 说明：跟进问题(briefing.issue.*)、统计随 P2 能力登记。
 
 ## 6. 订阅方说明
 - **消息(MessageProvider)**：阶段一站内信；激活后企微推送。按事件类型路由到 `pm_notification` 或企微应用消息。

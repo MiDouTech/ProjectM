@@ -29,6 +29,15 @@ public class SysDeptService {
         this.deptMapper = deptMapper;
     }
 
+    /** 部门负责人 id（leader_id），供跨域(如简报评审人解析)使用；部门不存在或无负责人返回 null。 */
+    public Long leaderOf(Long deptId) {
+        if (deptId == null) {
+            return null;
+        }
+        SysDept dept = deptMapper.selectById(deptId);
+        return dept == null ? null : dept.getLeaderId();
+    }
+
     /** 返回部门树（当前租户）。 */
     public List<DeptVO> tree() {
         List<SysDept> all = deptMapper.selectList(null);

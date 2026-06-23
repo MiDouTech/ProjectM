@@ -33,12 +33,14 @@ public class BriefingService {
 
     private final PmBriefingMapper briefingMapper;
     private final BriefingTemplateService templateService;
+    private final BriefingReviewService reviewService;
     private final DomainEventPublisher eventPublisher;
 
     public BriefingService(PmBriefingMapper briefingMapper, BriefingTemplateService templateService,
-                           DomainEventPublisher eventPublisher) {
+                           BriefingReviewService reviewService, DomainEventPublisher eventPublisher) {
         this.briefingMapper = briefingMapper;
         this.templateService = templateService;
+        this.reviewService = reviewService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -88,6 +90,7 @@ public class BriefingService {
         b.setStatus(STATUS_SUBMITTED);
         b.setSubmittedAt(LocalDateTime.now());
         briefingMapper.updateById(b);
+        reviewService.assignReviewer(b);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("briefingId", b.getId());
@@ -107,8 +110,17 @@ public class BriefingService {
                 .stream().map(this::toVO).toList();
     }
 
+    /** 简报详情：作者或评审人可见。 */
     public BriefingVO get(Long id) {
-        return toVO(requireOwn(id));
+        PmBriefing b = briefingMapper.selectById(id);
+        if (b == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "简报不存在");
+        }
+        Long me = currentUserId();
+        if (!me.equals(b.getAuthorId()) && !reviewService.isReviewer(id, me)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权访问该简报");
+        }
+        return toVO(b);
     }
 
     private PmBriefing requireOwn(Long id) {

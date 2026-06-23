@@ -33,7 +33,7 @@
       </template>
 
       <!-- 我的日/周/月报：列表 -->
-      <template v-else>
+      <template v-else-if="isMine">
         <div class="mido-briefing__head">{{ menuLabel }}</div>
         <el-table :data="myList" style="width: 100%">
           <el-table-column prop="periodKey" label="周期" width="160" />
@@ -57,6 +57,39 @@
         </el-table>
         <el-empty v-if="!myList.length" :description="'暂无' + menuLabel" />
       </template>
+
+      <!-- 我评审的 / 成员简报 -->
+      <template v-else>
+        <div class="mido-briefing__head">{{ menuLabel }}</div>
+        <div v-if="active === 'members'" class="mido-briefing__filter">
+          <el-select v-model="memberFilter.authorId" placeholder="选择成员" clearable @change="loadReviewList">
+            <el-option v-for="m in revieweeMembers" :key="m.id" :label="m.name || m.username" :value="m.id" />
+          </el-select>
+          <el-select v-model="memberFilter.type" placeholder="类型" clearable @change="loadReviewList">
+            <el-option label="日报" value="daily" />
+            <el-option label="周报" value="weekly" />
+            <el-option label="月报" value="monthly" />
+          </el-select>
+        </div>
+        <el-table :data="reviewList" style="width: 100%">
+          <el-table-column label="成员" width="120">
+            <template #default="{ row }">{{ memberName(row.authorId) }}</template>
+          </el-table-column>
+          <el-table-column label="类型" width="80">
+            <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+          </el-table-column>
+          <el-table-column prop="periodKey" label="周期" width="150" />
+          <el-table-column label="提交时间" width="170">
+            <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
+          </el-table-column>
+          <el-table-column label="操作">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openReviewItem(row)">评阅</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-if="!reviewList.length" :description="'暂无' + menuLabel" />
+      </template>
     </div>
 
     <!-- 填报/查看 抽屉 -->
@@ -77,10 +110,36 @@
             />
           </el-form-item>
         </el-form>
+
+        <!-- 评审批注 -->
+        <template v-if="reviews.length || reviewMode">
+          <el-divider>评审批注</el-divider>
+          <div v-for="r in reviews" :key="r.id" class="mido-review">
+            <div class="mido-review__meta">
+              {{ memberName(r.reviewerId) }} · {{ fmt(r.reviewedAt) }}
+              <el-tag v-if="r.action === 'approve'" size="small" type="success">已阅</el-tag>
+            </div>
+            <div>{{ r.comment }}</div>
+          </div>
+          <el-input
+            v-if="reviewMode"
+            v-model="reviewComment"
+            type="textarea"
+            :rows="2"
+            placeholder="填写批注"
+            class="mido-review__input"
+          />
+        </template>
       </template>
       <template #footer>
         <el-button @click="drawerVisible = false">关闭</el-button>
-        <template v-if="!readOnly">
+        <el-button
+          v-if="reviewMode"
+          type="primary"
+          :loading="saving"
+          @click="submitReview"
+        >提交批注</el-button>
+        <template v-else-if="!readOnly">
           <el-button :loading="saving" @click="save(false)">保存草稿</el-button>
           <el-button type="primary" :loading="saving" @click="save(true)">提交</el-button>
         </template>
@@ -94,23 +153,40 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { briefingApi } from '@/api/briefing'
+import { fetchMembers } from '@/api/org'
 
 const menus = [
   { key: 'submit', label: '提交简报' },
   { key: 'daily', label: '我的日报' },
   { key: 'weekly', label: '我的周报' },
   { key: 'monthly', label: '我的月报' },
+  { key: 'review', label: '我评审的' },
+  { key: 'members', label: '成员简报' },
 ]
+const MINE = ['daily', 'weekly', 'monthly']
 
 const active = ref('submit')
 const loading = ref(false)
 const templates = ref([])
 const myList = ref([])
+const members = ref([])
+const reviewees = ref([])
+const reviewList = ref([])
+const memberFilter = reactive({ authorId: null, type: null })
 
 const menuLabel = computed(() => menus.find((m) => m.key === active.value)?.label || '')
+const isMine = computed(() => MINE.includes(active.value))
+const revieweeMembers = computed(() => members.value.filter((m) => reviewees.value.includes(m.id)))
 
 function typeShort(type) {
   return { daily: '日', weekly: '周', monthly: '月' }[type] || '报'
+}
+function typeLabel(type) {
+  return { daily: '日报', weekly: '周报', monthly: '月报' }[type] || type
+}
+function memberName(id) {
+  const m = members.value.find((x) => x.id === id)
+  return m ? m.name || m.username : '—'
 }
 function fmt(t) {
   return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : ''
@@ -118,8 +194,26 @@ function fmt(t) {
 
 async function selectMenu(key) {
   active.value = key
-  if (key !== 'submit') {
+  if (isMine.value) {
     await loadMine(key)
+  } else if (key === 'review') {
+    await loadReviewList()
+  } else if (key === 'members') {
+    reviewees.value = await briefingApi.reviewees()
+    memberFilter.authorId = null
+    memberFilter.type = null
+    await loadReviewList()
+  }
+}
+
+async function loadReviewList() {
+  loading.value = true
+  try {
+    reviewList.value = active.value === 'members'
+      ? await briefingApi.members(memberFilter.type, memberFilter.authorId)
+      : await briefingApi.review(null)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -137,7 +231,10 @@ const drawerVisible = ref(false)
 const saving = ref(false)
 const currentTemplate = ref(null)
 const form = reactive({ id: null, periodKey: '', periodStart: '', periodEnd: '', content: {}, status: 'draft' })
-const readOnly = computed(() => form.status === 'submitted')
+const reviewMode = ref(false)
+const reviews = ref([])
+const reviewComment = ref('')
+const readOnly = computed(() => form.status === 'submitted' || reviewMode.value)
 const drawerTitle = computed(() => (currentTemplate.value ? currentTemplate.value.name : '简报'))
 
 function periodOf(type) {
@@ -162,14 +259,16 @@ function openNew(template) {
   form.periodEnd = p.end
   form.content = {}
   form.status = 'draft'
+  reviewMode.value = false
+  reviews.value = []
   drawerVisible.value = true
 }
 
-async function openExisting(row) {
+async function loadBriefingIntoForm(row, asReviewer) {
   const tpl = templates.value.find((t) => t.id === row.templateId)
   if (!tpl) {
     ElMessage.warning('模板不存在')
-    return
+    return false
   }
   const full = await briefingApi.get(row.id)
   currentTemplate.value = tpl
@@ -179,7 +278,35 @@ async function openExisting(row) {
   form.periodEnd = full.periodEnd
   form.content = { ...(full.content || {}) }
   form.status = full.status
+  reviewMode.value = asReviewer
+  reviewComment.value = ''
+  reviews.value = await briefingApi.reviews(row.id)
   drawerVisible.value = true
+  return true
+}
+
+function openExisting(row) {
+  loadBriefingIntoForm(row, false)
+}
+
+function openReviewItem(row) {
+  loadBriefingIntoForm(row, true)
+}
+
+async function submitReview() {
+  if (!reviewComment.value.trim()) {
+    ElMessage.warning('请填写批注')
+    return
+  }
+  saving.value = true
+  try {
+    await briefingApi.addReview(form.id, { comment: reviewComment.value, action: 'comment' })
+    ElMessage.success('批注已提交')
+    reviewComment.value = ''
+    reviews.value = await briefingApi.reviews(form.id)
+  } finally {
+    saving.value = false
+  }
 }
 
 async function save(submit) {
@@ -208,7 +335,7 @@ async function save(submit) {
 }
 
 onMounted(async () => {
-  templates.value = await briefingApi.templates()
+  ;[templates.value, members.value] = await Promise.all([briefingApi.templates(), fetchMembers()])
 })
 </script>
 
@@ -296,5 +423,22 @@ onMounted(async () => {
 .mido-briefing__period {
   margin-bottom: 12px;
   color: var(--el-text-color-secondary);
+}
+.mido-briefing__filter {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.mido-review {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.mido-review__meta {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 4px;
+}
+.mido-review__input {
+  margin-top: 12px;
 }
 </style>
