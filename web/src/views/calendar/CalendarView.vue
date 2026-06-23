@@ -228,6 +228,9 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item>
+          <el-link type="primary" :underline="false" @click="openSlotAssistant">打开日程排期小助手</el-link>
+        </el-form-item>
         <el-form-item label="地点">
           <el-input v-model="form.location" placeholder="请输入地点" />
         </el-form-item>
@@ -274,6 +277,41 @@
         <el-button v-if="canEdit" type="danger" @click="remove">删除{{ detail && detail.recurring ? '整个循环' : '' }}</el-button>
       </template>
     </el-drawer>
+
+    <!-- 排期小助手 -->
+    <el-dialog v-model="slotDialogVisible" title="日程排期小助手" width="520px">
+      <el-form :model="slotForm" label-width="80px">
+        <el-form-item label="参选人">
+          <el-select v-model="slotForm.userIds" multiple filterable style="width: 100%">
+            <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="日期">
+          <el-date-picker v-model="slotForm.date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="时长">
+          <el-select v-model="slotForm.durationMinutes" style="width: 100%">
+            <el-option :value="30" label="30 分钟" />
+            <el-option :value="60" label="1 小时" />
+            <el-option :value="90" label="1.5 小时" />
+            <el-option :value="120" label="2 小时" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <el-button type="primary" :loading="slotLoading" @click="searchSlots">查找空档</el-button>
+      <div v-if="slotsSearched" class="mido-slots">
+        <el-empty v-if="!slots.length" description="所选日期无共同空档" :image-size="60" />
+        <div
+          v-for="(s, i) in slots"
+          :key="i"
+          class="mido-slot"
+          @click="pickSlot(s)"
+        >
+          {{ dayjs(s.start).format('HH:mm') }} ~ {{ dayjs(s.end).format('HH:mm') }}
+          <el-tag size="small" type="success">可用</el-tag>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -583,6 +621,48 @@ async function remove() {
   await load()
 }
 
+// ===== 排期小助手 =====
+const slotDialogVisible = ref(false)
+const slotLoading = ref(false)
+const slotsSearched = ref(false)
+const slots = ref([])
+const slotForm = reactive({ userIds: [], date: '', durationMinutes: 60 })
+
+function openSlotAssistant() {
+  const me = Number(userStore.userId)
+  slotForm.userIds = Array.from(new Set([me, ...(form.participantUserIds || [])])).filter(Boolean)
+  slotForm.date = dayjs(form.startTime || dayjs()).format('YYYY-MM-DD')
+  slotForm.durationMinutes = 60
+  slots.value = []
+  slotsSearched.value = false
+  slotDialogVisible.value = true
+}
+
+async function searchSlots() {
+  if (!slotForm.userIds.length || !slotForm.date) {
+    ElMessage.warning('请选择参选人与日期')
+    return
+  }
+  slotLoading.value = true
+  try {
+    slots.value = await calendarApi.findSlots({
+      userIds: slotForm.userIds,
+      date: slotForm.date,
+      durationMinutes: slotForm.durationMinutes,
+    })
+    slotsSearched.value = true
+  } finally {
+    slotLoading.value = false
+  }
+}
+
+function pickSlot(slot) {
+  form.startTime = dayjs(slot.start).format('YYYY-MM-DDTHH:mm:ss')
+  form.endTime = dayjs(slot.start).add(slotForm.durationMinutes, 'minute').format('YYYY-MM-DDTHH:mm:ss')
+  slotDialogVisible.value = false
+  ElMessage.success('已填入开始/结束时间')
+}
+
 async function doRsvp(status) {
   await calendarApi.rsvp(detail.value.id, status)
   ElMessage.success('反馈已提交')
@@ -740,5 +820,23 @@ onMounted(async () => {
 .mido-detail__rsvp {
   display: flex;
   gap: 8px;
+}
+.mido-slots {
+  margin-top: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.mido-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.mido-slot:hover {
+  background: var(--el-fill-color-light);
 }
 </style>

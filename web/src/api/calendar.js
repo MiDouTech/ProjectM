@@ -28,4 +28,6 @@ export const calendarApi = {
   // 成员忙闲：userIds 在 [from,to] 的忙闲区间（仅起止）
   freeBusy: (userIds, from, to) =>
     request.get('/schedules/free-busy', { params: { userIds: userIds.join(','), from, to } }),
+  // 排期小助手：找所有参选人皆空闲的空档 { userIds, date, durationMinutes, dayStart?, dayEnd? }
+  findSlots: (data) => request.post('/schedules/find-slots', data),
 }

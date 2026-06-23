@@ -2,7 +2,10 @@ package com.mido.pm.calendar.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.calendar.dto.BusyVO;
+import com.mido.pm.calendar.dto.FindSlotsDTO;
+import com.mido.pm.calendar.dto.SlotVO;
 import com.mido.pm.calendar.domain.RecurrenceExpander;
+import com.mido.pm.calendar.domain.SlotFinder;
 import com.mido.pm.calendar.entity.PmCalendar;
 import com.mido.pm.calendar.entity.PmSchedule;
 import com.mido.pm.calendar.entity.PmScheduleException;
@@ -14,6 +17,7 @@ import com.mido.pm.calendar.mapper.PmScheduleParticipantMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +41,29 @@ public class BusyService {
         this.participantMapper = participantMapper;
         this.scheduleMapper = scheduleMapper;
         this.exceptionMapper = exceptionMapper;
+    }
+
+    /** 排期小助手：在 date 的工作时段内，找所有参选人皆空闲且时长足够的空档。 */
+    public List<SlotVO> findSlots(FindSlotsDTO dto) {
+        LocalTime dayStart = parseTime(dto.dayStart(), LocalTime.of(9, 0));
+        LocalTime dayEnd = parseTime(dto.dayEnd(), LocalTime.of(18, 0));
+        LocalDateTime from = dto.date().atTime(dayStart);
+        LocalDateTime to = dto.date().atTime(dayEnd);
+        List<SlotFinder.Interval> busy = busyForUsers(dto.userIds(), from, to).stream()
+                .map(b -> new SlotFinder.Interval(b.start(), b.end())).toList();
+        return SlotFinder.freeSlots(busy, from, to, dto.durationMinutes()).stream()
+                .map(i -> new SlotVO(i.start(), i.end())).toList();
+    }
+
+    private LocalTime parseTime(String hhmm, LocalTime fallback) {
+        if (hhmm == null || hhmm.isBlank()) {
+            return fallback;
+        }
+        try {
+            return LocalTime.parse(hhmm);
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     /** 多个用户在 [from,to] 的忙闲区间（每段一条）。 */

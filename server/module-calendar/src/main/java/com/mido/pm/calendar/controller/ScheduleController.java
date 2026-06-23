@@ -1,11 +1,13 @@
 package com.mido.pm.calendar.controller;
 
 import com.mido.pm.calendar.dto.BusyVO;
+import com.mido.pm.calendar.dto.FindSlotsDTO;
 import com.mido.pm.calendar.dto.RsvpDTO;
 import com.mido.pm.calendar.dto.ScheduleCreateDTO;
 import com.mido.pm.calendar.dto.ScheduleExceptionDTO;
 import com.mido.pm.calendar.dto.ScheduleUpdateDTO;
 import com.mido.pm.calendar.dto.ScheduleVO;
+import com.mido.pm.calendar.dto.SlotVO;
 import com.mido.pm.calendar.service.BusyService;
 import com.mido.pm.calendar.service.ScheduleService;
 import com.mido.pm.common.api.R;
@@ -52,6 +54,12 @@ public class ScheduleController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         return R.ok(busyService.busyForUsers(userIds, from, to));
+    }
+
+    /** 排期小助手：找所有参选人皆空闲且时长足够的空档。 */
+    @PostMapping("/find-slots")
+    public R<List<SlotVO>> findSlots(@Valid @RequestBody FindSlotsDTO dto) {
+        return R.ok(busyService.findSlots(dto));
     }
 
     @GetMapping("/{id}")
