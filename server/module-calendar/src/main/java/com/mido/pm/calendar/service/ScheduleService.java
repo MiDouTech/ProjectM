@@ -77,6 +77,7 @@ public class ScheduleService {
         s.setAllDay(boolToInt(dto.allDay(), 0));
         s.setLocation(dto.location());
         s.setRecurRule(blankToNull(dto.recurRule()));
+        s.setReminder(toReminderJson(dto.reminderMinutes()));
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), 1));
         s.setSourceType("manual");
         s.setOrganizerId(organizerId);
@@ -109,6 +110,7 @@ public class ScheduleService {
         s.setAllDay(boolToInt(dto.allDay(), s.getAllDay()));
         s.setLocation(dto.location());
         s.setRecurRule(blankToNull(dto.recurRule()));
+        s.setReminder(toReminderJson(dto.reminderMinutes()));
         s.setAllowFeedback(boolToInt(dto.allowFeedback(), s.getAllowFeedback()));
         scheduleMapper.updateById(s);
 
@@ -327,7 +329,8 @@ public class ScheduleService {
         return new ScheduleVO(s.getId(), s.getCalendarId(), s.getTitle(), s.getDescription(),
                 s.getStartTime(), s.getEndTime(), s.getAllDay(), s.getLocation(),
                 s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
-                s.getStatus(), participants, resourceIds, RecurrenceExpander.isRecurring(s), null);
+                s.getStatus(), participants, resourceIds, RecurrenceExpander.isRecurring(s), null,
+                parseReminder(s.getReminder()));
     }
 
     /** 循环展开实例 VO：标题/时间/地点取展开结果，其余沿用主记录。 */
@@ -335,7 +338,22 @@ public class ScheduleService {
         return new ScheduleVO(s.getId(), s.getCalendarId(), o.title(), s.getDescription(),
                 o.start(), o.end(), s.getAllDay(), o.location(),
                 s.getAllowFeedback(), s.getSourceType(), s.getSourceId(), s.getOrganizerId(),
-                s.getStatus(), null, null, true, o.occurrenceDate());
+                s.getStatus(), null, null, true, o.occurrenceDate(), null);
+    }
+
+    private String toReminderJson(List<Integer> minutes) {
+        return minutes == null || minutes.isEmpty() ? null : JSONUtil.toJsonStr(minutes);
+    }
+
+    private List<Integer> parseReminder(String reminderJson) {
+        if (reminderJson == null || reminderJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            return JSONUtil.toList(JSONUtil.parseArray(reminderJson), Integer.class);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     /** 成员关系谓词：归属当前用户日历(cals) 或 当前用户参与(participatedIds)。每次新建 wrapper。 */

@@ -25,5 +25,6 @@ public record ScheduleVO(
         List<ParticipantVO> participants,
         List<Long> resourceIds,
         Boolean recurring,
-        LocalDate occurrenceDate) {
+        LocalDate occurrenceDate,
+        List<Integer> reminderMinutes) {
 }

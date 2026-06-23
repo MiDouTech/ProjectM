@@ -7,6 +7,7 @@ public final class CalendarEvents {
     public static final String SCHEDULE_UPDATED = "calendar.schedule.updated";
     public static final String SCHEDULE_DELETED = "calendar.schedule.deleted";
     public static final String RSVP_RESPONDED = "calendar.rsvp.responded";
+    public static final String REMINDER_DUE = "calendar.reminder.due";
 
     private CalendarEvents() {
     }

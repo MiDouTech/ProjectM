@@ -257,7 +257,8 @@ CREATE TABLE pm_schedule (
   title VARCHAR(256) NOT NULL, description TEXT,
   start_time DATETIME NOT NULL, end_time DATETIME NOT NULL, all_day TINYINT DEFAULT 0,
   location VARCHAR(256), recur_rule VARCHAR(512), reminder JSON,
-  -- recur_rule(V40 启用)紧凑 JSON {freq:DAILY|WEEKLY|MONTHLY|YEARLY,interval,count,until} 空=不循环；reminder 预留(P1 提醒)
+  -- recur_rule(V40 启用)紧凑 JSON {freq:DAILY|WEEKLY|MONTHLY|YEARLY,interval,count,until} 空=不循环
+  -- reminder(V41 启用)提前提醒分钟数 JSON 数组 [15,60]，由定时任务扫描发 calendar.reminder.due
   allow_feedback TINYINT DEFAULT 1,        -- 是否允许参与人 RSVP
   source_type VARCHAR(16) DEFAULT 'manual',-- manual/task/meeting
   source_id BIGINT, organizer_id BIGINT, status VARCHAR(16) DEFAULT 'confirmed', -- confirmed/cancelled
@@ -288,6 +289,12 @@ CREATE TABLE pm_schedule_exception (
   override JSON,                           -- modify: {startTime,endTime,title,location}
   -- + 公共字段
   KEY idx_sch_date(schedule_id, occur_date));
+-- 提醒去重日志（V41）：记录某日程某提醒档已发，定时扫描据此不重发。
+CREATE TABLE pm_schedule_reminder_log (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, schedule_id BIGINT NOT NULL,
+  remind_minute INT NOT NULL, sent_at DATETIME,
+  -- + 公共字段
+  KEY idx_sch(schedule_id));
 ```
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）

@@ -19,5 +19,6 @@ public record ScheduleUpdateDTO(
         Boolean allowFeedback,
         List<ParticipantInputDTO> participants,
         List<Long> resourceIds,
-        String recurRule) {
+        String recurRule,
+        List<Integer> reminderMinutes) {
 }

@@ -93,8 +93,9 @@
 | `calendar.schedule.updated` | 编辑日程 | 消息(变更通知·P1)、活动流 |
 | `calendar.schedule.deleted` | 删除日程(逻辑删) | 消息(取消通知·P1)、活动流 |
 | `calendar.rsvp.responded` | 参与人 RSVP 反馈(参加/暂定/谢绝) | 消息(通知组织者·P1) |
+| `calendar.reminder.due` | 定时扫描到点提醒(提前 N 分钟) | 消息(提醒参与人·P2) |
 
-> 说明：阶段一事件照常入库，消息订阅（邀请/变更/RSVP 站内信）为 P1 接入；提醒事件 `calendar.reminder.due` 随 P1 提醒能力登记。
+> 说明：阶段一事件照常入库，消息订阅（邀请/变更/RSVP/提醒 站内信）为后续接入；事件已发布、消费者待建。
 
 ## 6. 订阅方说明
 - **消息(MessageProvider)**：阶段一站内信；激活后企微推送。按事件类型路由到 `pm_notification` 或企微应用消息。
