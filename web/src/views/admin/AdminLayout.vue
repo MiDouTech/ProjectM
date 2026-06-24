@@ -20,6 +20,9 @@
         <el-menu-item index="/admin/approval-flows">
           <el-icon><Stamp /></el-icon><span>审批流</span>
         </el-menu-item>
+        <el-menu-item index="/admin/change-policies">
+          <el-icon><Switch /></el-icon><span>变更策略</span>
+        </el-menu-item>
         <el-menu-item v-if="userStore.hasFeature('openapi')" index="/admin/apikeys">
           <el-icon><Key /></el-icon><span>开放平台</span>
         </el-menu-item>
@@ -32,7 +35,7 @@
 </template>
 
 <script setup>
-import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key } from '@element-plus/icons-vue'
+import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()

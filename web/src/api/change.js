@@ -7,6 +7,13 @@ export const changeApi = {
   get: (id) => request.get(`/changes/${id}`),
 }
 
+/** 变更策略管理（租户自配各变更类型 必审/免审 + 绑定审批流） */
+export const changePolicyApi = {
+  list: () => request.get('/change-policies'),
+  // 按 changeType 幂等保存：{ changeType, requireApproval(0/1), flowId, enabled(0/1) }
+  save: (data) => request.put('/change-policies', data),
+}
+
 // 状态码→中文（着色统一交 StatusTag，按中文标签映射，页面禁写 tag type）
 export const CHANGE_STATUS = [
   { value: 'pending', label: '审批中' },
