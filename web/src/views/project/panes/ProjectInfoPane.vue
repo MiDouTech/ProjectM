@@ -46,6 +46,9 @@
       </el-form-item>
     </el-form>
 
+    <!-- 自定义字段（租户自配，配置页 P2-4b 维护） -->
+    <CustomFieldsSection entity-type="project" :entity-id="project.id" @changed="$emit('updated')" />
+
     <!-- 成员 -->
     <div class="info__bar info__bar--mt">
       <h3 class="mido-h2">项目成员</h3>
@@ -83,6 +86,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Plus } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import UserSelect from '@/components/UserSelect.vue'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 import { projectApi, O_SUB_CATEGORIES } from '@/api/project'
 
 const props = defineProps({

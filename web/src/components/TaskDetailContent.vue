@@ -48,6 +48,7 @@
                 <el-button type="primary" :loading="saving" @click="save">保存</el-button>
               </el-form-item>
             </el-form>
+            <CustomFieldsSection v-if="task.id" entity-type="task" :entity-id="task.id" @changed="emit('changed')" />
           </el-tab-pane>
 
           <el-tab-pane label="子任务" name="sub">
@@ -142,6 +143,7 @@ import ActivityTimeline from '@/components/ActivityTimeline.vue'
 import AttachmentPanel from '@/components/AttachmentPanel.vue'
 import WorkHourPanel from '@/components/WorkHourPanel.vue'
 import UserSelect from '@/components/UserSelect.vue'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'
