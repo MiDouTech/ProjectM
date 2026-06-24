@@ -79,10 +79,6 @@ const rules = computed(() => {
   return r
 })
 
-onMounted(async () => {
-  users.value = await fetchMembers()
-})
-
 async function validate() {
   await formRef.value.validate()
   // 仅提交当前类型可见字段

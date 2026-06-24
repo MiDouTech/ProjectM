@@ -56,14 +56,10 @@
       </el-card>
     </section>
 
-    <!-- 右：立项审批 + 生命周期流转引导 -->
+    <!-- 右：生命周期流转引导（立项审批已独立为「立项」tab） -->
     <aside class="ov__side">
       <el-card shadow="never" class="ov__card">
-        <h3 class="mido-h2">立项审批</h3>
-        <ProjectApprovalPane :project="project" @submitted="$emit('changed')" />
-      </el-card>
-      <el-card shadow="never" class="ov__card">
-        <h3 class="mido-h2">生命周期</h3>
+        <h3 class="mido-h2">流转操作</h3>
         <ProjectTransitionPane :project="project" :user-name="userName" @transitioned="$emit('changed')" />
       </el-card>
     </aside>
@@ -74,7 +70,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { Flag } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
-import ProjectApprovalPane from './ProjectApprovalPane.vue'
 import ProjectTransitionPane from './ProjectTransitionPane.vue'
 import { taskApi } from '@/api/task'
 import { stakeholderApi } from '@/api/stakeholder'

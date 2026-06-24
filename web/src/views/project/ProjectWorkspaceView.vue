@@ -42,6 +42,7 @@
       <section class="pw__content" :key="projectId">
         <ProjectOverviewPane v-if="tab === 'overview'" :project="project" :project-id="projectId"
           :user-name="userName" @changed="reload" @navigate="onSelectTab" />
+        <ProjectApprovalPane v-else-if="tab === 'approval'" :project="project" @submitted="reload" />
         <ProjectInfoPane v-else-if="tab === 'info'" :project="project" :members="members"
           :user-name="userName" @updated="reload" @members-changed="loadMembers" />
         <TaskWorkspaceView v-else-if="tab === 'task'" :embedded="true" :project-id="projectId" />
@@ -86,7 +87,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft, Odometer, InfoFilled, Tickets, Aim, User,
+  ArrowLeft, Odometer, Stamp, InfoFilled, Tickets, Aim, User,
   CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft, EditPen,
 } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -96,6 +97,7 @@ import CostPanel from '@/components/CostPanel.vue'
 import ProjectFilesPanel from '@/components/ProjectFilesPanel.vue'
 import GanttChart from '@/components/GanttChart.vue'
 import ProjectOverviewPane from './panes/ProjectOverviewPane.vue'
+import ProjectApprovalPane from './panes/ProjectApprovalPane.vue'
 import ProjectInfoPane from './panes/ProjectInfoPane.vue'
 import ProjectVerifyPane from './panes/ProjectVerifyPane.vue'
 import ProjectGoalsPane from './panes/ProjectGoalsPane.vue'
@@ -107,6 +109,7 @@ import { fetchMembers } from '@/api/org'
 const LIFECYCLE = ['草稿', '审批中', '已注册', '进行中', '结果验收', '已结案', '价值验收中', '已评价']
 const TABS = [
   { name: 'overview', label: '概览', icon: Odometer },
+  { name: 'approval', label: '立项', icon: Stamp },
   { name: 'info', label: '信息', icon: InfoFilled },
   { name: 'task', label: '任务', icon: Tickets },
   { name: 'goal', label: '目标', icon: Aim },
@@ -140,7 +143,7 @@ const activeStage = computed(() => {
 // 下一步 CTA：草稿→提交立项；其余按可手动流转给出（注册等系统态不暴露）
 const nextSteps = computed(() => {
   if (project.value.status === '草稿') {
-    return [{ label: '提交立项审批', run: () => onSelectTab('overview') }]
+    return [{ label: '提交立项审批', run: () => onSelectTab('approval') }]
   }
   return MANUAL_TRANSITIONS
     .filter((t) => t.from.includes(project.value.status))

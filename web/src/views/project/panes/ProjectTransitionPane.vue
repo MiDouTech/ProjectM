@@ -4,15 +4,9 @@
       <span class="mido-text-secondary">当前状态</span>
       <StatusTag :status="project.status" />
     </div>
-
-    <el-timeline class="trans__line">
-      <el-timeline-item v-for="s in LIFECYCLE" :key="s"
-        :type="dotType(s)" :hollow="s !== project.status">
-        <span :class="{ 'trans__now': s === project.status }">{{ s }}</span>
-        <div v-if="s === '审批中' && project.status === '审批中' && approverText"
-          class="trans__appr mido-text-secondary">{{ approverText }}</div>
-      </el-timeline-item>
-    </el-timeline>
+    <div v-if="project.status === '审批中' && approverText" class="trans__appr mido-text-secondary">
+      {{ approverText }}
+    </div>
 
     <el-divider />
 
@@ -47,10 +41,7 @@ const emit = defineEmits(['transitioned'])
 
 const userStore = useUserStore()
 
-// 生命周期顺序（architecture-overview §2.2）
-const LIFECYCLE = ['草稿', '审批中', '已注册', '进行中', '结果验收', '已结案', '价值验收中', '已评价']
-
-// 当前立项审批实例（仅审批中时拉取），用于「审批中」节点旁展示待谁审批
+// 当前立项审批实例（仅审批中时拉取），用于展示待谁审批
 const approval = ref(null)
 const approverText = computed(() => {
   const a = approval.value
@@ -88,14 +79,6 @@ async function doWithdraw() {
   emit('transitioned')
 }
 
-const doneIndex = computed(() => LIFECYCLE.indexOf(props.project.status))
-const dotType = (s) => {
-  const i = LIFECYCLE.indexOf(s)
-  if (i < doneIndex.value) return 'success'
-  if (i === doneIndex.value) return 'primary'
-  return 'info'
-}
-
 const available = computed(() =>
   MANUAL_TRANSITIONS.filter((t) => t.from.includes(props.project.status)))
 
@@ -113,10 +96,6 @@ async function doTransition(t) {
   align-items: center;
   gap: var(--mido-space-2);
   margin-bottom: var(--mido-space-4);
-}
-.trans__now {
-  font-weight: var(--mido-font-weight-bold);
-  color: var(--el-color-primary);
 }
 .trans__appr {
   margin-top: var(--mido-space-1);
