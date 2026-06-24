@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,6 +78,35 @@ public class FieldValueService {
                 def.getRequired() != null && def.getRequired() == 1,
                 def.getSortNo(),
                 valueByField.get(def.getId()))).toList();
+    }
+
+    /**
+     * 批量读取多个实体的字段值，供列表视图按 fieldKey 渲染自定义字段列。
+     * 返回 entityId → (fieldKey → 原始值字符串)；仅含启用字段、有值的条目。
+     */
+    public Map<Long, Map<String, String>> valuesForEntities(String entityType, Collection<Long> entityIds) {
+        FieldScope scope = requireScope(entityType);
+        if (entityIds == null || entityIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> keyByFieldId = defMapper.selectList(Wrappers.<PmFieldDef>lambdaQuery()
+                        .eq(PmFieldDef::getScope, scope.getCode())
+                        .eq(PmFieldDef::getEnabled, 1))
+                .stream().collect(Collectors.toMap(PmFieldDef::getId, PmFieldDef::getFieldKey, (a, b) -> a));
+        if (keyByFieldId.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Map<String, String>> result = new LinkedHashMap<>();
+        for (PmFieldValue v : valueMapper.selectList(Wrappers.<PmFieldValue>lambdaQuery()
+                .eq(PmFieldValue::getEntityType, scope.getCode())
+                .in(PmFieldValue::getEntityId, entityIds))) {
+            String key = keyByFieldId.get(v.getFieldId());
+            if (key == null || v.getValue() == null) {
+                continue;
+            }
+            result.computeIfAbsent(v.getEntityId(), k -> new LinkedHashMap<>()).put(key, v.getValue());
+        }
+        return result;
     }
 
     /**

@@ -40,5 +40,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-change</artifactId>
         </dependency>
+        <!-- 跨域：视图按 cf:<fieldKey> 列展示/筛选自定义字段，经 FieldValueService 批量读值（不查 pm_field_value 表） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-field</artifactId>
+        </dependency>
     </dependencies>
 </project>
