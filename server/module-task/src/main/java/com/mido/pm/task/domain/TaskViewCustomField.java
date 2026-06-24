@@ -1,5 +1,6 @@
 package com.mido.pm.task.domain;
 
+import cn.hutool.json.JSONUtil;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.dto.TaskVO;
@@ -130,17 +131,19 @@ public final class TaskViewCustomField {
     }
 
     private static boolean matchOne(TaskVO task, FilterCondition c, Map<String, String> cfTypes) {
-        String hint = hintOf(c.field(), cfTypes);
         Object raw = valueOf(task, c.field());
         String op = c.op() == null ? "" : c.op();
-        switch (op) {
-            case "isNull":
-                return isBlank(raw);
-            case "notNull":
-                return !isBlank(raw);
-            default:
-                break;
+        if ("isNull".equals(op)) {
+            return isBlank(raw);
         }
+        if ("notNull".equals(op)) {
+            return !isBlank(raw);
+        }
+        // 多选字段：值为 JSON 数组，按成员归属匹配（eq/ne=包含与否，in=交集非空，like=任一元素含子串）
+        if (isMultiSelect(c.field(), cfTypes)) {
+            return matchMultiSelect(multiValues(raw), op, c.value());
+        }
+        String hint = hintOf(c.field(), cfTypes);
         if ("in".equals(op)) {
             if (!(c.value() instanceof Collection<?> coll)) {
                 throw new BizException(ErrorCode.PARAM_ERROR, "in 算子值须为数组: " + c.field());
@@ -149,6 +152,46 @@ public final class TaskViewCustomField {
             return coll.stream().anyMatch(v -> matchScalar("eq", left, raw, canonical(v, hint), v, hint));
         }
         return matchScalar(op, canonical(raw, hint), raw, canonical(c.value(), hint), c.value(), hint);
+    }
+
+    private static boolean isMultiSelect(String field, Map<String, String> cfTypes) {
+        return isCf(field) && cfTypes != null && "multi_select".equals(cfTypes.get(key(field)));
+    }
+
+    /** 解析多选入库值（JSON 数组字符串）为选项值集合；空/非法返回空集。 */
+    private static Set<String> multiValues(Object raw) {
+        if (raw == null || String.valueOf(raw).isBlank()) {
+            return Set.of();
+        }
+        try {
+            return new java.util.LinkedHashSet<>(JSONUtil.parseArray(String.valueOf(raw)).toList(String.class));
+        } catch (Exception e) {
+            return Set.of();
+        }
+    }
+
+    private static boolean matchMultiSelect(Set<String> have, String op, Object value) {
+        switch (op) {
+            case "eq":
+                return value != null && have.contains(String.valueOf(value));
+            case "ne":
+                return value == null || !have.contains(String.valueOf(value));
+            case "like": {
+                if (value == null) {
+                    return false;
+                }
+                String s = String.valueOf(value).toLowerCase();
+                return have.stream().anyMatch(e -> e.toLowerCase().contains(s));
+            }
+            case "in": {
+                if (!(value instanceof Collection<?> coll)) {
+                    throw new BizException(ErrorCode.PARAM_ERROR, "in 算子值须为数组");
+                }
+                return coll.stream().map(String::valueOf).anyMatch(have::contains);
+            }
+            default:
+                throw new BizException(ErrorCode.PARAM_ERROR, "多选字段不支持算子: " + op);
+        }
     }
 
     private static boolean matchScalar(String op, String left, Object leftRaw,

@@ -116,9 +116,22 @@ public class FieldValueService {
     @Transactional(rollbackFor = Exception.class)
     public void saveValues(FieldValuesWriteDTO dto) {
         FieldScope scope = requireScope(dto.entityType());
+        if (dto.values() == null || dto.values().isEmpty()) {
+            return;
+        }
+        // 批量预取字段定义与该实体已有值，避免逐字段 N 次查询
+        List<Long> fieldIds = dto.values().stream().map(FieldValuesWriteDTO.Item::fieldId).distinct().toList();
+        Map<Long, PmFieldDef> defById = defMapper.selectBatchIds(fieldIds).stream()
+                .collect(Collectors.toMap(PmFieldDef::getId, d -> d, (a, b) -> a));
+        Map<Long, PmFieldValue> existingByField = valueMapper.selectList(Wrappers.<PmFieldValue>lambdaQuery()
+                        .eq(PmFieldValue::getEntityType, scope.getCode())
+                        .eq(PmFieldValue::getEntityId, dto.entityId())
+                        .in(PmFieldValue::getFieldId, fieldIds))
+                .stream().collect(Collectors.toMap(PmFieldValue::getFieldId, v -> v, (a, b) -> a));
+
         List<Map<String, Object>> changes = new ArrayList<>();
         for (FieldValuesWriteDTO.Item item : dto.values()) {
-            PmFieldDef def = defMapper.selectById(item.fieldId());
+            PmFieldDef def = defById.get(item.fieldId());
             if (def == null || def.getEnabled() == null || def.getEnabled() != 1) {
                 throw new BizException(ErrorCode.PARAM_ERROR, "字段不存在或已停用: " + item.fieldId());
             }
@@ -130,16 +143,13 @@ public class FieldValueService {
                     && def.getRequired() != null && def.getRequired() == 1) {
                 throw new BizException(ErrorCode.PARAM_ERROR, "必填字段不能为空: " + def.getName());
             }
-            PmFieldValue existing = valueMapper.selectOne(Wrappers.<PmFieldValue>lambdaQuery()
-                    .eq(PmFieldValue::getEntityType, scope.getCode())
-                    .eq(PmFieldValue::getEntityId, dto.entityId())
-                    .eq(PmFieldValue::getFieldId, item.fieldId())
-                    .last("LIMIT 1"));
+            PmFieldValue existing = existingByField.get(item.fieldId());
             String oldValue = existing == null ? null : existing.getValue();
             if (java.util.Objects.equals(oldValue, normalized)) {
                 continue; // 无变化跳过
             }
-            upsert(scope, dto.entityId(), def.getId(), normalized, existing);
+            // 回写到 map：同一请求内重复 fieldId 时按更新处理，避免重复插入
+            existingByField.put(item.fieldId(), upsert(scope, dto.entityId(), def.getId(), normalized, existing));
             Map<String, Object> change = new LinkedHashMap<>();
             change.put("field", def.getFieldKey());
             change.put("from", oldValue);
@@ -153,11 +163,11 @@ public class FieldValueService {
         }
     }
 
-    private void upsert(FieldScope scope, Long entityId, Long fieldId, String value, PmFieldValue existing) {
+    private PmFieldValue upsert(FieldScope scope, Long entityId, Long fieldId, String value, PmFieldValue existing) {
         if (existing != null) {
             existing.setValue(value);
             valueMapper.updateById(existing);
-            return;
+            return existing;
         }
         PmFieldValue row = new PmFieldValue();
         row.setEntityType(scope.getCode());
@@ -165,6 +175,7 @@ public class FieldValueService {
         row.setFieldId(fieldId);
         row.setValue(value);
         valueMapper.insert(row);
+        return row;
     }
 
     /** 按类型校验并归一化为入库字符串；空值返回 null（清除）。 */

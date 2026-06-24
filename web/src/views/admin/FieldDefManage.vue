@@ -29,11 +29,11 @@
           </template>
         </el-table-column>
         <el-table-column label="必填" width="70">
-          <template #default="{ row }"><el-tag v-if="row.required" size="small" type="warning">必填</el-tag><span v-else class="mido-text-secondary">否</span></template>
+          <template #default="{ row }"><StatusTag v-if="row.required" status="必填" /><span v-else class="mido-text-secondary">否</span></template>
         </el-table-column>
         <el-table-column label="排序" width="70" prop="sortNo" />
         <el-table-column label="启用" width="70">
-          <template #default="{ row }"><el-tag size="small" :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template>
+          <template #default="{ row }"><StatusTag :status="row.enabled ? '启用' : '停用'" /></template>
         </el-table-column>
         <el-table-column label="操作" width="130">
           <template #default="{ row }">
@@ -60,7 +60,7 @@
           <div class="fd__options">
             <div v-for="(o, i) in form.options" :key="i" class="fd__option">
               <el-input v-model="o.value" placeholder="值(英文)" class="fd__opt-val" />
-              <el-input v-model="o.label" placeholder="显示文案" />
+              <el-input v-model="o.label" placeholder="显示文案" class="fd__opt-label" />
               <el-button link type="danger" :icon="Delete" @click="form.options.splice(i, 1)" />
             </div>
             <el-button link type="primary" :icon="Plus" @click="form.options.push({ value: '', label: '' })">添加选项</el-button>
@@ -83,6 +83,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { fieldDefApi, FIELD_TYPES } from '@/api/field'
+import StatusTag from '@/components/StatusTag.vue'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -207,5 +208,6 @@ onMounted(load)
   gap: var(--mido-space-2);
   align-items: center;
 }
-.fd__opt-val { max-width: 160px; }
+.fd__opt-val { flex: 1; }
+.fd__opt-label { flex: 2; }
 </style>

@@ -67,7 +67,7 @@ class FieldValueServiceTest {
 
     @Test
     void saveRejectsUnknownField() {
-        when(defMapper.selectById(1L)).thenReturn(null);
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of());
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "x")));
     }
 
@@ -75,47 +75,47 @@ class FieldValueServiceTest {
     void saveRejectsDisabledField() {
         PmFieldDef d = def(1L, "task", "text", false, null);
         d.setEnabled(0);
-        when(defMapper.selectById(1L)).thenReturn(d);
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(d));
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "x")));
     }
 
     @Test
     void saveRejectsScopeMismatch() {
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "project", "text", false, null));
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "project", "text", false, null)));
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "x")));
     }
 
     @Test
     void saveRejectsRequiredBlank() {
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "task", "text", true, null));
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "task", "text", true, null)));
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "")));
         verify(valueMapper, never()).insert(any(PmFieldValue.class));
     }
 
     @Test
     void saveRejectsBadNumber() {
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "task", "number", false, null));
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "task", "number", false, null)));
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "abc")));
     }
 
     @Test
     void saveRejectsSelectNotInOptions() {
         String opts = "[{\"value\":\"a\",\"label\":\"甲\"},{\"value\":\"b\",\"label\":\"乙\"}]";
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "task", "select", false, opts));
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "task", "select", false, opts)));
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "c")));
     }
 
     @Test
     void saveRejectsMultiSelectNotInOptions() {
         String opts = "[{\"value\":\"a\",\"label\":\"甲\"},{\"value\":\"b\",\"label\":\"乙\"}]";
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "task", "multi_select", false, opts));
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "task", "multi_select", false, opts)));
         assertThrows(BizException.class, () -> service.saveValues(write("task", 1L, 1L, "[\"a\",\"c\"]")));
     }
 
     @Test
     void saveInsertsAndRecordsActivity() {
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "task", "number", false, null));
-        when(valueMapper.selectOne(any())).thenReturn(null);
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "task", "number", false, null)));
+        when(valueMapper.selectList(any())).thenReturn(List.of());
         service.saveValues(write("task", 5L, 1L, "12.50"));
         verify(valueMapper).insert(any(PmFieldValue.class));
         verify(auditLogService).record(eq("task"), eq(5L), eq("updated"), any());
@@ -123,10 +123,11 @@ class FieldValueServiceTest {
 
     @Test
     void saveSkipsUnchanged() {
-        when(defMapper.selectById(1L)).thenReturn(def(1L, "task", "text", false, null));
+        when(defMapper.selectBatchIds(any())).thenReturn(List.of(def(1L, "task", "text", false, null)));
         PmFieldValue existing = new PmFieldValue();
+        existing.setFieldId(1L);
         existing.setValue("same");
-        when(valueMapper.selectOne(any())).thenReturn(existing);
+        when(valueMapper.selectList(any())).thenReturn(List.of(existing));
         service.saveValues(write("task", 5L, 1L, "same"));
         verify(valueMapper, never()).insert(any(PmFieldValue.class));
         verify(valueMapper, never()).updateById(any(PmFieldValue.class));

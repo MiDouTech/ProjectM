@@ -73,14 +73,17 @@ public class TaskViewQueryService {
             Map<Long, Map<String, String>> valuesByTask = fieldValueService.valuesForEntities(
                     ENTITY_TYPE, tasks.stream().map(TaskVO::id).toList());
             tasks.replaceAll(t -> t.withCustomFields(valuesByTask.getOrDefault(t.id(), Map.of())));
-            Map<String, String> cfTypes = cfTypes();
-            if (!split.memoryFilter().isEmpty()) {
-                tasks = tasks.stream()
-                        .filter(t -> TaskViewCustomField.matches(t, split.memoryFilter(), split.memoryLogic(), cfTypes))
-                        .collect(Collectors.toCollection(ArrayList::new));
-            }
-            if (!split.memorySort().isEmpty()) {
-                tasks.sort(TaskViewCustomField.comparator(split.memorySort(), cfTypes));
+            // cfTypes 仅在需要内存筛选/排序时才解析（纯展示列无需多查一次字段定义）
+            if (!split.memoryFilter().isEmpty() || !split.memorySort().isEmpty()) {
+                Map<String, String> cfTypes = cfTypes();
+                if (!split.memoryFilter().isEmpty()) {
+                    tasks = tasks.stream()
+                            .filter(t -> TaskViewCustomField.matches(t, split.memoryFilter(), split.memoryLogic(), cfTypes))
+                            .collect(Collectors.toCollection(ArrayList::new));
+                }
+                if (!split.memorySort().isEmpty()) {
+                    tasks.sort(TaskViewCustomField.comparator(split.memorySort(), cfTypes));
+                }
             }
         }
 

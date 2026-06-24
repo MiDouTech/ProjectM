@@ -122,6 +122,25 @@ class TaskViewCustomFieldTest {
     }
 
     @Test
+    void matchesMultiSelectByMembership() {
+        Map<String, String> types = Map.of("tags", "multi_select");
+        TaskVO t = task(1L, "doing", Map.of("tags", "[\"acme\",\"globex\"]"));
+        // eq/in/like 按成员归属匹配（而非整段 JSON 字符串比较）
+        assertTrue(TaskViewCustomField.matches(t,
+                List.of(new FilterCondition("cf:tags", "eq", "acme")), "and", types));
+        assertFalse(TaskViewCustomField.matches(t,
+                List.of(new FilterCondition("cf:tags", "eq", "zzz")), "and", types));
+        assertTrue(TaskViewCustomField.matches(t,
+                List.of(new FilterCondition("cf:tags", "in", List.of("zzz", "globex"))), "and", types));
+        assertTrue(TaskViewCustomField.matches(t,
+                List.of(new FilterCondition("cf:tags", "like", "glob")), "and", types));
+        // 空多选 → isNull 命中
+        TaskVO empty = task(2L, "doing", Map.of());
+        assertTrue(TaskViewCustomField.matches(empty,
+                List.of(new FilterCondition("cf:tags", "isNull", null)), "and", types));
+    }
+
+    @Test
     void comparatorDescKeepsNullsLast() {
         TaskVO a = task(1L, "x", Map.of("level", "10"));
         TaskVO b = task(2L, "x", Map.of("level", "2"));

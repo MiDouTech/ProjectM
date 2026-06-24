@@ -95,11 +95,13 @@ import { Delete, Plus } from '@element-plus/icons-vue'
 import {
   viewApi, VIEW_GROUP_FIELDS, VIEW_SORT_FIELDS, VIEW_FILTER_FIELDS, VIEW_OPS, VIEW_COLUMNS,
 } from '@/api/view'
-import { fieldDefApi } from '@/api/field'
+import { fieldDefApi, cfRef } from '@/api/field'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   projectId: { type: [Number, String], default: null },
+  // 父级已加载的任务级自定义字段定义；传入则复用，避免重复请求
+  cfFields: { type: Array, default: null },
 })
 const emit = defineEmits(['update:modelValue', 'saved'])
 
@@ -115,7 +117,7 @@ const step = ref(0)
 const saving = ref(false)
 // 任务级自定义字段 → cf:<fieldKey> 选项，合并进展示列/排序/筛选
 const cfFields = ref([])
-const cfOptions = computed(() => cfFields.value.map((f) => ({ value: `cf:${f.fieldKey}`, label: `${f.name}（自定义）` })))
+const cfOptions = computed(() => cfFields.value.map((f) => ({ value: cfRef(f.fieldKey), label: `${f.name}（自定义）` })))
 const columnOptions = computed(() => [...VIEW_COLUMNS, ...cfOptions.value])
 const sortOptions = computed(() => [...VIEW_SORT_FIELDS, ...cfOptions.value])
 const filterOptions = computed(() => [...VIEW_FILTER_FIELDS, ...cfOptions.value])
@@ -130,10 +132,16 @@ async function reset() {
     name: '', type: 'list', scope: 'personal', columns: [],
     groupBy: '', sort: [], expandLevel: 1, logic: 'and', conditions: [],
   })
+  // 父级已传入则复用，否则按需拉取
+  if (props.cfFields) {
+    cfFields.value = props.cfFields
+    return
+  }
   try {
     cfFields.value = await fieldDefApi.list('task', true)
   } catch {
     cfFields.value = []
+    ElMessage.warning('自定义字段加载失败，本次仅显示内置字段')
   }
 }
 

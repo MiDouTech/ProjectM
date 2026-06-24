@@ -140,7 +140,7 @@
     <TaskDetailDrawer v-model="detailOpen" :task-id="detailId" :project-id="projectId"
       :users="users" @changed="load" @open="openDetail" />
 
-    <ViewDesigner v-model="designerOpen" :project-id="projectId" @saved="loadViews" />
+    <ViewDesigner v-model="designerOpen" :project-id="projectId" :cf-fields="cfFieldList" @saved="loadViews" />
   </div>
 </template>
 
@@ -158,7 +158,7 @@ import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi } from '@/api/view'
-import { fieldDefApi } from '@/api/field'
+import { fieldDefApi, isCfRef, cfKey } from '@/api/field'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { isTaskOverdue, userName as nameOf } from '@/utils/display'
@@ -191,12 +191,13 @@ const savedViews = ref([])
 const activeViewId = ref(null)
 const designerOpen = ref(false)
 const grouped = ref({ groupBy: null, groups: [], columns: [] })
-// 任务级自定义字段定义（fieldKey 索引），用于视图 cf 列渲染
-const cfDefs = ref({})
+// 任务级自定义字段定义；列表用于透传给设计器（避免重复请求），map 用于视图 cf 列渲染
+const cfFieldList = ref([])
+const cfDefs = computed(() => Object.fromEntries(cfFieldList.value.map((d) => [d.fieldKey, d])))
 // 当前视图 columns 中的自定义字段列（cf:<key> 且定义存在）
 const cfColumns = computed(() => (grouped.value.columns || [])
-  .filter((c) => typeof c === 'string' && c.startsWith('cf:') && cfDefs.value[c.slice(3)])
-  .map((c) => ({ value: c, key: c.slice(3), def: cfDefs.value[c.slice(3)] })))
+  .filter((c) => isCfRef(c) && cfDefs.value[cfKey(c)])
+  .map((c) => ({ value: c, key: cfKey(c), def: cfDefs.value[cfKey(c)] })))
 
 /** 按字段类型格式化 cf 原始值用于列表展示 */
 function formatCf(col, customFields) {
@@ -365,10 +366,10 @@ onMounted(async () => {
   load()
   loadViews()
   try {
-    const defs = await fieldDefApi.list('task', true)
-    cfDefs.value = Object.fromEntries(defs.map((d) => [d.fieldKey, d]))
+    cfFieldList.value = await fieldDefApi.list('task', true)
   } catch {
-    cfDefs.value = {}
+    cfFieldList.value = []
+    ElMessage.warning('自定义字段加载失败，视图自定义列可能不显示')
   }
 })
 </script>

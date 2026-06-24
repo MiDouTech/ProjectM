@@ -17,6 +17,15 @@ export const fieldValueApi = {
   save: (data) => request.put('/field-values', data),
 }
 
+/** 视图中自定义字段列/筛选/排序的引用前缀（与后端 TaskViewCustomField.PREFIX 一致） */
+export const CF_PREFIX = 'cf:'
+/** 构造自定义字段引用：fieldKey → "cf:<fieldKey>" */
+export const cfRef = (fieldKey) => `${CF_PREFIX}${fieldKey}`
+/** 是否为自定义字段引用 */
+export const isCfRef = (ref) => typeof ref === 'string' && ref.startsWith(CF_PREFIX)
+/** 从引用取回 fieldKey */
+export const cfKey = (ref) => ref.slice(CF_PREFIX.length)
+
 /** 字段类型字典（与后端 FieldType 一致） */
 export const FIELD_TYPES = [
   { value: 'text', label: '文本' },
