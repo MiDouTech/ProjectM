@@ -225,6 +225,47 @@ class ProjectServiceTest {
     }
 
     @Test
+    void archiveClosedProjectPersistsAndEmits() {
+        when(projectMapper.selectById(1L)).thenReturn(project("已结案", "S", 1L));
+        service.archive(1L);
+        ArgumentCaptor<PmProject> captor = ArgumentCaptor.forClass(PmProject.class);
+        verify(projectMapper).updateById(captor.capture());
+        assertEquals(1, captor.getValue().getArchived(), "归档应置 archived=1");
+        verify(eventPublisher).publish(eq("project.status.changed"), any());
+        verify(auditLogService).record(eq("project"), eq(1L), eq(AuditActions.ARCHIVED), any());
+    }
+
+    @Test
+    void archiveInProgressProjectRejected() {
+        // 仅终态可归档：进行中项目归档应拒绝且不落库不发事件
+        when(projectMapper.selectById(1L)).thenReturn(project("进行中", "S", 1L));
+        assertThrows(BizException.class, () -> service.archive(1L));
+        verify(projectMapper, never()).updateById(any(PmProject.class));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void archiveAlreadyArchivedIsIdempotent() {
+        PmProject p = project("已结案", "S", 1L);
+        p.setArchived(1);
+        when(projectMapper.selectById(1L)).thenReturn(p);
+        service.archive(1L);
+        verify(projectMapper, never()).updateById(any(PmProject.class));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void unarchiveRestoresAndEmits() {
+        PmProject p = project("已结案", "S", 1L);
+        p.setArchived(1);
+        when(projectMapper.selectById(1L)).thenReturn(p);
+        service.unarchive(1L);
+        assertEquals(0, p.getArchived(), "恢复应置 archived=0");
+        verify(projectMapper).updateById(any(PmProject.class));
+        verify(eventPublisher).publish(eq("project.status.changed"), any());
+    }
+
+    @Test
     void registerSucceedsWithQualifiedLeaderAndEmitsRegistered() {
         PmProject p = project("审批中", "S", 9L);
         when(projectMapper.selectById(1L)).thenReturn(p);

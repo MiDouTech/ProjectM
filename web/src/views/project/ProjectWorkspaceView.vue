@@ -8,9 +8,13 @@
         <h1 class="mido-h1">{{ project.name || '项目' }}</h1>
         <StatusTag v-if="project.status" :status="project.status" />
       </div>
-      <div v-if="nextSteps.length" class="pw__cta">
-        <span class="mido-text-secondary">下一步：</span>
-        <el-button v-for="c in nextSteps" :key="c.label" type="primary" @click="c.run">{{ c.label }}</el-button>
+      <div class="pw__head-right">
+        <div v-if="nextSteps.length" class="pw__cta">
+          <span class="mido-text-secondary">下一步：</span>
+          <el-button v-for="c in nextSteps" :key="c.label" type="primary" @click="c.run">{{ c.label }}</el-button>
+        </div>
+        <el-button v-if="canArchive" :icon="Box" @click="runArchive">归档</el-button>
+        <el-button v-if="project.archived === 1" :icon="RefreshLeft" @click="runUnarchive">恢复</el-button>
       </div>
     </header>
     <div class="pw__meta mido-text-secondary">
@@ -59,7 +63,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Odometer, InfoFilled, Tickets, Aim, User,
-  CircleCheck, TrendCharts, Money, Folder, Clock,
+  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft,
 } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -119,6 +123,10 @@ const nextSteps = computed(() => {
     .map((t) => ({ label: t.label, run: () => runTransition(t) }))
 })
 
+// 可归档：未归档 且 处于终态（已结案/已评价），对标 Worktile「关闭→归档」
+const canArchive = computed(() =>
+  project.value.archived !== 1 && ['已结案', '已评价'].includes(project.value.status))
+
 function onSelectTab(name) {
   tab.value = name
 }
@@ -127,6 +135,20 @@ async function runTransition(t) {
   await ElMessageBox.confirm(`确认执行「${t.label}」？`, '状态流转', { type: 'warning' })
   await projectApi.transition(projectId.value, { targetStatus: t.value })
   ElMessage.success('流转成功')
+  await reload()
+}
+
+async function runArchive() {
+  await ElMessageBox.confirm('归档后项目将从在档列表移除，可在「已归档」中恢复。确认归档？',
+    '归档项目', { type: 'warning' })
+  await projectApi.archive(projectId.value)
+  ElMessage.success('已归档')
+  await reload()
+}
+
+async function runUnarchive() {
+  await projectApi.unarchive(projectId.value)
+  ElMessage.success('已恢复')
   await reload()
 }
 
@@ -165,6 +187,11 @@ watch(projectId, async () => {
   flex-wrap: wrap;
 }
 .pw__head-main {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.pw__head-right {
   display: flex;
   align-items: center;
   gap: var(--mido-space-2);

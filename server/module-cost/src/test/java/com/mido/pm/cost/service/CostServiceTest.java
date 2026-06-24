@@ -40,7 +40,7 @@ class CostServiceTest {
 
     private ProjectVO projectWithBudget(BigDecimal budget) {
         return new ProjectVO(100L, "P-1", "项目", null, "O", null, null, null, "进行中",
-                budget, null, null, null, null, null, null, null, null);
+                budget, null, null, null, null, null, null, null, null, null);
     }
 
     private PmCost actual(String hours) {

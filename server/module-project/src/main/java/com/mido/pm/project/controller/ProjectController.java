@@ -102,6 +102,20 @@ public class ProjectController {
         return R.ok();
     }
 
+    /** 归档项目（仅已结案/已评价；对标 Worktile「关闭→归档」），从在档列表移除。 */
+    @PostMapping("/{id}/archive")
+    public R<Void> archive(@PathVariable Long id) {
+        projectService.archive(id);
+        return R.ok();
+    }
+
+    /** 恢复归档项目（回到在档列表，状态不变）。 */
+    @PostMapping("/{id}/unarchive")
+    public R<Void> unarchive(@PathVariable Long id) {
+        projectService.unarchive(id);
+        return R.ok();
+    }
+
     @PostMapping("/{id}/members")
     public R<Long> addMember(@PathVariable Long id, @Valid @RequestBody ProjectMemberCreateDTO dto) {
         return R.ok(memberService.add(id, dto));

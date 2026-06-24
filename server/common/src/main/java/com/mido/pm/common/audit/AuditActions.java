@@ -12,6 +12,8 @@ public final class AuditActions {
     public static final String UPDATED = "updated";
     /** 状态流转（detail = {from,to}） */
     public static final String STATUS_CHANGED = "status_changed";
+    /** 归档/恢复（detail = {archived}） */
+    public static final String ARCHIVED = "archived";
     /** 指派/改派（detail = {from,to}，值为用户ID） */
     public static final String ASSIGNED = "assigned";
     /** MCP 工具调用（detail = {tool, scope, outcome}） */

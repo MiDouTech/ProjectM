@@ -22,5 +22,6 @@ public record ProjectVO(
         LocalDateTime pmoRegisteredAt,
         LocalDateTime createTime,
         Long deptId,
-        Integer requiresNpss) {
+        Integer requiresNpss,
+        Integer archived) {
 }

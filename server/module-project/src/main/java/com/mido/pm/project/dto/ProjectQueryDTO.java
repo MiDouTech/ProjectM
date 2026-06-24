@@ -6,5 +6,7 @@ public record ProjectQueryDTO(
         String category,
         String status,
         Long leaderId,
-        String keyword) {
+        String keyword,
+        // 归档过滤：null/0=仅在档（默认隐藏已归档），1=仅已归档
+        Integer archived) {
 }

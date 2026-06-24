@@ -65,6 +65,14 @@ public class ProjectService {
     /** 工作台「我参与的项目」上限 */
     private static final int MINE_LIMIT = 50;
 
+    /**
+     * 允许归档的状态：仅终态（已结案/已评价）可归档（对标 Worktile「关闭→归档」）。
+     * 进行中/审批中项目归档无意义且会丢失工作台可见性，故拒绝。
+     */
+    private static final Set<String> ARCHIVABLE = Set.of(
+            ProjectStatus.CLOSED.getCode(),
+            ProjectStatus.EVALUATED.getCode());
+
     private final PmProjectMapper projectMapper;
     private final PmProjectMemberMapper memberMapper;
     private final DomainEventPublisher eventPublisher;
@@ -157,11 +165,14 @@ public class ProjectService {
         long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);
         Page<PmProject> page = new Page<>(pageNo, size);
+        // 归档过滤：默认（null/0）仅在档，archived=1 仅看已归档（对标 Worktile 归档分区）
+        int archivedFlag = Integer.valueOf(1).equals(query.archived()) ? 1 : 0;
         var wrapper = Wrappers.<PmProject>lambdaQuery()
                 .eq(StrUtil.isNotBlank(query.category()), PmProject::getCategory, query.category())
                 .eq(StrUtil.isNotBlank(query.status()), PmProject::getStatus, query.status())
                 .eq(query.leaderId() != null, PmProject::getLeaderId, query.leaderId())
                 .like(StrUtil.isNotBlank(query.keyword()), PmProject::getName, query.keyword())
+                .eq(PmProject::getArchived, archivedFlag)
                 .orderByDesc(PmProject::getId);
         // 数据范围(部门/本人 leader_id) ∪ 成员可见性(我参与的项目 id)
         Page<PmProject> result = DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
@@ -205,6 +216,43 @@ public class ProjectService {
         projectMapper.deleteById(id);
         // 发 project.deleted：目标域据此清理悬挂对齐链（与 task.deleted 对称），其它订阅方按需消费
         eventPublisher.publish(ProjectEvents.DELETED, basePayload(id).build());
+    }
+
+    /**
+     * 归档项目：仅终态（已结案/已评价）可归档；幂等（已归档再调直接返回）。
+     * 同事务发 {@code project.status.changed}（payload 带 archived=true）+ 审计（规则 3）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void archive(Long id) {
+        PmProject p = requireExists(id);
+        if (Integer.valueOf(1).equals(p.getArchived())) {
+            return;
+        }
+        if (!ARCHIVABLE.contains(p.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅「已结案/已评价」项目可归档");
+        }
+        setArchived(p, 1);
+    }
+
+    /** 恢复归档项目（回到在档列表，状态不变）；幂等。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void unarchive(Long id) {
+        PmProject p = requireExists(id);
+        if (!Integer.valueOf(1).equals(p.getArchived())) {
+            return;
+        }
+        setArchived(p, 0);
+    }
+
+    /** 归档标记落库 + 事件 + 审计（archive/unarchive 共用）。 */
+    private void setArchived(PmProject p, int archived) {
+        p.setArchived(archived);
+        projectMapper.updateById(p);
+        eventPublisher.publish(ProjectEvents.STATUS_CHANGED, basePayload(p.getId())
+                .add("status", p.getStatus())
+                .add("archived", archived == 1).build());
+        auditLogService.record(AuditActions.TARGET_PROJECT, p.getId(), AuditActions.ARCHIVED,
+                Map.of("archived", archived == 1));
     }
 
     /**
@@ -354,7 +402,7 @@ public class ProjectService {
                 p.getCategory(), p.getSubCategory(), p.getTemplateId(), p.getLeaderId(),
                 p.getStatus(), p.getBudget(), p.getActualCost(), p.getStartDate(), p.getEndDate(),
                 p.getValueReviewDueDate(), p.getPmoRegisteredAt(), p.getCreateTime(), p.getDeptId(),
-                p.getRequiresNpss());
+                p.getRequiresNpss(), p.getArchived());
     }
 
     /** 事件载荷构造（保序，允许 null 值）。 */
