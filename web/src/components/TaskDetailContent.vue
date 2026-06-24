@@ -9,6 +9,7 @@
         <h2 class="mido-h2">{{ task.title }}</h2>
         <StatusTag :status="task.status" />
         <el-button v-if="embedded" class="td__expand" link type="primary" :icon="TopRight" @click="openInPage">在新页打开</el-button>
+        <el-button v-if="task.id" link type="primary" :icon="EditPen" @click="openChange">发起变更</el-button>
       </div>
       <div class="td__meta mido-text-secondary">
         <span>负责人：{{ userName(task.assigneeId) }}</span>
@@ -101,6 +102,32 @@
         <el-button type="primary" :loading="saving" @click="addSub">添加</el-button>
       </template>
     </el-dialog>
+
+    <!-- 发起重大任务变更：受控变更，走变更中心 + 审批引擎（按变更策略必审/免审） -->
+    <el-dialog v-model="changeOpen" title="发起重大任务变更" width="var(--mido-login-card-width)" append-to-body>
+      <el-form ref="changeRef" :model="changeForm" :rules="changeRules" :label-width="92">
+        <el-form-item label="变更事由" prop="reason">
+          <el-input v-model="changeForm.reason" type="textarea" :rows="2" placeholder="为什么要变更（留痕）" />
+        </el-form-item>
+        <el-form-item label="影响分析">
+          <el-input v-model="changeForm.impact" type="textarea" :rows="2" placeholder="对计划/干系人的影响（可选）" />
+        </el-form-item>
+        <el-divider>拟改值（仅填需变更项）</el-divider>
+        <el-form-item label="负责人">
+          <UserSelect v-model="changeForm.assigneeId" placeholder="改派负责人" />
+        </el-form-item>
+        <el-form-item label="开始日期">
+          <el-date-picker v-model="changeForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="新开始日期" />
+        </el-form-item>
+        <el-form-item label="截止日期">
+          <el-date-picker v-model="changeForm.dueDate" type="date" value-format="YYYY-MM-DD" placeholder="新截止日期" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="changeOpen = false">取消</el-button>
+        <el-button type="primary" :loading="changeSaving" @click="submitChange">提交变更</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -108,7 +135,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Flag, Plus, TopRight } from '@element-plus/icons-vue'
+import { Flag, Plus, TopRight, EditPen } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CommentThread from '@/components/CommentThread.vue'
 import ActivityTimeline from '@/components/ActivityTimeline.vue'
@@ -208,6 +235,36 @@ async function transition(s) {
   ElMessage.success(`已流转至「${s}」`)
   emit('changed')
   reload()
+}
+
+// 发起重大任务变更
+const changeOpen = ref(false)
+const changeSaving = ref(false)
+const changeRef = ref()
+const changeForm = reactive({ reason: '', impact: '', assigneeId: null, startDate: '', dueDate: '' })
+const changeRules = {
+  reason: [{ required: true, message: '请填写变更事由', trigger: 'blur' }],
+}
+function openChange() {
+  Object.assign(changeForm, {
+    reason: '', impact: '',
+    assigneeId: task.value.assigneeId ?? null,
+    startDate: task.value.startDate || '', dueDate: task.value.dueDate || '',
+  })
+  changeOpen.value = true
+}
+async function submitChange() {
+  await changeRef.value.validate()
+  changeSaving.value = true
+  try {
+    await taskApi.submitChange(task.value.id, { changeType: 'task_baseline', ...changeForm })
+    ElMessage.success('变更已提交')
+    changeOpen.value = false
+    emit('changed')
+    reload()
+  } finally {
+    changeSaving.value = false
+  }
 }
 async function addSub() {
   if (!subForm.title.trim()) return ElMessage.warning('请输入标题')

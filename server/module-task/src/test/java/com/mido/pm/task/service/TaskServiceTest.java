@@ -65,7 +65,7 @@ class TaskServiceTest {
         // 任务归属部门 = 所属项目部门（数据范围用）
         when(projectService.get(9L)).thenReturn(new com.mido.pm.project.dto.ProjectVO(
                 9L, null, null, null, "O", null, null, null, "进行中",
-                null, null, null, null, null, null, null, 55L, null));
+                null, null, null, null, null, null, null, 55L, null, null));
         ArgumentCaptor<PmTask> captor = ArgumentCaptor.forClass(PmTask.class);
 
         service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null));

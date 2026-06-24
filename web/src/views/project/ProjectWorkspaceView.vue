@@ -13,6 +13,7 @@
           <span class="mido-text-secondary">下一步：</span>
           <el-button v-for="c in nextSteps" :key="c.label" type="primary" @click="c.run">{{ c.label }}</el-button>
         </div>
+        <el-button v-if="project.id" :icon="EditPen" @click="openChange">发起变更</el-button>
         <el-button v-if="canArchive" :icon="Box" @click="runArchive">归档</el-button>
         <el-button v-if="project.archived === 1" :icon="RefreshLeft" @click="runUnarchive">恢复</el-button>
       </div>
@@ -54,16 +55,39 @@
           :entity-id="projectId" :user-name="userName" />
       </section>
     </div>
+
+    <!-- 发起项目时间变更：受控变更，走变更中心 + 审批引擎（按变更策略必审/免审） -->
+    <el-dialog v-model="changeOpen" title="发起项目时间变更" width="var(--mido-login-card-width)">
+      <el-form ref="changeRef" :model="changeForm" :rules="changeRules" :label-width="92">
+        <el-form-item label="变更事由" prop="reason">
+          <el-input v-model="changeForm.reason" type="textarea" :rows="2" placeholder="为什么要调整工期（留痕）" />
+        </el-form-item>
+        <el-form-item label="影响分析">
+          <el-input v-model="changeForm.impact" type="textarea" :rows="2" placeholder="对范围/里程碑/干系人的影响（可选）" />
+        </el-form-item>
+        <el-divider>拟改值（仅填需变更项）</el-divider>
+        <el-form-item label="开始日期">
+          <el-date-picker v-model="changeForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="新开始日期" />
+        </el-form-item>
+        <el-form-item label="结束日期">
+          <el-date-picker v-model="changeForm.endDate" type="date" value-format="YYYY-MM-DD" placeholder="新结束日期" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="changeOpen = false">取消</el-button>
+        <el-button type="primary" :loading="changeSaving" @click="submitChange">提交变更</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Odometer, InfoFilled, Tickets, Aim, User,
-  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft,
+  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft, EditPen,
 } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -150,6 +174,34 @@ async function runUnarchive() {
   await projectApi.unarchive(projectId.value)
   ElMessage.success('已恢复')
   await reload()
+}
+
+// 发起项目时间变更
+const changeOpen = ref(false)
+const changeSaving = ref(false)
+const changeRef = ref()
+const changeForm = reactive({ reason: '', impact: '', startDate: '', endDate: '' })
+const changeRules = {
+  reason: [{ required: true, message: '请填写变更事由', trigger: 'blur' }],
+}
+function openChange() {
+  Object.assign(changeForm, {
+    reason: '', impact: '',
+    startDate: project.value.startDate || '', endDate: project.value.endDate || '',
+  })
+  changeOpen.value = true
+}
+async function submitChange() {
+  await changeRef.value.validate()
+  changeSaving.value = true
+  try {
+    await projectApi.submitChange(projectId.value, { changeType: 'project_schedule', ...changeForm })
+    ElMessage.success('变更已提交')
+    changeOpen.value = false
+    await reload()
+  } finally {
+    changeSaving.value = false
+  }
 }
 
 async function reload() {

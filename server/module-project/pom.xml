@@ -33,5 +33,10 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-goal</artifactId>
         </dependency>
+        <!-- 受控变更：发起项目时间变更走变更中心 + 实现 ChangeApplier 回写自身（project→change，不成环） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-change</artifactId>
+        </dependency>
     </dependencies>
 </project>

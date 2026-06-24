@@ -16,6 +16,9 @@ export const taskApi = {
   kanban: (projectId) => request.get('/tasks/kanban', { params: { projectId } }),
   // 活动日志（分页倒序）：params { page, size }
   activities: (id, params) => request.get(`/tasks/${id}/activities`, { params }),
+  // 发起重大任务变更（受控，走变更中心+审批引擎）/ 本任务变更历史
+  submitChange: (id, data) => request.post(`/tasks/${id}/changes`, data),
+  changes: (id) => request.get(`/tasks/${id}/changes`),
   // 批量操作：每条后端各自发领域事件；批量改状态逐条校验工作流，任一非法整批回滚
   batchTransition: (ids, targetStatus) => request.post('/tasks/batch/transition', { ids, targetStatus }),
   batchAssign: (ids, assigneeId) => request.post('/tasks/batch/assignee', { ids, assigneeId }),
