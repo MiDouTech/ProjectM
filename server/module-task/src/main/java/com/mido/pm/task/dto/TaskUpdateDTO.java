@@ -11,5 +11,7 @@ public record TaskUpdateDTO(
         LocalDate startDate,
         LocalDate dueDate,
         Integer isMilestone,
-        String description) {
+        String description,
+        /** 循环规则（紧凑 JSON，见 TaskRecurrence）；改规则后可调用生成端点补齐实例。 */
+        String recurRule) {
 }

@@ -80,6 +80,25 @@
           （成功 {{ pmo.success }} / 混合 {{ pmo.mixed }} / 失败 {{ pmo.failure }}）</span>
       </div>
     </el-card>
+
+    <!-- 人员负荷（对标 Worktile 人员报表）：数据范围内按负责人聚合在办/逾期 -->
+    <el-card shadow="never" class="rpt__block">
+      <div class="mido-h2">人员负荷（在办任务）</div>
+      <el-table v-if="workload.length" :data="workload" stripe>
+        <el-table-column label="负责人" min-width="160">
+          <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
+        </el-table-column>
+        <el-table-column label="在办任务" width="120" align="right">
+          <template #default="{ row }"><span class="mido-mono">{{ row.inProgress }}</span></template>
+        </el-table-column>
+        <el-table-column label="其中逾期" width="120" align="right">
+          <template #default="{ row }">
+            <span class="mido-mono" :class="{ 'rpt__num--warn': row.overdue > 0 }">{{ row.overdue }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-else description="数据范围内暂无在办任务" :image-size="60" />
+    </el-card>
   </div>
 </template>
 
@@ -89,6 +108,7 @@ import G2Chart from '@/components/G2Chart.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { reportApi } from '@/api/npss'
 import { projectApi } from '@/api/project'
+import { fetchMembers } from '@/api/org'
 
 const CATEGORY_LABEL = { S: '战略级', I: '创新级', O: '运营级' }
 
@@ -98,6 +118,11 @@ const projects = ref([])
 const projectId = ref(null)
 const burndownData = ref([])
 const health = ref(null)
+const workload = ref([])
+
+const users = ref([])
+const userMap = computed(() => Object.fromEntries(users.value.map((u) => [u.id, u.name])))
+const userName = (id) => userMap.value[id] || (id ? `用户#${id}` : '—')
 
 const nowYear = new Date().getFullYear()
 const years = Array.from({ length: 5 }, (_, i) => nowYear - i)
@@ -130,12 +155,16 @@ const burndownOption = computed(() => ({
 async function load() {
   loading.value = true
   try {
-    const [overview, page] = await Promise.all([
+    const [overview, page, wl, members] = await Promise.all([
       reportApi.overview(),
       projectApi.query({ page: 1, size: 200 }),
+      reportApi.workload(),
+      fetchMembers(),
     ])
     ov.value = overview
     projects.value = page.list || []
+    workload.value = wl || []
+    users.value = members || []
   } finally {
     loading.value = false
   }

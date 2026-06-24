@@ -32,6 +32,7 @@
         <module>module-change</module>
         <module>module-cost</module>
         <module>module-collab</module>
+        <module>module-field</module>
         <module>module-doc</module>
         <module>module-view</module>
         <module>module-report</module>
@@ -122,6 +123,11 @@
             <dependency>
                 <groupId>com.mido.pm</groupId>
                 <artifactId>module-collab</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mido.pm</groupId>
+                <artifactId>module-field</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

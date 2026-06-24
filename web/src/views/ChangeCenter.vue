@@ -66,7 +66,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
-import { changeApi, CHANGE_STATUS, CHANGE_TYPES } from '@/api/change'
+import { changeApi, CHANGE_STATUS, CHANGE_TYPES, CHANGE_BIZ_LABEL, CHANGE_FIELD_LABEL } from '@/api/change'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf, formatDateTime } from '@/utils/display'
 
@@ -80,16 +80,10 @@ const status = ref('')
 const detailOpen = ref(false)
 const current = ref({})
 
-// 变更字段中文标签（与目标基线字段对应）
-const FIELD_LABEL = {
-  title: '标题', ownerId: '负责人', period: '周期',
-  metricUnit: '单位', metricStart: '指标起点', metricTarget: '指标目标',
-}
-
 const userName = (id) => nameOf(users.value, id)
 const changeTypeLabel = (t) => CHANGE_TYPES.find((x) => x.value === t)?.label || t
 const statusLabel = (s) => CHANGE_STATUS.find((x) => x.value === s)?.label || s
-const bizLabel = (b) => (b === 'goal' ? '目标' : b)
+const bizLabel = (b) => CHANGE_BIZ_LABEL[b] || b
 const fmt = (v) => formatDateTime(v) || '—'
 
 // before→after：以 after_payload 的改动字段为准，对照 before_snapshot
@@ -97,7 +91,7 @@ const diff = computed(() => {
   const before = parse(current.value.beforeSnapshot)
   const after = parse(current.value.afterPayload)
   return Object.keys(after).map((k) => ({
-    label: FIELD_LABEL[k] || k,
+    label: CHANGE_FIELD_LABEL[k] || k,
     before: fmtVal(k, before[k]),
     after: fmtVal(k, after[k]),
   }))
@@ -109,7 +103,7 @@ function parse(json) {
 }
 function fmtVal(key, v) {
   if (v == null || v === '') return '—'
-  if (key === 'ownerId') return userName(v)
+  if (key === 'ownerId' || key === 'assigneeId') return userName(v)
   return v
 }
 

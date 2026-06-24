@@ -12,6 +12,12 @@ export const projectApi = {
   remove: (id) => request.delete(`/projects/${id}`),
   // 手动流转：仅用户态 进行中/结果验收/已结案；注册等系统态由审批驱动
   transition: (id, data) => request.post(`/projects/${id}/transition`, data),
+  // 归档（仅已结案/已评价）/ 恢复：对标 Worktile「关闭→归档」
+  archive: (id) => request.post(`/projects/${id}/archive`),
+  unarchive: (id) => request.post(`/projects/${id}/unarchive`),
+  // 发起项目时间变更（受控，走变更中心+审批引擎）/ 本项目变更历史
+  submitChange: (id, data) => request.post(`/projects/${id}/changes`, data),
+  changes: (id) => request.get(`/projects/${id}/changes`),
   members: (id) => request.get(`/projects/${id}/members`),
   addMember: (id, data) => request.post(`/projects/${id}/members`, data),
   removeMember: (id, memberId) => request.delete(`/projects/${id}/members/${memberId}`),

@@ -10,6 +10,8 @@ public final class ProjectEvents {
     public static final String REGISTERED = "project.registered";
     public static final String CLOSED = "project.closed";
     public static final String DELETED = "project.deleted";
+    /** 项目字段值变更（含自定义字段） */
+    public static final String UPDATED = "project.updated";
 
     private ProjectEvents() {
     }

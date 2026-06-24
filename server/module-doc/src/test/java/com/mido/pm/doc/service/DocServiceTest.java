@@ -157,6 +157,44 @@ class DocServiceTest {
     }
 
     @Test
+    void createRejectsInvalidType() {
+        // 类型白名单校验先于父节点权限，故无需 mock
+        assertThrows(BizException.class,
+                () -> service.create(new DocCreateDTO(7L, 0L, "sheet", "x", null)));
+        verify(docMapper, org.mockito.Mockito.never()).insert(any(PmDoc.class));
+    }
+
+    @Test
+    void downloadUrlRejectsNonFile() {
+        when(docMapper.selectById(1L)).thenReturn(doc(1L, PmDoc.TYPE_DOC)); // 非 file 节点
+        assertThrows(BizException.class, () -> service.downloadUrl(1L));
+    }
+
+    @Test
+    void versionContentRejectsMissing() {
+        when(versionMapper.selectById(999L)).thenReturn(null);
+        assertThrows(BizException.class, () -> service.versionContent(999L));
+    }
+
+    @Test
+    void rollbackRejectsMissingVersion() {
+        when(docMapper.selectById(1L)).thenReturn(doc(1L, PmDoc.TYPE_DOC));
+        when(versionMapper.selectById(50L)).thenReturn(null);
+        assertThrows(BizException.class, () -> service.rollback(1L, 50L));
+        verify(versionMapper, org.mockito.Mockito.never()).insert(any(PmDocVersion.class));
+    }
+
+    @Test
+    void rollbackRejectsVersionOfAnotherDoc() {
+        when(docMapper.selectById(1L)).thenReturn(doc(1L, PmDoc.TYPE_DOC));
+        PmDocVersion src = new PmDocVersion();
+        src.setId(50L);
+        src.setDocId(2L); // 属于另一个文档
+        when(versionMapper.selectById(50L)).thenReturn(src);
+        assertThrows(BizException.class, () -> service.rollback(1L, 50L));
+    }
+
+    @Test
     void searchMatchesTitle() {
         PmDoc d = doc(1L, PmDoc.TYPE_DOC); // title 设计说明
         when(docMapper.selectList(any())).thenReturn(List.of(d));

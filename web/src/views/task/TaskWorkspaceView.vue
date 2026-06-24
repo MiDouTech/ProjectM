@@ -61,6 +61,9 @@
                 <template #default="{ row }">{{ priorityLabel(row.priority) }}</template>
               </el-table-column>
               <el-table-column label="截止" width="130" prop="dueDate" sortable />
+              <el-table-column v-for="c in cfColumns" :key="c.value" :label="c.def.name" min-width="120">
+                <template #default="{ row }">{{ formatCf(c, row.customFields) }}</template>
+              </el-table-column>
             </el-table>
           </el-collapse-item>
         </el-collapse>
@@ -137,7 +140,7 @@
     <TaskDetailDrawer v-model="detailOpen" :task-id="detailId" :project-id="projectId"
       :users="users" @changed="load" @open="openDetail" />
 
-    <ViewDesigner v-model="designerOpen" :project-id="projectId" @saved="loadViews" />
+    <ViewDesigner v-model="designerOpen" :project-id="projectId" :cf-fields="cfFieldList" @saved="loadViews" />
   </div>
 </template>
 
@@ -155,6 +158,7 @@ import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi } from '@/api/view'
+import { fieldDefApi, isCfRef, cfKey } from '@/api/field'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { isTaskOverdue, userName as nameOf } from '@/utils/display'
@@ -186,7 +190,30 @@ const users = ref([])
 const savedViews = ref([])
 const activeViewId = ref(null)
 const designerOpen = ref(false)
-const grouped = ref({ groupBy: null, groups: [] })
+const grouped = ref({ groupBy: null, groups: [], columns: [] })
+// 任务级自定义字段定义；列表用于透传给设计器（避免重复请求），map 用于视图 cf 列渲染
+const cfFieldList = ref([])
+const cfDefs = computed(() => Object.fromEntries(cfFieldList.value.map((d) => [d.fieldKey, d])))
+// 当前视图 columns 中的自定义字段列（cf:<key> 且定义存在）
+const cfColumns = computed(() => (grouped.value.columns || [])
+  .filter((c) => isCfRef(c) && cfDefs.value[cfKey(c)])
+  .map((c) => ({ value: c, key: cfKey(c), def: cfDefs.value[cfKey(c)] })))
+
+/** 按字段类型格式化 cf 原始值用于列表展示 */
+function formatCf(col, customFields) {
+  const raw = customFields ? customFields[col.key] : null
+  if (raw === null || raw === undefined || raw === '') return '—'
+  const def = col.def
+  if (def.type === 'checkbox') return raw === 'true' ? '是' : '否'
+  if (def.type === 'user') return userName(Number(raw))
+  if (def.type === 'select') return (def.options || []).find((o) => o.value === raw)?.label || raw
+  if (def.type === 'multi_select') {
+    let vals = []
+    try { vals = JSON.parse(raw) } catch { vals = [] }
+    return vals.map((v) => (def.options || []).find((o) => o.value === v)?.label || v).join('、') || '—'
+  }
+  return raw
+}
 
 const detailOpen = ref(false)
 const detailId = ref(null)
@@ -338,6 +365,12 @@ onMounted(async () => {
   users.value = members
   load()
   loadViews()
+  try {
+    cfFieldList.value = await fieldDefApi.list('task', true)
+  } catch {
+    cfFieldList.value = []
+    ElMessage.warning('自定义字段加载失败，视图自定义列可能不显示')
+  }
 })
 </script>
 

@@ -11,6 +11,7 @@
 | `project.registered` | PMO 注册完成 | 报表 |
 | `project.closed` | 结果验收达标结案 | 定时(设NPSS到点)、报表 |
 | `project.deleted` | 删除项目(逻辑删) | 目标(清理悬挂对齐)、报表、活动流 |
+| `project.updated` | 项目字段值变更（含自定义字段） | 报表、活动流、AI |
 | `project.budget.exceeded` | 实际成本 > 预算 | 消息(预警)、AI(风险·R) |
 
 ## 1.1 项目类型域 project_type.*
@@ -37,6 +38,7 @@
 | `task.assigned` | 指派/改派 | 消息 |
 | `task.status.changed` | 状态流转(含看板拖拽) | 报表、AI(风险) |
 | `task.deleted` | 删除任务(逻辑删，含批量) | 报表、活动流 |
+| `task.updated` | 任务字段值变更（含自定义字段） | 报表、活动流、AI |
 | `task.overdue` | 定时扫描逾期 | 消息(催办)、AI(风险) |
 | `task.milestone.reached` | 里程碑任务完成 | 报表、消息 |
 | `workhour.logged` | 登记/修改工时(预估/实际) | 报表(工时统计) |

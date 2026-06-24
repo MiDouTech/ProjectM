@@ -9,6 +9,7 @@ import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.task.domain.TaskRecurrence;
 import com.mido.pm.task.domain.TaskStatus;
 import com.mido.pm.task.domain.TaskWorkflow;
 import com.mido.pm.task.dto.KanbanColumnVO;
@@ -49,15 +50,17 @@ public class TaskService {
     private final DomainEventPublisher eventPublisher;
     private final AuditLogService auditLogService;
     private final ProjectService projectService;
+    private final RecurringTaskService recurringTaskService;
 
     public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
                        DomainEventPublisher eventPublisher, AuditLogService auditLogService,
-                       ProjectService projectService) {
+                       ProjectService projectService, RecurringTaskService recurringTaskService) {
         this.projectService = projectService;
         this.taskMapper = taskMapper;
         this.dependencyMapper = dependencyMapper;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
+        this.recurringTaskService = recurringTaskService;
     }
 
     /**
@@ -112,6 +115,9 @@ public class TaskService {
         task.setStartDate(dto.startDate());
         task.setDueDate(dto.dueDate());
         task.setIsMilestone(dto.isMilestone() == null ? 0 : dto.isMilestone());
+        // 校验并存循环规则（非法即抛 PARAM_ERROR；空白存 null）
+        TaskRecurrence recurrence = TaskRecurrence.parse(dto.recurRule());
+        task.setRecurRule(recurrence == null ? null : dto.recurRule());
         taskMapper.insert(task);
 
         eventPublisher.publish(TaskEvents.CREATED, payload(
@@ -121,6 +127,10 @@ public class TaskService {
                     "taskId", task.getId(), "assigneeId", task.getAssigneeId()));
         }
         auditLogService.record(AuditActions.TARGET_TASK, task.getId(), AuditActions.CREATED, null);
+        // 策略 A：建循环任务后于同事务内急切生成后续实例（无锚定日期则不生成）
+        if (recurrence != null) {
+            recurringTaskService.generate(task.getId());
+        }
         return task.getId();
     }
 
@@ -195,6 +205,9 @@ public class TaskService {
             task.setIsMilestone(dto.isMilestone());
         }
         task.setDescription(dto.description());
+        // 循环规则：校验后更新（空白置 null）；实例补齐由生成端点触发，避免改期意外批量建任务
+        TaskRecurrence recurrence = TaskRecurrence.parse(dto.recurRule());
+        task.setRecurRule(recurrence == null ? null : dto.recurRule());
         taskMapper.updateById(task);
 
         if (!changes.isEmpty()) {

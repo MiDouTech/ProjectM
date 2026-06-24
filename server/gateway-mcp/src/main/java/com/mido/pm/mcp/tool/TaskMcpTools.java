@@ -125,7 +125,8 @@ public class TaskMcpTools implements McpToolProvider {
                         McpToolSupport.optLocalDate(args, "startDate"),
                         McpToolSupport.optLocalDate(args, "dueDate"),
                         McpToolSupport.optInteger(args, "isMilestone"),
-                        McpToolSupport.optString(args, "description"));
+                        McpToolSupport.optString(args, "description"),
+                        null);
                 Long id = taskService.create(dto);
                 return McpToolSupport.ok(objectMapper, taskService.get(id));
             } catch (IllegalArgumentException e) {

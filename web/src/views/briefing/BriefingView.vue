@@ -148,7 +148,7 @@
     </div>
 
     <!-- 填报/查看 抽屉 -->
-    <el-drawer v-model="drawerVisible" :title="drawerTitle" size="520px">
+    <el-drawer v-model="drawerVisible" :title="drawerTitle" size="var(--mido-drawer-width)">
       <template v-if="currentTemplate">
         <div class="mido-briefing__period">
           周期：{{ form.periodKey }}
@@ -248,7 +248,7 @@
     </el-dialog>
 
     <!-- 指派成员 -->
-    <el-dialog v-model="assignDialogVisible" title="指派成员" width="420px">
+    <el-dialog v-model="assignDialogVisible" title="指派成员" width="480px">
       <el-select v-model="assignUserIds" multiple filterable placeholder="选择成员" style="width: 100%">
         <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
       </el-select>
@@ -575,6 +575,11 @@ onMounted(async () => {
 .mido-briefing {
   display: flex;
   height: 100%;
+  /* 与全站一致的「白卡浮于灰底」外框（对齐 el-card 视觉）：此前缺外框，整块边到边显得扁平、与其他页对比突兀 */
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--mido-radius-md);
+  overflow: hidden;
 }
 .mido-briefing__side {
   width: 200px;
@@ -641,13 +646,13 @@ onMounted(async () => {
   font-weight: 600;
 }
 .mido-card__icon.is-daily {
-  background: var(--el-color-success);
+  background: var(--mido-brief-daily);
 }
 .mido-card__icon.is-weekly {
-  background: var(--el-color-danger);
+  background: var(--mido-brief-weekly);
 }
 .mido-card__icon.is-monthly {
-  background: var(--el-color-primary);
+  background: var(--mido-brief-monthly);
 }
 .mido-card__name {
   font-size: 15px;

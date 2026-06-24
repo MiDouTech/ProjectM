@@ -17,7 +17,7 @@
       </el-form-item>
       <el-form-item label="展示列">
         <el-select v-model="form.columns" multiple collapse-tags placeholder="默认全部">
-          <el-option v-for="c in VIEW_COLUMNS" :key="c.value" :label="c.label" :value="c.value" />
+          <el-option v-for="c in columnOptions" :key="c.value" :label="c.label" :value="c.value" />
         </el-select>
       </el-form-item>
     </el-form>
@@ -41,7 +41,7 @@
     <div v-show="step === 1" class="vd__pane">
       <div v-for="(s, i) in form.sort" :key="i" class="vd__row">
         <el-select v-model="s.field" placeholder="字段" class="vd__f">
-          <el-option v-for="f in VIEW_SORT_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+          <el-option v-for="f in sortOptions" :key="f.value" :label="f.label" :value="f.value" />
         </el-select>
         <el-select v-model="s.dir" class="vd__d">
           <el-option label="升序" value="asc" /><el-option label="降序" value="desc" />
@@ -68,7 +68,7 @@
       </el-radio-group>
       <div v-for="(c, i) in form.conditions" :key="i" class="vd__row">
         <el-select v-model="c.field" placeholder="字段" class="vd__f">
-          <el-option v-for="f in VIEW_FILTER_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+          <el-option v-for="f in filterOptions" :key="f.value" :label="f.label" :value="f.value" />
         </el-select>
         <el-select v-model="c.op" placeholder="算子" class="vd__o">
           <el-option v-for="o in VIEW_OPS" :key="o.value" :label="o.label" :value="o.value" />
@@ -89,16 +89,19 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import {
   viewApi, VIEW_GROUP_FIELDS, VIEW_SORT_FIELDS, VIEW_FILTER_FIELDS, VIEW_OPS, VIEW_COLUMNS,
 } from '@/api/view'
+import { fieldDefApi, cfRef } from '@/api/field'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   projectId: { type: [Number, String], default: null },
+  // 父级已加载的任务级自定义字段定义；传入则复用，避免重复请求
+  cfFields: { type: Array, default: null },
 })
 const emit = defineEmits(['update:modelValue', 'saved'])
 
@@ -112,17 +115,34 @@ const TYPES = [
 
 const step = ref(0)
 const saving = ref(false)
+// 任务级自定义字段 → cf:<fieldKey> 选项，合并进展示列/排序/筛选
+const cfFields = ref([])
+const cfOptions = computed(() => cfFields.value.map((f) => ({ value: cfRef(f.fieldKey), label: `${f.name}（自定义）` })))
+const columnOptions = computed(() => [...VIEW_COLUMNS, ...cfOptions.value])
+const sortOptions = computed(() => [...VIEW_SORT_FIELDS, ...cfOptions.value])
+const filterOptions = computed(() => [...VIEW_FILTER_FIELDS, ...cfOptions.value])
 const form = reactive({
   name: '', type: 'list', scope: 'personal', columns: [],
   groupBy: '', sort: [], expandLevel: 1, logic: 'and', conditions: [],
 })
 
-function reset() {
+async function reset() {
   step.value = 0
   Object.assign(form, {
     name: '', type: 'list', scope: 'personal', columns: [],
     groupBy: '', sort: [], expandLevel: 1, logic: 'and', conditions: [],
   })
+  // 父级已传入则复用，否则按需拉取
+  if (props.cfFields) {
+    cfFields.value = props.cfFields
+    return
+  }
+  try {
+    cfFields.value = await fieldDefApi.list('task', true)
+  } catch {
+    cfFields.value = []
+    ElMessage.warning('自定义字段加载失败，本次仅显示内置字段')
+  }
 }
 
 function buildConfig() {

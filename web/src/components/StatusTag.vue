@@ -23,8 +23,8 @@ const STATUS_TYPE = {
   未开始: 'info', 已注册: 'info', 草稿: 'info', 已归档: 'info',
   // primary：进行中 / 价值验收中
   进行中: 'primary', 价值验收中: 'primary', 审批中: 'primary',
-  // warning：有风险 / 临期 / 结果验收中 / NPSS 混合
-  有风险: 'warning', 临期: 'warning', 结果验收中: 'warning', 结果验收: 'warning', 混合: 'warning',
+  // warning：有风险 / 临期 / 结果验收中 / NPSS 混合 / 字段必填（待回写 design-system §1.5 登记）
+  有风险: 'warning', 临期: 'warning', 结果验收中: 'warning', 结果验收: 'warning', 混合: 'warning', 必填: 'warning',
   // danger：逾期 / 阻塞 / 失败（NPSS）
   失败: 'danger',
   // danger：逾期 / 阻塞 / 失败

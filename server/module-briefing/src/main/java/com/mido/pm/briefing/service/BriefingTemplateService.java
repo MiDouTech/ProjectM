@@ -56,7 +56,7 @@ public class BriefingTemplateService {
         PmBriefingTemplate t = new PmBriefingTemplate();
         t.setName(dto.name());
         t.setType(dto.type());
-        t.setSchema(JSONUtil.toJsonStr(dto.fields() == null ? List.of() : dto.fields()));
+        t.setSchemaDef(JSONUtil.toJsonStr(dto.fields() == null ? List.of() : dto.fields()));
         t.setScope("tenant");
         t.setIsBuiltin(0);
         t.setStatus("active");
@@ -70,7 +70,7 @@ public class BriefingTemplateService {
         PmBriefingTemplate t = requireCustom(id);
         t.setName(dto.name());
         t.setType(dto.type());
-        t.setSchema(JSONUtil.toJsonStr(dto.fields() == null ? List.of() : dto.fields()));
+        t.setSchemaDef(JSONUtil.toJsonStr(dto.fields() == null ? List.of() : dto.fields()));
         templateMapper.updateById(t);
     }
 
@@ -176,7 +176,7 @@ public class BriefingTemplateService {
         PmBriefingTemplate t = new PmBriefingTemplate();
         t.setName(name);
         t.setType(type);
-        t.setSchema(schema);
+        t.setSchemaDef(schema);
         t.setScope("tenant");
         t.setIsBuiltin(1);
         t.setStatus("active");
@@ -184,7 +184,7 @@ public class BriefingTemplateService {
     }
 
     private BriefingTemplateVO toVO(PmBriefingTemplate t) {
-        return new BriefingTemplateVO(t.getId(), t.getName(), t.getType(), parseFields(t.getSchema()),
+        return new BriefingTemplateVO(t.getId(), t.getName(), t.getType(), parseFields(t.getSchemaDef()),
                 t.getIsBuiltin(), t.getStatus());
     }
 

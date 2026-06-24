@@ -68,6 +68,16 @@
 | `--mido-cat-i` | `#11A2C7` | 创新级 I（青，探索） |
 | `--mido-cat-o` | `#2BA471` | 运营级 O（绿，常规） |
 
+### 1.4b 简报类型色（daily/weekly/monthly，类型标注专用）
+
+| Token | 值 | 含义 |
+|---|---|---|
+| `--mido-brief-daily` | `#2BA471` | 日报（绿） |
+| `--mido-brief-weekly` | `#11A2C7` | 周报（青） |
+| `--mido-brief-monthly` | `#7C5CFF` | 月报（紫） |
+
+> 简报类型是「类型标注」，不得挪用 §1.2 语义状态色（danger 红会被误读为告警），也不挪用 §1.4 项目类型色（避免 S/I/O 语义混淆），故设独立 token。
+
 ### 1.5 状态映射表（系统级硬约定，所有状态标签据此着色）
 
 | 业务状态 | 色 token | Element Plus tag type |

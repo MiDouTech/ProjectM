@@ -13,6 +13,10 @@
         <el-select v-model="quickStatus" placeholder="状态" clearable class="pl__quick" @change="load">
           <el-option v-for="s in STATUSES" :key="s" :label="s" :value="s" />
         </el-select>
+        <el-select v-model="archivedView" class="pl__quick" @change="onArchivedChange">
+          <el-option label="在档" :value="0" />
+          <el-option label="已归档" :value="1" />
+        </el-select>
         <el-input v-model="keyword" placeholder="搜索名称/编码" clearable class="pl__search"
           :prefix-icon="Search" @keyup.enter="load" @clear="load" />
         <el-select v-model="sortField" placeholder="排序字段" clearable class="pl__quick" @change="resort">
@@ -147,6 +151,7 @@ const view = ref('list')
 
 const quickCategory = ref('')
 const quickStatus = ref('')
+const archivedView = ref(0)
 const keyword = ref('')
 const sortField = ref('createTime')
 const sortOrder = ref('desc')
@@ -176,6 +181,7 @@ async function load() {
       category: quickCategory.value || undefined,
       status: quickStatus.value || undefined,
       keyword: keyword.value || undefined,
+      archived: archivedView.value,
     })
     rows.value = res.list || []
     total.value = res.total || 0
@@ -185,6 +191,11 @@ async function load() {
 }
 function onPage(p) {
   page.value = p
+  load()
+}
+// 切换在档/已归档：结果集差异大，回到第 1 页
+function onArchivedChange() {
+  page.value = 1
   load()
 }
 function resort() { /* 计算属性自动重算 */ }

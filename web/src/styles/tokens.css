@@ -40,6 +40,11 @@
   --mido-cat-i: #11A2C7;
   --mido-cat-o: #2BA471;
 
+  /* ===== §1.4b 简报类型色（类型标注，不挪用语义状态色/项目类型色）===== */
+  --mido-brief-daily: #2BA471;
+  --mido-brief-weekly: #11A2C7;
+  --mido-brief-monthly: #7C5CFF;
+
   /* ===== §2 排版 Typography ===== */
   --mido-font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   --mido-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
