@@ -9,6 +9,7 @@ import com.mido.pm.field.entity.PmFieldDef;
 import com.mido.pm.field.entity.PmFieldValue;
 import com.mido.pm.field.mapper.PmFieldDefMapper;
 import com.mido.pm.field.mapper.PmFieldValueMapper;
+import com.mido.pm.common.outbox.DomainEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,11 +36,13 @@ class FieldValueServiceTest {
     private PmFieldDefMapper defMapper;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private DomainEventPublisher eventPublisher;
     private FieldValueService service;
 
     @BeforeEach
     void setUp() {
-        service = new FieldValueService(valueMapper, defMapper, auditLogService, new ObjectMapper());
+        service = new FieldValueService(valueMapper, defMapper, auditLogService, eventPublisher, new ObjectMapper());
     }
 
     private PmFieldDef def(Long id, String scope, String type, boolean required, String optionsJson) {
@@ -119,6 +122,7 @@ class FieldValueServiceTest {
         service.saveValues(write("task", 5L, 1L, "12.50"));
         verify(valueMapper).insert(any(PmFieldValue.class));
         verify(auditLogService).record(eq("task"), eq(5L), eq("updated"), any());
+        verify(eventPublisher).publish(eq("task.updated"), any());
     }
 
     @Test

@@ -16,6 +16,7 @@ import com.mido.pm.field.entity.PmFieldDef;
 import com.mido.pm.field.entity.PmFieldValue;
 import com.mido.pm.field.mapper.PmFieldDefMapper;
 import com.mido.pm.field.mapper.PmFieldValueMapper;
+import com.mido.pm.common.outbox.DomainEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
  *
  * <p>写入按字段类型校验（数值/日期/布尔/选项/多选/用户），必填字段提交空值即拒绝；
  * 值变更并入业务实体活动流（{@link AuditLogService}，action=updated, detail.changes=[{field,from,to}]），
- * 不新增 Outbox 事件名（遵循 docs/domain-events.md）。</p>
+ * 并在同一事务发布实体 updated 领域事件（task.updated/project.updated，取自 docs/domain-events.md）。</p>
  */
 @Service
 public class FieldValueService {
@@ -43,13 +44,16 @@ public class FieldValueService {
     private final PmFieldValueMapper valueMapper;
     private final PmFieldDefMapper defMapper;
     private final AuditLogService auditLogService;
+    private final DomainEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
     public FieldValueService(PmFieldValueMapper valueMapper, PmFieldDefMapper defMapper,
-                             AuditLogService auditLogService, ObjectMapper objectMapper) {
+                             AuditLogService auditLogService, DomainEventPublisher eventPublisher,
+                             ObjectMapper objectMapper) {
         this.valueMapper = valueMapper;
         this.defMapper = defMapper;
         this.auditLogService = auditLogService;
+        this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
     }
 
@@ -160,6 +164,9 @@ public class FieldValueService {
             // entityType 与 AuditActions.TARGET_TASK/TARGET_PROJECT 取值一致
             auditLogService.record(scope.getCode(), dto.entityId(), AuditActions.UPDATED,
                     Map.of("changes", changes));
+            // 同事务发布实体 updated 领域事件（Outbox），供报表/AI/活动流订阅
+            eventPublisher.publish(scope.getUpdatedEvent(),
+                    Map.of("entityType", scope.getCode(), "entityId", dto.entityId(), "changes", changes));
         }
     }
 
