@@ -71,6 +71,10 @@
         </dependency>
         <dependency>
             <groupId>com.mido.pm</groupId>
+            <artifactId>module-field</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mido.pm</groupId>
             <artifactId>module-doc</artifactId>
         </dependency>
         <dependency>

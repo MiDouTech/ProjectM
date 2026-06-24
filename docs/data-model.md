@@ -155,9 +155,20 @@ CREATE TABLE pm_view (
 -- config 仅承载查询配置(锁定 schema)：{groupBy, sort:[{field,dir}], expandLevel(1-5),
 --   filters:{logic:and|or, conditions:[{field,op,value}]}, columns:[field]}。详见 ViewConfig。
 
--- ========== 自定义字段 EAV ==========
-CREATE TABLE pm_field_def (id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), name VARCHAR(64), type VARCHAR(32));
-CREATE TABLE pm_field_value (id BIGINT PRIMARY KEY, tenant_id BIGINT, field_id BIGINT, entity_type VARCHAR(16), entity_id BIGINT, value TEXT, KEY idx_entity(entity_type,entity_id));
+-- ========== 自定义字段 EAV ==========（实现见 V47；取代 pm_task.custom_fields 列，旧列弃用留存）
+-- type: text/number/date/select/multi_select/checkbox/user；select/multi_select 选项存 options(JSON [{value,label}])。
+-- field_key 在(tenant_id,scope)内唯一（由 Service 校验，停用/逻辑删后可重建，故不建 DB 唯一键）。
+CREATE TABLE pm_field_def (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), field_key VARCHAR(64), name VARCHAR(64),
+  type VARCHAR(32), options JSON, required TINYINT DEFAULT 0, sort_no INT DEFAULT 0, enabled TINYINT DEFAULT 1,
+  KEY idx_scope(tenant_id, scope, enabled)
+);
+-- entity_type: task/project；每个(entity_type,entity_id,field_id)至多一行有效值，upsert 由 Service 保证。
+-- value 统一文本存储，多选/用户型存 JSON 字符串。值变更并入业务实体活动流(AuditLog)，不新增 Outbox 事件。
+CREATE TABLE pm_field_value (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT, field_id BIGINT, entity_type VARCHAR(16), entity_id BIGINT,
+  value TEXT, KEY idx_entity(entity_type,entity_id), KEY idx_field(field_id)
+);
 
 -- ========== 协作域 ==========
 CREATE TABLE pm_comment (id BIGINT PRIMARY KEY, tenant_id BIGINT, entity_type VARCHAR(16), entity_id BIGINT, user_id BIGINT, content TEXT, mention JSON, KEY idx_entity(entity_type,entity_id));
