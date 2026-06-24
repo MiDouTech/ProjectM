@@ -4,11 +4,14 @@ import com.mido.pm.common.api.R;
 import com.mido.pm.report.dto.BurndownVO;
 import com.mido.pm.report.dto.MetricsOverviewVO;
 import com.mido.pm.report.dto.ProjectHealthVO;
+import com.mido.pm.report.dto.WorkloadItemVO;
 import com.mido.pm.report.service.ReportMetricsService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /** 项目/任务度量（只读，数据范围由全局拦截器约束）。 */
 @RestController
@@ -37,5 +40,11 @@ public class ReportMetricsController {
     @GetMapping("/project-health")
     public R<ProjectHealthVO> projectHealth(@RequestParam Long projectId) {
         return R.ok(metricsService.projectHealth(projectId));
+    }
+
+    /** 人员负荷：按负责人聚合在办/逾期任务数（数据范围内），负荷降序。 */
+    @GetMapping("/workload")
+    public R<List<WorkloadItemVO>> workload() {
+        return R.ok(metricsService.workload());
     }
 }

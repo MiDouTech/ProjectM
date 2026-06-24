@@ -10,6 +10,7 @@ import com.mido.pm.report.dto.BurndownVO.BurndownPoint;
 import com.mido.pm.report.dto.MetricsOverviewVO;
 import com.mido.pm.report.dto.MetricsOverviewVO.CategoryCount;
 import com.mido.pm.report.dto.ProjectHealthVO;
+import com.mido.pm.report.dto.WorkloadItemVO;
 import com.mido.pm.report.mapper.ReportMapper;
 import com.mido.pm.project.service.ProjectService;
 import org.springframework.stereotype.Service;
@@ -60,6 +61,13 @@ public class ReportMetricsService {
         return new BurndownVO(total, points);
     }
 
+    /** 人员负荷：按负责人聚合在办/逾期任务数（数据范围内），负荷降序。供报表「人员负荷」卡。 */
+    public List<WorkloadItemVO> workload() {
+        return scopedTask(reportMapper::workloadByAssignee).stream()
+                .map(m -> new WorkloadItemVO(lngObj(m, "assigneeId"), lng(m, "inProgress"), lng(m, "overdue")))
+                .toList();
+    }
+
     public ProjectHealthVO projectHealth(Long projectId) {
         Map<String, Object> t = scopedTask(() -> reportMapper.taskCountsByProject(projectId));
         long total = lng(t, "total");
@@ -96,6 +104,12 @@ public class ReportMetricsService {
     private static long lng(Map<String, Object> m, String key) {
         Object v = m == null ? null : m.get(key);
         return v instanceof Number n ? n.longValue() : 0L;
+    }
+
+    /** 取 Long（可空，如 assignee_id）：无值返回 null，避免 0 误判为某用户。 */
+    private static Long lngObj(Map<String, Object> m, String key) {
+        Object v = m == null ? null : m.get(key);
+        return v instanceof Number n ? n.longValue() : null;
     }
 
     private static BigDecimal big(Map<String, Object> m, String key) {

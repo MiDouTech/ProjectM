@@ -13,6 +13,8 @@ export const reportApi = {
   overview: () => request.get('/reports/metrics/overview'),
   burndown: (projectId) => request.get('/reports/metrics/burndown', { params: { projectId } }),
   projectHealth: (projectId) => request.get('/reports/metrics/project-health', { params: { projectId } }),
+  // 人员负荷：按负责人聚合在办/逾期任务数（数据范围内），负荷降序
+  workload: () => request.get('/reports/metrics/workload'),
 }
 
 /** result_level → 中文标签（着色由 StatusTag 统一）。 */

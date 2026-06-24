@@ -35,4 +35,13 @@ public interface ReportMapper {
             + "WHERE is_deleted = 0 AND project_id = #{projectId} AND due_date IS NOT NULL "
             + "GROUP BY due_date ORDER BY due_date")
     List<Map<String, Object>> dueBuckets(@Param("projectId") Long projectId);
+
+    /** 人员负荷：按负责人聚合未完成(进行中)任务数与其中逾期数；仅保留有在办任务的人，负荷降序。 */
+    @Select("SELECT assignee_id assigneeId, "
+            + "SUM(CASE WHEN status NOT IN ('已完成','已验收') THEN 1 ELSE 0 END) inProgress, "
+            + "SUM(CASE WHEN due_date IS NOT NULL AND due_date < CURDATE() "
+            + "         AND status NOT IN ('已完成','已验收') THEN 1 ELSE 0 END) overdue "
+            + "FROM pm_task WHERE is_deleted = 0 AND assignee_id IS NOT NULL "
+            + "GROUP BY assignee_id HAVING inProgress > 0 ORDER BY inProgress DESC")
+    List<Map<String, Object>> workloadByAssignee();
 }
