@@ -42,6 +42,7 @@ class TaskServiceTest {
     @Mock private DomainEventPublisher eventPublisher;
     @Mock private AuditLogService auditLogService;
     @Mock private com.mido.pm.project.service.ProjectService projectService;
+    @Mock private RecurringTaskService recurringTaskService;
     @InjectMocks private TaskService service;
 
     private PmTask task(String status) {
@@ -54,7 +55,7 @@ class TaskServiceTest {
 
     @Test
     void createEmitsCreatedOnly() {
-        service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null));
+        service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null, null));
         verify(taskMapper).insert(any(PmTask.class));
         verify(eventPublisher).publish(eq("task.created"), any());
         verify(eventPublisher, never()).publish(eq("task.assigned"), any());
@@ -68,7 +69,7 @@ class TaskServiceTest {
                 null, null, null, null, null, null, null, 55L, null, null));
         ArgumentCaptor<PmTask> captor = ArgumentCaptor.forClass(PmTask.class);
 
-        service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null));
+        service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null, null));
 
         verify(taskMapper).insert(captor.capture());
         assertEquals(55L, captor.getValue().getDeptId());
@@ -76,7 +77,7 @@ class TaskServiceTest {
 
     @Test
     void createWithAssigneeEmitsAssigned() {
-        service.create(new TaskCreateDTO("写文档", 9L, null, 100L, 1, null, null, null, 0, null));
+        service.create(new TaskCreateDTO("写文档", 9L, null, 100L, 1, null, null, null, 0, null, null));
         verify(eventPublisher).publish(eq("task.created"), any());
         verify(eventPublisher).publish(eq("task.assigned"), any());
     }
@@ -127,7 +128,7 @@ class TaskServiceTest {
         when(taskMapper.selectById(1L)).thenReturn(t);
 
         // 仅改标题，优先级不变
-        service.update(1L, new TaskUpdateDTO("新标题", 1, null, null, null, null, null));
+        service.update(1L, new TaskUpdateDTO("新标题", 1, null, null, null, null, null, null));
 
         ArgumentCaptor<Object> detail = ArgumentCaptor.forClass(Object.class);
         verify(auditLogService).record(eq("task"), eq(1L), eq(AuditActions.UPDATED), detail.capture());
@@ -153,7 +154,7 @@ class TaskServiceTest {
         when(taskMapper.selectBatchIds(any())).thenReturn(List.of(pred));
 
         assertThrows(BizException.class, () -> service.update(2L, new TaskUpdateDTO(
-                "后置", null, null, LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 8), null, null)));
+                "后置", null, null, LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 8), null, null, null)));
         verify(taskMapper, never()).updateById(any(PmTask.class));
     }
 
@@ -162,7 +163,7 @@ class TaskServiceTest {
         PmTask t = task("未开始");
         t.setTitle("标题");
         when(taskMapper.selectById(1L)).thenReturn(t);
-        service.update(1L, new TaskUpdateDTO("标题", null, null, null, null, null, null));
+        service.update(1L, new TaskUpdateDTO("标题", null, null, null, null, null, null, null));
         verify(auditLogService, never()).record(any(), any(), any(), any());
     }
 

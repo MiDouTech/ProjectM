@@ -15,6 +15,7 @@ import com.mido.pm.task.dto.TaskQueryDTO;
 import com.mido.pm.task.dto.TaskTransitionDTO;
 import com.mido.pm.task.dto.TaskUpdateDTO;
 import com.mido.pm.task.dto.TaskVO;
+import com.mido.pm.task.service.RecurringTaskService;
 import com.mido.pm.task.service.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,10 +36,13 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final RecurringTaskService recurringTaskService;
     private final AuditLogService auditLogService;
 
-    public TaskController(TaskService taskService, AuditLogService auditLogService) {
+    public TaskController(TaskService taskService, RecurringTaskService recurringTaskService,
+                          AuditLogService auditLogService) {
         this.taskService = taskService;
+        this.recurringTaskService = recurringTaskService;
         this.auditLogService = auditLogService;
     }
 
@@ -72,6 +76,12 @@ public class TaskController {
     public R<Void> delete(@PathVariable Long id) {
         taskService.delete(id);
         return R.ok();
+    }
+
+    /** 循环任务：按 recur_rule 补齐后续实例（幂等，可重复调用补齐下一批），返回本次新建数量。 */
+    @PostMapping("/{id}/recurrence/generate")
+    public R<Integer> generateRecurrence(@PathVariable Long id) {
+        return R.ok(recurringTaskService.generate(id));
     }
 
     /** 指派/改派。 */

@@ -15,5 +15,7 @@ public record TaskCreateDTO(
         LocalDate startDate,
         LocalDate dueDate,
         Integer isMilestone,
-        String description) {
+        String description,
+        /** 循环规则（紧凑 JSON，见 TaskRecurrence）；非空则建任务后急切生成实例。 */
+        String recurRule) {
 }
