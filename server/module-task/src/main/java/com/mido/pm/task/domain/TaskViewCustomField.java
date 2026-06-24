@@ -181,23 +181,23 @@ public final class TaskViewCustomField {
         }
     }
 
-    /** 多级排序比较器；null 值排末尾。 */
+    /** 多级排序比较器；null 值恒排末尾（不受升/降序影响）。 */
     public static Comparator<TaskVO> comparator(List<SortSpec> sorts, Map<String, String> cfTypes) {
         return (a, b) -> {
             for (SortSpec s : sorts) {
                 String hint = hintOf(s.field(), cfTypes);
                 String va = canonical(valueOf(a, s.field()), hint);
                 String vb = canonical(valueOf(b, s.field()), hint);
-                int cmp;
                 if (va == null && vb == null) {
-                    cmp = 0;
-                } else if (va == null) {
-                    cmp = 1; // null 末尾
-                } else if (vb == null) {
-                    cmp = -1;
-                } else {
-                    cmp = compare(va, vb, hint);
+                    continue;
                 }
+                if (va == null) {
+                    return 1; // null 恒末尾，方向无关
+                }
+                if (vb == null) {
+                    return -1;
+                }
+                int cmp = compare(va, vb, hint);
                 if (cmp != 0) {
                     return "desc".equalsIgnoreCase(s.dir()) ? -cmp : cmp;
                 }

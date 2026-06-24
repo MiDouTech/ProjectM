@@ -122,6 +122,16 @@ class TaskViewCustomFieldTest {
     }
 
     @Test
+    void comparatorDescKeepsNullsLast() {
+        TaskVO a = task(1L, "x", Map.of("level", "10"));
+        TaskVO b = task(2L, "x", Map.of("level", "2"));
+        TaskVO c = task(3L, "x", Map.of()); // 无值 → 降序也应末尾
+        List<TaskVO> list = new java.util.ArrayList<>(List.of(c, a, b));
+        list.sort(TaskViewCustomField.comparator(List.of(new SortSpec("cf:level", "desc")), cfTypes));
+        assertEquals(List.of(1L, 2L, 3L), list.stream().map(TaskVO::id).toList());
+    }
+
+    @Test
     void referencedKeysCollectsFromColumnsFiltersSort() {
         ViewConfig config = new ViewConfig(null,
                 List.of(new SortSpec("cf:due", "asc")), 1,
