@@ -646,13 +646,13 @@ onMounted(async () => {
   font-weight: 600;
 }
 .mido-card__icon.is-daily {
-  background: var(--el-color-success);
+  background: var(--mido-brief-daily);
 }
 .mido-card__icon.is-weekly {
-  background: var(--el-color-danger);
+  background: var(--mido-brief-weekly);
 }
 .mido-card__icon.is-monthly {
-  background: var(--el-color-primary);
+  background: var(--mido-brief-monthly);
 }
 .mido-card__name {
   font-size: 15px;
