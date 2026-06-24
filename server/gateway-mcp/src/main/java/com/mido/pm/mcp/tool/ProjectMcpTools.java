@@ -58,7 +58,8 @@ public class ProjectMcpTools implements McpToolProvider {
                         McpToolSupport.optString(args, "category"),
                         McpToolSupport.optString(args, "status"),
                         null,
-                        McpToolSupport.optString(args, "keyword"));
+                        McpToolSupport.optString(args, "keyword"),
+                        null);
                 return McpToolSupport.ok(objectMapper, projectService.page(query));
             } catch (IllegalArgumentException e) {
                 return McpToolSupport.error(e.getMessage());
