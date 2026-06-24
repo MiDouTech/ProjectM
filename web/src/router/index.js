@@ -79,6 +79,7 @@ const routes = [
           { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
           { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
           { path: 'change-policies', component: () => import('@/views/admin/ChangePolicyManage.vue') },
+          { path: 'fields', component: () => import('@/views/admin/FieldDefManage.vue') },
           { path: 'apikeys', component: () => import('@/views/admin/ApiKeyManage.vue') },
         ],
       },
