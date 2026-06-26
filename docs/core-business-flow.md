@@ -298,7 +298,7 @@ stateDiagram-v2
 | 1 | 结果验收（铁三角）无后端实现 | 可不证铁三角达标就流转结案，闸门虚设 | P0 | `module-verify` 骨架；`ProjectVerifyPane.vue:3-17` | 已验证 |
 | 2 | 自助改密/重置/登出 接口缺失 | 首登只能用默认密码 `Mido@2024` 且无法改 | P0 | `module-org`（无对应接口） | 已验证 |
 | 3 | 奖金未接入业务（无调用/不落库/不展示） | NPSS→奖金闭环断 | P1 | `BonusCalculator:30-43`（仅自身+测试引用） | 已验证 |
-| 4 | `dueForValueReview` 未过滤 `requiresNpss` | 不走 NPSS 的项目（如 O·定向整改）也被定时唤醒 | P1 | `ProjectService:163-169` | 已验证 |
+| 4 | ~~`dueForValueReview` 未过滤 `requiresNpss`~~ **（误判已撤销）** | 复核 `ProjectService:328-332`：结案时仅对 NPSS 项目写 `value_review_due_date`，扫描按 `isNotNull` 过滤，非 NPSS 项目天然不被唤醒——**无此 bug** | — | `ProjectService:328-332` | 已更正 |
 | 5 | 项目级 `pm_workflow` 仅建表无代码 | 项目无法自定义状态流 | P1 | 仅 `V1`/`V59` 迁移与 task 域硬编码 | 已验证 |
 | 6 | `TenantContextFilter` 占位固定 tenant=1 | 依赖过滤器顺序，脆弱 | P1 | `TenantContextFilter:29-30` | 已验证 |
 | 7 | 项目模板只读、无编辑接口/管理页 | 租户只能用内置 5 套 | P2 | `ProjectTemplateController`（仅查询） | 已验证 |
