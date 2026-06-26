@@ -20,6 +20,10 @@
             <el-switch v-model="element.enabled" />
             <span class="wn__code mido-mono mido-text-secondary">{{ element.componentCode }}</span>
             <el-input v-model="element.displayName" :placeholder="element.defaultName" class="wn__name" />
+            <el-select v-model="element.parentCode" clearable placeholder="二级（无父级）" class="wn__parent">
+              <el-option v-for="p in parentOptions(element.componentCode)" :key="p.componentCode"
+                :label="p.displayName || p.defaultName" :value="p.componentCode" />
+            </el-select>
           </div>
         </template>
       </draggable>
@@ -59,14 +63,19 @@ function merge(catalog, config) {
   ;(config || []).forEach((cfg) => {
     const def = byCode.get(cfg.componentCode)
     if (!def) return
-    out.push({ componentCode: def.code, defaultName: def.name, displayName: cfg.displayName || '', enabled: cfg.enabled !== false })
+    out.push({ componentCode: def.code, defaultName: def.name, displayName: cfg.displayName || '', parentCode: cfg.parentCode || '', enabled: cfg.enabled !== false })
     seen.add(def.code)
   })
   catalog.forEach((def) => {
     if (seen.has(def.code)) return
-    out.push({ componentCode: def.code, defaultName: def.name, displayName: '', enabled: true })
+    out.push({ componentCode: def.code, defaultName: def.name, displayName: '', parentCode: '', enabled: true })
   })
   return out
+}
+
+// 可作父级的项：自身为二级（无父级）且非自己（保持一级嵌套）
+function parentOptions(selfCode) {
+  return rows.value.filter((r) => r.componentCode !== selfCode && !r.parentCode)
 }
 
 async function load() {
@@ -94,6 +103,7 @@ async function save() {
   try {
     const items = rows.value.map((r) => ({
       componentCode: r.componentCode,
+      parentCode: r.parentCode || null,
       displayName: r.displayName?.trim() || null,
       enabled: r.enabled,
     }))
@@ -145,5 +155,8 @@ load()
 }
 .wn__name {
   flex: 1;
+}
+.wn__parent {
+  width: 180px;
 }
 </style>

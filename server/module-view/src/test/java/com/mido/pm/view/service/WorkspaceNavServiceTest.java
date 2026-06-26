@@ -78,6 +78,23 @@ class WorkspaceNavServiceTest {
     }
 
     @Test
+    void resolve_buildsChildrenTree_forParentCode() {
+        PmModuleNav parent = new PmModuleNav();
+        parent.setModule("project"); parent.setComponentCode("projects"); parent.setSort(0); parent.setEnabled(1);
+        PmModuleNav child = new PmModuleNav();
+        child.setModule("project"); child.setComponentCode("portfolios"); child.setParentCode("projects");
+        child.setSort(1); child.setEnabled(1);
+        when(navMapper.selectList(any())).thenReturn(List.of(parent, child));
+
+        List<NavNodeVO> nav = service().resolve("project");
+        // 顶级仅 projects，portfolios 作为其子菜单
+        assertEquals(1, nav.size());
+        assertEquals("projects", nav.get(0).code());
+        assertEquals(1, nav.get(0).children().size());
+        assertEquals("portfolios", nav.get(0).children().get(0).code());
+    }
+
+    @Test
     void resolve_disabledItem_hidden() {
         PmModuleNav a = new PmModuleNav();
         a.setModule("project"); a.setComponentCode("projects"); a.setSort(0); a.setEnabled(1);
