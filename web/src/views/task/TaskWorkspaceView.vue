@@ -227,7 +227,11 @@ const userName = (id) => nameOf(users.value, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
 const isOverdue = (t) => isTaskOverdue(t)
 // 注入看板的跨列移动合法性（默认工作流）；KanbanBoard 本身保持域无关
-const canMove = (from, to, el) => (TASK_TRANSITIONS[el?.status] || []).includes(to)
+// 默认工作流状态用前端预判；自定义状态(不在默认表)放行拖拽，由后端工作流引擎校验
+const canMove = (from, to, el) => {
+  const allowed = TASK_TRANSITIONS[el?.status]
+  return allowed ? allowed.includes(to) : true
+}
 
 // 列表树：扁平任务 → parentId 归并。children 仅在有子任务时惰性创建，叶子不带该键（避免多余展开箭头）
 const tree = computed(() => {

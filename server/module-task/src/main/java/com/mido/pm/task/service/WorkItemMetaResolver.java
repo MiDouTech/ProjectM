@@ -45,6 +45,13 @@ public class WorkItemMetaResolver {
         return types.isEmpty() ? null : types.get(0).getId();
     }
 
+    /** 当前租户启用状态（按 sort 升序），供看板列/着色由状态库驱动；未配置返回空。 */
+    public List<PmStatus> activeStatuses() {
+        return statusMapper.selectList(Wrappers.<PmStatus>lambdaQuery()
+                .eq(PmStatus::getStatus, "active")
+                .orderByAsc(PmStatus::getSort).orderByAsc(PmStatus::getId));
+    }
+
     /** 当前租户「已完成」元类别的全部状态 id（供报表/汇总按元类别判定完成；未种子返回空）。 */
     public List<Long> doneStatusIds() {
         return statusMapper.selectList(Wrappers.<PmStatus>lambdaQuery()

@@ -72,6 +72,30 @@ class TaskServiceTest {
     }
 
     @Test
+    void kanbanUsesStatusLibraryWhenConfigured() {
+        com.mido.pm.task.entity.PmStatus s1 = new com.mido.pm.task.entity.PmStatus();
+        s1.setName("待办");
+        s1.setColor("info");
+        s1.setMetaCategory("未开始");
+        com.mido.pm.task.entity.PmStatus s2 = new com.mido.pm.task.entity.PmStatus();
+        s2.setName("处理中");
+        s2.setColor("primary");
+        s2.setMetaCategory("进行中");
+        when(metaResolver.activeStatuses()).thenReturn(List.of(s1, s2));
+        PmTask t = task("处理中");
+        when(taskMapper.selectList(any())).thenReturn(List.of(t));
+
+        List<KanbanColumnVO> columns = service.kanban(9L);
+
+        assertEquals(2, columns.size());
+        assertEquals("待办", columns.get(0).status());
+        assertEquals("info", columns.get(0).color());
+        assertEquals("处理中", columns.get(1).status());
+        assertEquals("primary", columns.get(1).color());
+        assertEquals(1, columns.get(1).tasks().size());
+    }
+
+    @Test
     void createEmitsCreatedOnly() {
         service.create(new TaskCreateDTO("写文档", 9L, null, null, 1, null, null, null, 0, null, null));
         verify(taskMapper).insert(any(PmTask.class));

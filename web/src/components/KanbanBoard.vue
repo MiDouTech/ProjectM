@@ -4,7 +4,7 @@
   <div class="kb">
     <div v-for="col in columns" :key="col.status" class="kb__col">
       <header class="kb__head">
-        <span class="kb__status"><StatusTag :status="col.status" /></span>
+        <span class="kb__status"><StatusTag :status="col.status" :color="col.color" /></span>
         <span class="kb__count">{{ col.tasks.length }}</span>
       </header>
       <draggable :list="col.tasks" :group="group" item-key="id" :data-status="col.status"

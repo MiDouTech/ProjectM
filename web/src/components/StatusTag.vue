@@ -14,7 +14,12 @@ const props = defineProps({
   // 可选展示文案覆盖：用于 active 等同码在不同上下文语义不同的场景
   // （租户 active=正式，套餐/账号 active=启用）。不传则用内置映射。
   label: { type: String, default: '' },
+  // 可选着色 token（来自状态库等租户配置，data-driven 而非页面写死）：
+  // 传入合法 Element Plus tag type 时优先生效，使自定义状态按状态库颜色显示。
+  color: { type: String, default: '' },
 })
+
+const TAG_TYPES = ['info', 'primary', 'success', 'warning', 'danger']
 
 // design-system §1.5 状态映射表（业务状态 → Element Plus tag type）。
 // 含 data-model.md 生命周期状态，按 §1.5 五个语义桶归类；未知状态回落 info。
@@ -73,6 +78,7 @@ const STATUS_LABEL = {
   submitted: '已提交',
 }
 
-const tagType = computed(() => STATUS_TYPE[props.status] || 'info')
+const tagType = computed(() =>
+  (TAG_TYPES.includes(props.color) ? props.color : null) || STATUS_TYPE[props.status] || 'info')
 const label = computed(() => props.label || STATUS_LABEL[props.status] || props.status)
 </script>

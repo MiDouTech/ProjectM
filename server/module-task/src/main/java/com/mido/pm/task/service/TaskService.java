@@ -324,11 +324,22 @@ public class TaskService {
         List<PmTask> tasks = taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
                 .eq(PmTask::getProjectId, projectId).orderByDesc(PmTask::getId));
         List<KanbanColumnVO> columns = new java.util.ArrayList<>();
-        for (TaskStatus s : TaskStatus.values()) {
-            List<TaskVO> cards = tasks.stream()
-                    .filter(t -> s.getCode().equals(t.getStatus()))
-                    .map(this::toVO).toList();
-            columns.add(new KanbanColumnVO(s.getCode(), cards));
+        // 翻转读方：列与颜色由状态库驱动（按 sort 排序，含自定义状态）；未配置状态库则回落 TaskStatus 枚举
+        List<com.mido.pm.task.entity.PmStatus> lib = metaResolver.activeStatuses();
+        if (lib != null && !lib.isEmpty()) {
+            for (com.mido.pm.task.entity.PmStatus s : lib) {
+                List<TaskVO> cards = tasks.stream()
+                        .filter(t -> s.getName().equals(t.getStatus()))
+                        .map(this::toVO).toList();
+                columns.add(new KanbanColumnVO(s.getName(), s.getColor(), s.getMetaCategory(), cards));
+            }
+        } else {
+            for (TaskStatus s : TaskStatus.values()) {
+                List<TaskVO> cards = tasks.stream()
+                        .filter(t -> s.getCode().equals(t.getStatus()))
+                        .map(this::toVO).toList();
+                columns.add(new KanbanColumnVO(s.getCode(), null, null, cards));
+            }
         }
         return columns;
     }
