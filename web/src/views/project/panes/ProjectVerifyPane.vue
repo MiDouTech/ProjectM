@@ -18,11 +18,16 @@
 
     <!-- ② 价值验收（NPSS） -->
     <div class="pv__seg">
-      <span class="mido-h2">价值验收（NPSS）</span>
+      <div class="pv__seg-head">
+        <span class="mido-h2">价值验收（NPSS）</span>
+        <el-button size="small" @click="configVisible = true">评价方式设置</el-button>
+      </div>
       <NpssScoreCard v-if="review" :review="review"
         :stakeholder-name="stakeholderName" :external-ids="externalIds" @scored="load" />
       <el-empty v-else description="尚未发起价值验收（结案后到期自动发起）" :image-size="60" />
     </div>
+
+    <NpssSubjectConfig v-model="configVisible" :project-id="projectId" @saved="load" />
   </div>
 </template>
 
@@ -30,6 +35,7 @@
 import { computed, ref, watch } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
 import NpssScoreCard from '@/components/NpssScoreCard.vue'
+import NpssSubjectConfig from '@/components/NpssSubjectConfig.vue'
 import { npssApi } from '@/api/npss'
 import { stakeholderApi } from '@/api/stakeholder'
 
@@ -42,6 +48,7 @@ const props = defineProps({
 const loading = ref(false)
 const review = ref(null)
 const stakeholders = ref([])
+const configVisible = ref(false)
 
 const money = (v) => (v == null ? '—' : Number(v).toFixed(2))
 
@@ -75,6 +82,12 @@ watch(() => props.projectId, load, { immediate: true })
 <style scoped>
 .pv__seg {
   margin-bottom: var(--mido-space-5);
+}
+.pv__seg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--mido-space-2);
 }
 .pv__desc {
   margin-top: var(--mido-space-2);

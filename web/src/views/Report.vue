@@ -64,9 +64,15 @@
     <el-card shadow="never" class="rpt__block" v-if="pmo">
       <div class="rpt__row">
         <div class="mido-h2">PMO 总体评价</div>
-        <el-select v-model="year" class="rpt__sel" @change="loadPmo">
-          <el-option v-for="y in years" :key="y" :label="`${y} 财年`" :value="y" />
-        </el-select>
+        <div class="rpt__pmo-ctl">
+          <!-- 任意周期：选区间则动态按区间统计，清空回到财年口径 -->
+          <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" unlink-panels
+            range-separator="~" start-placeholder="起" end-placeholder="止" size="default"
+            class="rpt__range" @change="onRangeChange" />
+          <el-select v-if="!range" v-model="year" class="rpt__sel" @change="loadPmo">
+            <el-option v-for="y in years" :key="y" :label="`${y} 财年`" :value="y" />
+          </el-select>
+        </div>
       </div>
       <div class="rpt__pmo">
         <div class="rpt__metric">
@@ -127,6 +133,7 @@ const userName = (id) => userMap.value[id] || (id ? `用户#${id}` : '—')
 const nowYear = new Date().getFullYear()
 const years = Array.from({ length: 5 }, (_, i) => nowYear - i)
 const year = ref(nowYear)
+const range = ref(null) // [from, to] 任意周期；为空则用财年
 const pmo = ref(null)
 
 const fmt = (v) => (v == null ? '—' : Number(v))
@@ -181,6 +188,18 @@ async function loadProject() {
 async function loadPmo() {
   pmo.value = await reportApi.pmoNpss(year.value)
 }
+// to 为开区间，后端按 [from, to) 统计；选择的截止日 +1 天纳入当天
+async function loadPmoRange() {
+  const [from, to] = range.value
+  const toExclusive = new Date(`${to}T00:00:00`)
+  toExclusive.setDate(toExclusive.getDate() + 1)
+  const toStr = toExclusive.toISOString().slice(0, 10)
+  pmo.value = await reportApi.pmoNpssRange(from, toStr)
+}
+function onRangeChange(v) {
+  if (v && v.length === 2) loadPmoRange()
+  else loadPmo()
+}
 
 onMounted(() => {
   load()
@@ -231,5 +250,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--mido-space-2);
+}
+.rpt__pmo-ctl {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.rpt__range {
+  width: auto;
 }
 </style>

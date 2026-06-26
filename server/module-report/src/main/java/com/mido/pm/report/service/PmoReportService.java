@@ -1,6 +1,9 @@
 package com.mido.pm.report.service;
 
+import com.mido.pm.common.exception.BizException;
+import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.report.domain.PmoNpssCalculator;
+import com.mido.pm.report.dto.PmoNpssRangeVO;
 import com.mido.pm.report.dto.PmoNpssVO;
 import com.mido.pm.verify.domain.ResultLevel;
 import com.mido.pm.verify.service.NpssReviewService;
@@ -34,6 +37,26 @@ public class PmoReportService {
 
         PmoNpssCalculator.Stats s = PmoNpssCalculator.compute(success, mixed, failure);
         return new PmoNpssVO(year, s.total(), success, mixed, failure,
+                s.successRate(), s.failureRate(), s.pmoNpss(),
+                PmoNpssCalculator.BASELINE,
+                s.pmoNpss().compareTo(PmoNpssCalculator.BASELINE) > 0);
+    }
+
+    /**
+     * 任意周期组织 NPSS（npss-rule §5）：统计 [from, to)（按 reviewed_at）内已汇总轮次的成功%−失败%。
+     * 动态计算组织在一定周期内的 NPSS；to 须晚于 from。
+     */
+    public PmoNpssRangeVO pmoNpssRange(LocalDate from, LocalDate toExclusive) {
+        if (from == null || toExclusive == null || !toExclusive.isAfter(from)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "统计区间非法：to 须晚于 from");
+        }
+        Map<String, Long> counts = npssReviewService.levelCounts(from.atStartOfDay(), toExclusive.atStartOfDay());
+        long success = counts.getOrDefault(ResultLevel.SUCCESS.getCode(), 0L);
+        long mixed = counts.getOrDefault(ResultLevel.MIXED.getCode(), 0L);
+        long failure = counts.getOrDefault(ResultLevel.FAILURE.getCode(), 0L);
+
+        PmoNpssCalculator.Stats s = PmoNpssCalculator.compute(success, mixed, failure);
+        return new PmoNpssRangeVO(from, toExclusive, s.total(), success, mixed, failure,
                 s.successRate(), s.failureRate(), s.pmoNpss(),
                 PmoNpssCalculator.BASELINE,
                 s.pmoNpss().compareTo(PmoNpssCalculator.BASELINE) > 0);

@@ -1,15 +1,23 @@
 import request from './request'
 
-/** NPSS 价值验收：轮次/评分（幂等）。 */
+/** NPSS 价值验收：轮次/评分（幂等）+ 评价方式设置（评价主体）。 */
 export const npssApi = {
   listByProject: (projectId) => request.get('/npss/reviews', { params: { projectId } }),
   get: (reviewId) => request.get(`/npss/reviews/${reviewId}`),
   submitScore: (reviewId, data) => request.post(`/npss/reviews/${reviewId}/scores`, data),
+  // 租户级评价主体模板（整组保存，replace-all；后端校验合计=100%、受益方≥50%）
+  listSubjectTemplates: () => request.get('/npss/subject-templates'),
+  saveSubjectTemplates: (items) => request.put('/npss/subject-templates', items),
+  // 项目级评价主体（成员即干系人；未配置时返回模板派生草稿）
+  listProjectSubjects: (projectId) => request.get(`/npss/projects/${projectId}/subjects`),
+  saveProjectSubjects: (projectId, items) => request.put(`/npss/projects/${projectId}/subjects`, items),
 }
 
 /** PMO 报表 + 项目/任务度量（只读，数据范围由后端拦截器约束）。 */
 export const reportApi = {
   pmoNpss: (year) => request.get('/reports/pmo-npss', { params: year ? { year } : {} }),
+  // 组织 NPSS 任意周期 [from, to)（动态计算一定周期内组织得分）
+  pmoNpssRange: (from, to) => request.get('/reports/pmo-npss/range', { params: { from, to } }),
   overview: () => request.get('/reports/metrics/overview'),
   burndown: (projectId) => request.get('/reports/metrics/burndown', { params: { projectId } }),
   projectHealth: (projectId) => request.get('/reports/metrics/project-health', { params: { projectId } }),

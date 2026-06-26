@@ -260,7 +260,7 @@ public class NpssReviewService {
     }
 
     private NpssScoreVO toVO(PmNpssScore s) {
-        return new NpssScoreVO(s.getId(), s.getReviewId(), s.getStakeholderId(),
+        return new NpssScoreVO(s.getId(), s.getReviewId(), s.getStakeholderId(), s.getSubjectId(),
                 s.getScore(), s.getWeight(), s.getComment());
     }
 }
