@@ -164,7 +164,7 @@ import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi, pageConfigApi } from '@/api/view'
-import { fieldDefApi, isCfRef, cfKey } from '@/api/field'
+import { fieldDefApi, fieldValueApi, isCfRef, cfKey } from '@/api/field'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { isTaskOverdue, userName as nameOf } from '@/utils/display'
@@ -273,19 +273,34 @@ const TASK_FORM_BUILTIN = {
   dueDate: { label: '截止', type: 'date' },
   isMilestone: { label: '里程碑', type: 'checkbox' },
 }
+function parseCfOptions(json) {
+  try { return json ? JSON.parse(json) : [] } catch { return [] }
+}
 async function loadPageConfig() {
   try {
-    const cfg = await pageConfigApi.get('task', 'form')
-    const fields = (cfg?.fields || [])
-      .filter((f) => f.source === 'builtin' && TASK_FORM_BUILTIN[f.fieldKey])
-      .map((f) => {
+    const [cfg, customDefs] = await Promise.all([
+      pageConfigApi.get('task', 'form'),
+      fieldDefApi.list('task', true).catch(() => []),
+    ])
+    const byKey = new Map((customDefs || []).map((d) => [d.fieldKey, d]))
+    const fields = (cfg?.fields || []).map((f) => {
+      if (f.source === 'builtin' && TASK_FORM_BUILTIN[f.fieldKey]) {
         const b = TASK_FORM_BUILTIN[f.fieldKey]
         return {
-          fieldKey: f.fieldKey, label: b.label, type: b.type, options: b.options,
-          required: f.required ?? b.required ?? false, readonly: !!f.readonly,
+          fieldKey: f.fieldKey, source: 'builtin', label: b.label, type: b.type, options: b.options,
+          required: f.required ?? b.required ?? false, readonly: !!f.readonly, width: f.width, group: f.group || '',
+        }
+      }
+      if (f.source === 'custom' && byKey.has(f.fieldKey)) {
+        const d = byKey.get(f.fieldKey)
+        return {
+          fieldKey: f.fieldKey, source: 'custom', fieldId: d.id, label: d.name, type: d.type,
+          options: parseCfOptions(d.options), required: f.required ?? d.required === 1, readonly: !!f.readonly,
           width: f.width, group: f.group || '',
         }
-      })
+      }
+      return null
+    }).filter(Boolean)
     // 安全兜底：配置漏掉标题(提交必需)则不启用动态表单，回落原表单
     if (fields.length && fields.some((f) => f.fieldKey === 'title')) {
       pageFields.value = fields
@@ -420,22 +435,44 @@ function openDetail(id) {
 }
 function openCreate() {
   Object.assign(createForm, { title: '', assigneeId: null, priority: null, dueDate: null, isMilestone: false })
+  // 动态表单含自定义字段时，初始化其键，确保双绑
+  if (usePageConfig.value) {
+    pageFields.value.filter((f) => f.source === 'custom').forEach((f) => { createForm[f.fieldKey] = null })
+  }
   createDialog.value = true
 }
 async function doCreate() {
   await (usePageConfig.value ? dynRef.value.validate() : createRef.value.validate())
   saving.value = true
   try {
-    await taskApi.create({
+    const id = await taskApi.create({
       title: createForm.title, projectId, assigneeId: createForm.assigneeId,
       priority: createForm.priority, dueDate: createForm.dueDate,
       isMilestone: createForm.isMilestone ? 1 : 0,
     })
+    // 自定义字段值落库（仅配置含自定义字段时）；失败仅告警，不影响建单成功
+    await saveCustomFieldValues(id)
     ElMessage.success('已创建')
     createDialog.value = false
     load()
   } finally {
     saving.value = false
+  }
+}
+async function saveCustomFieldValues(taskId) {
+  if (!usePageConfig.value || !taskId) return
+  const values = pageFields.value
+    .filter((f) => f.source === 'custom' && f.fieldId)
+    .map((f) => {
+      const v = createForm[f.fieldKey]
+      return { fieldId: f.fieldId, value: Array.isArray(v) ? JSON.stringify(v) : v }
+    })
+    .filter((v) => v.value != null && v.value !== '')
+  if (!values.length) return
+  try {
+    await fieldValueApi.save({ entityType: 'task', entityId: taskId, values })
+  } catch {
+    ElMessage.warning('任务已创建，但部分自定义字段值未保存，可在详情补填')
   }
 }
 
