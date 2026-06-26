@@ -117,22 +117,32 @@ public class OrgIdentityProvider implements IdentityProvider {
         return p;
     }
 
-    /**
-     * 多角色合并取最宽：仅当字段在所有相关角色中均未授予 edit（即配置全为 view）时，
-     * 才记为只读，键形如 "resource.field"。任一角色给 edit 即可编辑（并集语义）。
-     */
     private Set<String> computeViewOnlyFields(List<Long> roleIds) {
         List<SysFieldPerm> perms = fieldPermMapper.selectList(
                 Wrappers.<SysFieldPerm>lambdaQuery().in(SysFieldPerm::getRoleId, roleIds));
-        Map<String, Boolean> hasEdit = new HashMap<>();
+        return mergeViewOnly(perms, roleIds.size());
+    }
+
+    /**
+     * 多角色合并取最宽：与数据范围「未配置=最宽(ALL)」一致——未配置某字段的角色默认授予 edit。
+     * 因此某字段仅当用户【所有】角色都显式将其设为 view 时才只读；
+     * 任一角色给 edit、或任一角色未配置该字段，即视为可编辑。键形如 "resource.field"。
+     */
+    static Set<String> mergeViewOnly(List<SysFieldPerm> perms, int totalRoles) {
+        Set<String> editKeys = new HashSet<>();
+        Map<String, Set<Long>> viewRoles = new HashMap<>();
         for (SysFieldPerm fp : perms) {
             String key = fp.getResource() + "." + fp.getField();
-            boolean edit = FieldAccess.EDIT.equals(fp.getAccess());
-            hasEdit.merge(key, edit, Boolean::logicalOr);
+            if (FieldAccess.EDIT.equals(fp.getAccess())) {
+                editKeys.add(key);
+            } else if (FieldAccess.VIEW.equals(fp.getAccess())) {
+                viewRoles.computeIfAbsent(key, k -> new HashSet<>()).add(fp.getRoleId());
+            }
         }
         Set<String> viewOnly = new HashSet<>();
-        hasEdit.forEach((key, edit) -> {
-            if (!edit) {
+        viewRoles.forEach((key, roles) -> {
+            // 无任何角色给 edit，且每个角色都显式设了 view（覆盖全部角色）→ 只读
+            if (!editKeys.contains(key) && roles.size() >= totalRoles) {
                 viewOnly.add(key);
             }
         });

@@ -40,9 +40,14 @@ public class PortfolioService {
     }
 
     public List<PortfolioVO> list() {
-        return portfolioMapper.selectList(Wrappers.<PmPortfolio>lambdaQuery()
-                        .orderByDesc(PmPortfolio::getId))
-                .stream().map(this::toVO).toList();
+        List<PmPortfolio> portfolios = portfolioMapper.selectList(Wrappers.<PmPortfolio>lambdaQuery()
+                .orderByDesc(PmPortfolio::getId));
+        // 一次取全部关联，内存按 portfolio 分组计数，避免逐条 selectCount 的 N+1
+        Map<Long, Long> counts = linkMapper.selectList(Wrappers.<PmPortfolioProject>lambdaQuery())
+                .stream().collect(Collectors.groupingBy(PmPortfolioProject::getPortfolioId, Collectors.counting()));
+        return portfolios.stream()
+                .map(p -> toVO(p, counts.getOrDefault(p.getId(), 0L)))
+                .toList();
     }
 
     public Long create(PortfolioSaveDTO dto) {
@@ -102,11 +107,12 @@ public class PortfolioService {
     /** 总览：项目集 + 当前用户可见项目（按数据范围过滤）+ 状态计数。 */
     public PortfolioOverviewVO overview(Long portfolioId) {
         PmPortfolio p = requireExists(portfolioId);
-        List<ProjectVO> projects = projectService.visibleByIds(linkedProjectIds(portfolioId));
+        List<Long> linkedIds = linkedProjectIds(portfolioId);
+        List<ProjectVO> projects = projectService.visibleByIds(linkedIds);
         Map<String, Long> statusCount = projects.stream()
                 .collect(Collectors.groupingBy(v -> v.status() == null ? "unknown" : v.status(),
                         Collectors.counting()));
-        return new PortfolioOverviewVO(toVO(p), projects, statusCount);
+        return new PortfolioOverviewVO(toVO(p, linkedIds.size()), projects, statusCount);
     }
 
     private List<Long> linkedProjectIds(Long portfolioId) {
@@ -123,9 +129,8 @@ public class PortfolioService {
         return p;
     }
 
-    private PortfolioVO toVO(PmPortfolio p) {
-        long count = linkMapper.selectCount(Wrappers.<PmPortfolioProject>lambdaQuery()
-                .eq(PmPortfolioProject::getPortfolioId, p.getId()));
-        return new PortfolioVO(p.getId(), p.getName(), p.getDescription(), p.getOwnerId(), p.getStatus(), count);
+    private PortfolioVO toVO(PmPortfolio p, long projectCount) {
+        return new PortfolioVO(p.getId(), p.getName(), p.getDescription(), p.getOwnerId(),
+                p.getStatus(), projectCount);
     }
 }
