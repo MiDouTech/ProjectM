@@ -17,6 +17,9 @@
         <el-menu-item index="/admin/project-types">
           <el-icon><CollectionTag /></el-icon><span>项目类型</span>
         </el-menu-item>
+        <el-menu-item index="/admin/project-templates">
+          <el-icon><Files /></el-icon><span>项目模板</span>
+        </el-menu-item>
         <el-menu-item index="/admin/project-roles">
           <el-icon><Avatar /></el-icon><span>项目角色</span>
         </el-menu-item>

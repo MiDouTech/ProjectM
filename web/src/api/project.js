@@ -63,6 +63,10 @@ export const componentApi = {
 export const templateApi = {
   list: (category) => request.get('/project-templates', { params: category ? { category } : {} }),
   get: (id) => request.get(`/project-templates/${id}`),
+  detail: (id) => request.get(`/project-templates/${id}/detail`),
+  create: (data) => request.post('/project-templates', data),
+  update: (id, data) => request.put(`/project-templates/${id}`, data),
+  remove: (id) => request.delete(`/project-templates/${id}`),
 }
 
 /** 通用审批引擎（Step 3） */

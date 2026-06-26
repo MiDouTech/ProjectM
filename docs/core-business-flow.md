@@ -154,7 +154,7 @@ stateDiagram-v2
 | 工作项类型/状态库/优先级/关联/变更策略 | 元数据配置 | `/admin/work-item-types` 等 | ✅ |
 | **导航配置**（ADR-0003 · L1） | 一级模块顶部导航组件编排：拖拽排序/改名/显隐/挂子菜单，租户级、空配回落内置默认 | `/admin/workspace-nav` | ✅ 新增（含 L2 子菜单） |
 | **列表表头偏好** | 每用户每列表 列选择/排序/冻结(≤3)/恢复默认，跨设备持久化（复用 pm_view） | 各列表齿轮入口 | ✅ 项目/任务/费用/项目集总览已接 |
-| 项目模板 | 阶段/任务骨架/默认干系人权重 | （仅建项目向导内查询） | ⚠️ 只读，无编辑接口/管理页 |
+| 项目模板 | 阶段/任务骨架/默认干系人权重 | `/admin/project-templates` | ✅ 自定义可增删改（内置 5 套只读保种子） |
 | 项目级工作流 `pm_workflow` | 自定义状态流 | 无 | ❌ 仅建表，无 Entity/Service/页面 |
 | 日历资源 / 企微集成 / 消息通道 / 职级字典 | 资源/集成/路由 | 无 | ❌ 部分后端有 API 但无前端入口（详见第 9 章） |
 
@@ -306,7 +306,7 @@ stateDiagram-v2
 | 4 | ~~`dueForValueReview` 未过滤 `requiresNpss`~~ **（误判已撤销）** | 复核 `ProjectService:328-332`：结案时仅对 NPSS 项目写 `value_review_due_date`，扫描按 `isNotNull` 过滤，非 NPSS 项目天然不被唤醒——**无此 bug** | — | `ProjectService:328-332` | 已更正 |
 | 5 | 项目级 `pm_workflow` 仅建表无代码 | 项目无法自定义状态流 | P1 | 仅 `V1`/`V59` 迁移与 task 域硬编码 | 已验证 |
 | 6 | `TenantContextFilter` 占位固定 tenant=1 | 依赖过滤器顺序，脆弱 | P1 | `TenantContextFilter:29-30` | 已验证 |
-| 7 | 项目模板只读、无编辑接口/管理页 | 租户只能用内置 5 套 | P2 | `ProjectTemplateController`（仅查询） | 已验证 |
+| 7 | ~~项目模板只读、无编辑接口/管理页~~ **（已修复）** | 自定义模板增删改（内置禁改禁删、config 合法 JSON 校验）+ 管理页；6 单测 | P2 | `ProjectTemplateService`、`/admin/project-templates` | 已修复 |
 | 8 | ~~NPSS 权重模板无内置默认种子~~ **（已修复）** | 新增 NpssTemplateTenantProvisioner 播种 + V69 自用租户种子（发起人30/业务方30/团队10/财务10/其他20） | P2 | module-verify | 已修复 |
 | 9 | 日历资源/企微配置 有后端无前端入口 | 只能 API/DB 操作 | P2 | `ResourceController`、`WecomConfigController` | 已验证 |
 | 10 | 消息通道路由硬编码 | 调推送策略需改代码 | P2 | `MessageRouting` | 已验证 |

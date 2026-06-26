@@ -5,6 +5,7 @@ import com.mido.pm.common.exception.BizException;
 import com.mido.pm.project.dto.CreateFromTemplateDTO;
 import com.mido.pm.project.dto.ProjectCreateDTO;
 import com.mido.pm.project.dto.ProjectFromTemplateVO;
+import com.mido.pm.project.dto.TemplateSaveDTO;
 import com.mido.pm.project.entity.PmProjectTemplate;
 import com.mido.pm.project.mapper.PmProjectTemplateMapper;
 import com.mido.pm.project.template.ProjectSkeletonProvisioner;
@@ -67,5 +68,39 @@ class ProjectTemplateServiceTest {
         when(templateMapper.selectById(9L)).thenReturn(null);
         assertThrows(BizException.class, () ->
                 service.createFromTemplate(new CreateFromTemplateDTO(9L, "x", null, null, null, null, null)));
+    }
+
+    @Test
+    void create_insertsCustomTemplate() {
+        service.create(new TemplateSaveDTO("我的模板", "S", null, "desc", "{\"phases\":[]}"));
+        org.mockito.ArgumentCaptor<PmProjectTemplate> cap =
+                org.mockito.ArgumentCaptor.forClass(PmProjectTemplate.class);
+        verify(templateMapper).insert(cap.capture());
+        assertEquals(0, cap.getValue().getIsBuiltin(), "自定义模板 is_builtin=0");
+    }
+
+    @Test
+    void create_invalidJsonRejected() {
+        assertThrows(BizException.class, () ->
+                service.create(new TemplateSaveDTO("坏模板", "S", null, null, "{not-json")));
+    }
+
+    @Test
+    void update_builtinBlocked() {
+        PmProjectTemplate builtin = new PmProjectTemplate();
+        builtin.setId(1L);
+        builtin.setIsBuiltin(1);
+        when(templateMapper.selectById(1L)).thenReturn(builtin);
+        assertThrows(BizException.class, () ->
+                service.update(1L, new TemplateSaveDTO("改名", "S", null, null, null)));
+    }
+
+    @Test
+    void delete_builtinBlocked() {
+        PmProjectTemplate builtin = new PmProjectTemplate();
+        builtin.setId(1L);
+        builtin.setIsBuiltin(1);
+        when(templateMapper.selectById(1L)).thenReturn(builtin);
+        assertThrows(BizException.class, () -> service.delete(1L));
     }
 }
