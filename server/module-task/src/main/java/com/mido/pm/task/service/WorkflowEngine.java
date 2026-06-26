@@ -5,8 +5,8 @@ import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.domain.TaskStatus;
 import com.mido.pm.task.domain.TaskWorkflow;
-import com.mido.pm.task.entity.PmWorkflowTransition;
-import com.mido.pm.task.mapper.PmWorkflowTransitionMapper;
+import com.mido.pm.task.entity.PmWorkItemTransition;
+import com.mido.pm.task.mapper.PmWorkItemTransitionMapper;
 import org.springframework.stereotype.Service;
 
 /**
@@ -20,9 +20,9 @@ import org.springframework.stereotype.Service;
 public class WorkflowEngine {
 
     private final WorkItemMetaResolver resolver;
-    private final PmWorkflowTransitionMapper transitionMapper;
+    private final PmWorkItemTransitionMapper transitionMapper;
 
-    public WorkflowEngine(WorkItemMetaResolver resolver, PmWorkflowTransitionMapper transitionMapper) {
+    public WorkflowEngine(WorkItemMetaResolver resolver, PmWorkItemTransitionMapper transitionMapper) {
         this.resolver = resolver;
         this.transitionMapper = transitionMapper;
     }
@@ -49,10 +49,10 @@ public class WorkflowEngine {
         if (typeId == null || fromStatusId == null || toStatusId == null) {
             return false;
         }
-        Long c = transitionMapper.selectCount(Wrappers.<PmWorkflowTransition>lambdaQuery()
-                .eq(PmWorkflowTransition::getTypeId, typeId)
-                .eq(PmWorkflowTransition::getFromStatusId, fromStatusId)
-                .eq(PmWorkflowTransition::getToStatusId, toStatusId));
+        Long c = transitionMapper.selectCount(Wrappers.<PmWorkItemTransition>lambdaQuery()
+                .eq(PmWorkItemTransition::getTypeId, typeId)
+                .eq(PmWorkItemTransition::getFromStatusId, fromStatusId)
+                .eq(PmWorkItemTransition::getToStatusId, toStatusId));
         return c != null && c > 0;
     }
 }

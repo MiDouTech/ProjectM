@@ -34,7 +34,9 @@ CREATE TABLE pm_work_item_type_field (
   KEY idx_type(tenant_id, type_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作项类型-字段绑定';
 
-CREATE TABLE pm_workflow_transition (
+-- 注：表名取 pm_work_item_transition（按工作项类型组织），与 data-model.md 既有
+-- pm_workflow_transition（旧 pm_workflow 串式占位，P1 可配工作流）区分，避免清库全量迁移撞名。
+CREATE TABLE pm_work_item_transition (
   id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
   type_id BIGINT,
   from_status_id BIGINT,
@@ -44,8 +46,8 @@ CREATE TABLE pm_workflow_transition (
   update_by   BIGINT,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   is_deleted  TINYINT  DEFAULT 0,
-  KEY idx_wf(tenant_id, type_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作流状态转移矩阵';
+  KEY idx_wit(tenant_id, type_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作项类型状态转移矩阵';
 
 -- 补「已验收」状态(对齐 TaskStatus.ACCEPTED；归约到 已完成 元类别)
 INSERT INTO pm_status
@@ -58,7 +60,7 @@ INSERT INTO pm_work_item_type
  (1, 1, 'task', '默认任务', '通用', 1, 10, 'active', 0);
 
 -- 默认类型流转矩阵(等价于现 TaskWorkflow)：状态 id 对应 pm_status 1未开始/2进行中/3已完成/4已验收
-INSERT INTO pm_workflow_transition
+INSERT INTO pm_work_item_transition
  (id, tenant_id, type_id, from_status_id, to_status_id, is_deleted) VALUES
  (1, 1, 1, 1, 2, 0),   -- 未开始 → 进行中
  (2, 1, 1, 2, 1, 0),   -- 进行中 → 未开始

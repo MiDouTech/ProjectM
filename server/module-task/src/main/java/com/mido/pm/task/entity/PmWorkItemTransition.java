@@ -4,11 +4,11 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.mido.pm.common.entity.BaseEntity;
 
 /**
- * 工作流状态转移（pm_workflow_transition）：某类型下允许 from_status → to_status 的一条转移。
+ * 工作项类型状态转移（pm_work_item_transition）：某工作项类型下允许 from_status → to_status 的一条转移。
  * 公共字段见 {@link BaseEntity}。
  */
-@TableName("pm_workflow_transition")
-public class PmWorkflowTransition extends BaseEntity {
+@TableName("pm_work_item_transition")
+public class PmWorkItemTransition extends BaseEntity {
 
     private Long typeId;
     private Long fromStatusId;

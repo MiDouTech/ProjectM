@@ -4,10 +4,10 @@ import com.mido.pm.common.exception.BizException;
 import com.mido.pm.task.dto.TransitionDTO;
 import com.mido.pm.task.dto.WorkItemTypeSaveDTO;
 import com.mido.pm.task.entity.PmWorkItemType;
-import com.mido.pm.task.entity.PmWorkflowTransition;
+import com.mido.pm.task.entity.PmWorkItemTransition;
 import com.mido.pm.task.mapper.PmWorkItemTypeFieldMapper;
 import com.mido.pm.task.mapper.PmWorkItemTypeMapper;
-import com.mido.pm.task.mapper.PmWorkflowTransitionMapper;
+import com.mido.pm.task.mapper.PmWorkItemTransitionMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -30,7 +30,7 @@ class WorkItemTypeServiceTest {
 
     @Mock private PmWorkItemTypeMapper typeMapper;
     @Mock private PmWorkItemTypeFieldMapper typeFieldMapper;
-    @Mock private PmWorkflowTransitionMapper transitionMapper;
+    @Mock private PmWorkItemTransitionMapper transitionMapper;
 
     private WorkItemTypeService service() {
         return new WorkItemTypeService(typeMapper, typeFieldMapper, transitionMapper);
@@ -61,6 +61,6 @@ class WorkItemTypeServiceTest {
         when(typeMapper.selectById(5L)).thenReturn(t);
         service().saveTransitions(5L, List.of(new TransitionDTO(1L, 2L), new TransitionDTO(2L, 3L)));
         verify(transitionMapper).delete(any());
-        verify(transitionMapper, times(2)).insert(any(PmWorkflowTransition.class));
+        verify(transitionMapper, times(2)).insert(any(PmWorkItemTransition.class));
     }
 }

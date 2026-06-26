@@ -1,7 +1,7 @@
 package com.mido.pm.task.service;
 
 import com.mido.pm.common.exception.BizException;
-import com.mido.pm.task.mapper.PmWorkflowTransitionMapper;
+import com.mido.pm.task.mapper.PmWorkItemTransitionMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 class WorkflowEngineTest {
 
     @Mock private WorkItemMetaResolver resolver;
-    @Mock private PmWorkflowTransitionMapper transitionMapper;
+    @Mock private PmWorkItemTransitionMapper transitionMapper;
 
     private WorkflowEngine engine() {
         return new WorkflowEngine(resolver, transitionMapper);

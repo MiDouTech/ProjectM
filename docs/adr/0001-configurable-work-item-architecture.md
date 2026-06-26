@@ -40,7 +40,7 @@
 | `pm_priority_mode` + `pm_priority_level` | 优先级模式（4 象限 / 默认 / 缺陷…） | 取代前端 `TASK_PRIORITIES` |
 | `pm_work_item_type` | **工作项类型** = 字段集 + 工作流 + 关联 + 模板 + 角色 | 全新核心轴 |
 | `pm_work_item_type_field` | 类型 ↔ 字段绑定（顺序 / 必填 / 表单布局 / 是否系统） | 扩展 `pm_field_def` |
-| `pm_workflow_transition` | 按类型的状态流转矩阵（from_status × to_status） | 取代 `TaskWorkflow` |
+| `pm_work_item_transition` | 按工作项类型的状态流转矩阵（from_status × to_status） | 取代 `TaskWorkflow`；与既有 `pm_workflow_transition`（旧 `pm_workflow` 串式占位）区分命名 |
 | `pm_relation_def` + `pm_relation` | 类型间「相关 / 派生」定义 + 实例追溯 | 全新（需求-任务-缺陷） |
 | `pm_component` + `pm_project_component` | 组件库 + 项目安装实例（多实例 / 排序 / 配置） | 收编 `pm_view` |
 
@@ -54,7 +54,7 @@
 | 现状（硬编码 / 内联） | 目标（可配置元数据） | 迁移动作 |
 |---|---|---|
 | `TaskStatus` enum（未开始/进行中/已完成） | `pm_status` 行（meta_category 对应原 3 值） | 为每租户种子 3 条状态，旧 `status` 字符串映射到对应行 |
-| `TaskWorkflow` 固定流转 | `pm_workflow_transition`（默认类型的矩阵） | 默认类型预置等价矩阵 |
+| `TaskWorkflow` 固定流转 | `pm_work_item_transition`（默认类型的矩阵） | 默认类型预置等价矩阵 |
 | `TASK_PRIORITIES`（前端写死） | `pm_priority_mode` + `pm_priority_level` | 种子「默认优先级模式」，旧 `priority` 映射到 level |
 | 单一 task | `pm_work_item_type` 内置「默认任务类型」 | 存量 task 全部归入默认类型 |
 | `pm_field_def.options`（内联 JSON） | `pm_data_source`(+option) 引用 | 存量内联选项迁出为数据源（或保留内联兼容，二选一，见 §5） |

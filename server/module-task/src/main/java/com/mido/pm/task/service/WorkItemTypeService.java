@@ -9,10 +9,10 @@ import com.mido.pm.task.dto.WorkItemTypeSaveDTO;
 import com.mido.pm.task.dto.WorkItemTypeVO;
 import com.mido.pm.task.entity.PmWorkItemType;
 import com.mido.pm.task.entity.PmWorkItemTypeField;
-import com.mido.pm.task.entity.PmWorkflowTransition;
+import com.mido.pm.task.entity.PmWorkItemTransition;
 import com.mido.pm.task.mapper.PmWorkItemTypeFieldMapper;
 import com.mido.pm.task.mapper.PmWorkItemTypeMapper;
-import com.mido.pm.task.mapper.PmWorkflowTransitionMapper;
+import com.mido.pm.task.mapper.PmWorkItemTransitionMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,10 +29,10 @@ public class WorkItemTypeService {
 
     private final PmWorkItemTypeMapper typeMapper;
     private final PmWorkItemTypeFieldMapper typeFieldMapper;
-    private final PmWorkflowTransitionMapper transitionMapper;
+    private final PmWorkItemTransitionMapper transitionMapper;
 
     public WorkItemTypeService(PmWorkItemTypeMapper typeMapper, PmWorkItemTypeFieldMapper typeFieldMapper,
-                               PmWorkflowTransitionMapper transitionMapper) {
+                               PmWorkItemTransitionMapper transitionMapper) {
         this.typeMapper = typeMapper;
         this.typeFieldMapper = typeFieldMapper;
         this.transitionMapper = transitionMapper;
@@ -78,7 +78,7 @@ public class WorkItemTypeService {
             throw new BizException(ErrorCode.CONFLICT, "内置工作项类型不可删除");
         }
         typeFieldMapper.delete(Wrappers.<PmWorkItemTypeField>lambdaQuery().eq(PmWorkItemTypeField::getTypeId, id));
-        transitionMapper.delete(Wrappers.<PmWorkflowTransition>lambdaQuery().eq(PmWorkflowTransition::getTypeId, id));
+        transitionMapper.delete(Wrappers.<PmWorkItemTransition>lambdaQuery().eq(PmWorkItemTransition::getTypeId, id));
         typeMapper.deleteById(id);
     }
 
@@ -116,15 +116,15 @@ public class WorkItemTypeService {
 
     public List<TransitionDTO> getTransitions(Long typeId) {
         requireExists(typeId);
-        return transitionMapper.selectList(Wrappers.<PmWorkflowTransition>lambdaQuery()
-                        .eq(PmWorkflowTransition::getTypeId, typeId))
+        return transitionMapper.selectList(Wrappers.<PmWorkItemTransition>lambdaQuery()
+                        .eq(PmWorkItemTransition::getTypeId, typeId))
                 .stream().map(t -> new TransitionDTO(t.getFromStatusId(), t.getToStatusId())).toList();
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void saveTransitions(Long typeId, List<TransitionDTO> transitions) {
         requireExists(typeId);
-        transitionMapper.delete(Wrappers.<PmWorkflowTransition>lambdaQuery().eq(PmWorkflowTransition::getTypeId, typeId));
+        transitionMapper.delete(Wrappers.<PmWorkItemTransition>lambdaQuery().eq(PmWorkItemTransition::getTypeId, typeId));
         if (transitions == null) {
             return;
         }
@@ -132,7 +132,7 @@ public class WorkItemTypeService {
             if (tr.fromStatusId() == null || tr.toStatusId() == null) {
                 continue;
             }
-            PmWorkflowTransition t = new PmWorkflowTransition();
+            PmWorkItemTransition t = new PmWorkItemTransition();
             t.setTypeId(typeId);
             t.setFromStatusId(tr.fromStatusId());
             t.setToStatusId(tr.toStatusId());
