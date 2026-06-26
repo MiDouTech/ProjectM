@@ -5,35 +5,23 @@
         <b class="mido-mono">{{ money(sumBudget) }}</b> · 执行合计
         <b class="mido-mono">{{ money(sumActual) }}</b></span>
       <div class="cost__bar-actions">
-        <!-- 列头可配置 -->
-        <el-dropdown trigger="click" :hide-on-click="false">
-          <el-button link type="primary" :icon="Setting">列设置</el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item v-for="col in columns" :key="col.key">
-                <el-checkbox v-model="col.visible">{{ col.label }}</el-checkbox>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <TableColumnSetting list-key="costs" :all-columns="COST_COLUMNS"
+          :default-columns="COST_DEFAULT_COLS" @change="onCostColsChange" />
         <el-button link type="primary" :icon="Download" @click="exportCsv">导出</el-button>
         <el-button link type="primary" :icon="Plus" @click="openCreate">新增费用</el-button>
       </div>
     </div>
 
     <el-table :data="rows" size="small">
-      <el-table-column v-if="col('title').visible" prop="title" label="标题" min-width="140" show-overflow-tooltip sortable />
-      <el-table-column v-if="col('account').visible" prop="account" label="科目" width="90" sortable />
-      <el-table-column v-if="col('budgetAmount').visible" label="预算" width="110" align="right" sortable :sort-by="(row) => row.budgetAmount">
-        <template #default="{ row }"><span class="mido-mono">{{ money(row.budgetAmount) }}</span></template>
-      </el-table-column>
-      <el-table-column v-if="col('actualAmount').visible" label="执行" width="110" align="right" sortable :sort-by="(row) => row.actualAmount">
-        <template #default="{ row }"><span class="mido-mono">{{ money(row.actualAmount) }}</span></template>
-      </el-table-column>
-      <el-table-column v-if="col('occurDate').visible" prop="occurDate" label="发生日" width="120" sortable />
-      <el-table-column v-if="col('payDate').visible" prop="payDate" label="付款日" width="120" sortable />
-      <el-table-column v-if="col('status').visible" label="状态" width="90">
-        <template #default="{ row }"><StatusTag :status="row.status" /></template>
+      <el-table-column v-for="key in costCols" :key="key" :label="costColLabel(key)"
+        :prop="costColProp(key)" :width="costColWidth(key)" :min-width="costColMinWidth(key)"
+        :align="key === 'budgetAmount' || key === 'actualAmount' ? 'right' : undefined"
+        :fixed="costFrozen.includes(key) ? 'left' : false" sortable>
+        <template #default="{ row }">
+          <span v-if="key === 'budgetAmount' || key === 'actualAmount'" class="mido-mono">{{ money(row[key]) }}</span>
+          <StatusTag v-else-if="key === 'status'" :status="row.status" />
+          <span v-else>{{ row[key] ?? '—' }}</span>
+        </template>
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
@@ -73,8 +61,9 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Plus, Setting } from '@element-plus/icons-vue'
+import { Download, Plus } from '@element-plus/icons-vue'
 import StatusTag from './StatusTag.vue'
+import TableColumnSetting from './TableColumnSetting.vue'
 import { costApi, COST_ACCOUNTS } from '@/api/cost'
 
 const props = defineProps({
@@ -94,16 +83,36 @@ const rules = {
 }
 
 // 列头可配置（对齐 Worktile：可勾选显隐）
-const columns = ref([
-  { key: 'title', label: '标题', visible: true },
-  { key: 'account', label: '科目', visible: true },
-  { key: 'budgetAmount', label: '预算', visible: true },
-  { key: 'actualAmount', label: '执行', visible: true },
-  { key: 'occurDate', label: '发生日', visible: false },
-  { key: 'payDate', label: '付款日', visible: false },
-  { key: 'status', label: '状态', visible: true },
-])
-const col = (key) => columns.value.find((c) => c.key === key)
+const COST_COLUMNS = [
+  { key: 'title', label: '标题', required: true },
+  { key: 'account', label: '科目' },
+  { key: 'budgetAmount', label: '预算' },
+  { key: 'actualAmount', label: '执行' },
+  { key: 'occurDate', label: '发生日' },
+  { key: 'payDate', label: '付款日' },
+  { key: 'status', label: '状态' },
+]
+const COST_DEFAULT_COLS = ['title', 'account', 'budgetAmount', 'actualAmount', 'status']
+const COST_COL_META = {
+  title: { minWidth: 140 },
+  account: { width: 90 },
+  budgetAmount: { width: 110 },
+  actualAmount: { width: 110 },
+  occurDate: { width: 120 },
+  payDate: { width: 120 },
+  status: { width: 90 },
+}
+const costCols = ref([...COST_DEFAULT_COLS])
+const costFrozen = ref([])
+const costColLabel = (key) => COST_COLUMNS.find((c) => c.key === key)?.label || key
+const costColWidth = (key) => COST_COL_META[key]?.width
+const costColMinWidth = (key) => COST_COL_META[key]?.minWidth
+// 自定义渲染列（金额/状态）不设 prop，避免 el-table 默认按对象渲染
+const costColProp = (key) => (['budgetAmount', 'actualAmount', 'status'].includes(key) ? undefined : key)
+function onCostColsChange({ columns: cols, frozen }) {
+  costCols.value = cols
+  costFrozen.value = frozen
+}
 
 const money = (v) => Number(v || 0).toFixed(2)
 const sumBudget = computed(() => rows.value.reduce((s, r) => s + Number(r.budgetAmount || 0), 0))
@@ -166,9 +175,8 @@ async function remove(row) {
 }
 
 function exportCsv() {
-  const visible = columns.value.filter((c) => c.visible)
-  const header = visible.map((c) => c.label)
-  const lines = rows.value.map((r) => visible.map((c) => csvCell(r[c.key])).join(','))
+  const header = costCols.value.map((k) => costColLabel(k))
+  const lines = rows.value.map((r) => costCols.value.map((k) => csvCell(r[k])).join(','))
   const csv = [header.join(','), ...lines].join('\n')
   // 加 BOM 保证 Excel 正确识别 UTF-8 中文
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
