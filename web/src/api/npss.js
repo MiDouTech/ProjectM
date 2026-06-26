@@ -18,6 +18,9 @@ export const reportApi = {
   pmoNpss: (year) => request.get('/reports/pmo-npss', { params: year ? { year } : {} }),
   // 组织 NPSS 任意周期 [from, to)（动态计算一定周期内组织得分）
   pmoNpssRange: (from, to) => request.get('/reports/pmo-npss/range', { params: { from, to } }),
+  // 报表设置（租户级）：财年起始月
+  getSettings: () => request.get('/reports/settings'),
+  saveSettings: (data) => request.put('/reports/settings', data),
   overview: () => request.get('/reports/metrics/overview'),
   burndown: (projectId) => request.get('/reports/metrics/burndown', { params: { projectId } }),
   projectHealth: (projectId) => request.get('/reports/metrics/project-health', { params: { projectId } }),

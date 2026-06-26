@@ -22,14 +22,22 @@ import java.util.Map;
 public class PmoReportService {
 
     private final NpssReviewService npssReviewService;
+    private final ReportSettingService reportSettingService;
 
-    public PmoReportService(NpssReviewService npssReviewService) {
+    public PmoReportService(NpssReviewService npssReviewService, ReportSettingService reportSettingService) {
         this.npssReviewService = npssReviewService;
+        this.reportSettingService = reportSettingService;
     }
 
+    /**
+     * PMO 财年口径（npss-rule §5）：财年 year 起于配置的起始月。
+     * 起始月=1 即自然年 [year-01-01, year+1-01-01)；起始月=M 即 [year-M-01, year+1-M-01)。
+     */
     public PmoNpssVO pmoNpss(int year) {
-        LocalDateTime from = LocalDate.of(year, 1, 1).atStartOfDay();
-        LocalDateTime toExclusive = LocalDate.of(year + 1, 1, 1).atStartOfDay();
+        int startMonth = reportSettingService.fiscalYearStartMonth();
+        LocalDate start = LocalDate.of(year, startMonth, 1);
+        LocalDateTime from = start.atStartOfDay();
+        LocalDateTime toExclusive = start.plusYears(1).atStartOfDay();
         Map<String, Long> counts = npssReviewService.levelCounts(from, toExclusive);
         long success = counts.getOrDefault(ResultLevel.SUCCESS.getCode(), 0L);
         long mixed = counts.getOrDefault(ResultLevel.MIXED.getCode(), 0L);

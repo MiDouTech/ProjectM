@@ -133,6 +133,12 @@ CREATE TABLE pm_npss_subject_member ( -- 主体成员（成员即干系人）
   id BIGINT PRIMARY KEY, tenant_id BIGINT, subject_id BIGINT NOT NULL, stakeholder_id BIGINT NOT NULL,
   KEY idx_subject(subject_id)
 );
+-- 报表设置（V49，租户级业务偏好）：财年起始月（PMO 财年口径，npss-rule §5）。区别于平台域 sys_tenant。
+CREATE TABLE pm_report_setting (
+  id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL,
+  fiscal_year_start_month TINYINT DEFAULT 1, -- 1=自然年(默认)，4=4月起财年
+  UNIQUE KEY uk_tenant(tenant_id)
+);
 
 -- ========== 立项/审批引擎 ==========
 CREATE TABLE approval_form (
