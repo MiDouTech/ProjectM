@@ -37,6 +37,17 @@ export const projectRoleApi = {
   remove: (id) => request.delete(`/project-roles/${id}`),
 }
 
+/** 项目集（portfolio）：管理层跨部门总览。总览项目按数据范围过滤。 */
+export const portfolioApi = {
+  list: () => request.get('/portfolios'),
+  create: (data) => request.post('/portfolios', data),
+  update: (id, data) => request.put(`/portfolios/${id}`, data),
+  remove: (id) => request.delete(`/portfolios/${id}`),
+  overview: (id) => request.get(`/portfolios/${id}/overview`),
+  addProjects: (id, projectIds) => request.post(`/portfolios/${id}/projects`, projectIds),
+  removeProject: (id, projectId) => request.delete(`/portfolios/${id}/projects/${projectId}`),
+}
+
 /** 项目模板（内置 5 套 + 自定义，Step 2-1） */
 export const templateApi = {
   list: (category) => request.get('/project-templates', { params: category ? { category } : {} }),

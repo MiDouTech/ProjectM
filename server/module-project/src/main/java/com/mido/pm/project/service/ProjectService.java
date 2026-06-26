@@ -168,6 +168,21 @@ public class ProjectService {
                 .stream().map(this::toVO).toList();
     }
 
+    /**
+     * 给定项目 id 集合中，当前用户按数据范围 + 成员可见性可见的项目（项目集总览复用）。
+     * 数据范围拦截器自动叠加 dept/leader 条件，实现全局(ALL)/局部(DEPT)视图隔离。
+     */
+    public List<ProjectVO> visibleByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        var wrapper = Wrappers.<PmProject>lambdaQuery()
+                .in(PmProject::getId, ids).orderByDesc(PmProject::getId);
+        List<PmProject> rows = DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
+                "id", myVisibleProjectIds(), () -> projectMapper.selectList(wrapper));
+        return rows.stream().map(this::toVO).toList();
+    }
+
     public PageResult<ProjectVO> page(ProjectQueryDTO query) {
         long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);

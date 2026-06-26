@@ -7,6 +7,7 @@ import { useOpsUserStore } from '@/store/opsUser'
 export const navItems = [
   { path: '/workbench', title: '工作台', icon: 'Monitor' },
   { path: '/project', title: '项目', icon: 'Folder' },
+  { path: '/portfolio', title: '项目集', icon: 'Files' },
   { path: '/goal', title: '目标', icon: 'Aim' },
   { path: '/approval', title: '审批中心', icon: 'Stamp' },
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
@@ -55,6 +56,7 @@ const routes = [
       { path: 'workbench', component: () => import('@/views/Workbench.vue') },
       { path: 'notifications', component: () => import('@/views/NotificationListView.vue') },
       { path: 'project', component: () => import('@/views/project/ProjectListView.vue') },
+      { path: 'portfolio', component: () => import('@/views/portfolio/PortfolioView.vue') },
       { path: 'project/:projectId', component: () => import('@/views/project/ProjectWorkspaceView.vue') },
       { path: 'project/:projectId/tasks', component: () => import('@/views/task/TaskWorkspaceView.vue') },
       { path: 'project/:projectId/task/:taskId', component: () => import('@/views/task/TaskDetailView.vue') },
