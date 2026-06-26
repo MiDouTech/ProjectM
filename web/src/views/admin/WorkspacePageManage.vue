@@ -6,6 +6,9 @@
         <el-select v-model="target" class="wp__sel" @change="load">
           <el-option v-for="t in TARGETS" :key="t.value" :label="t.label" :value="t.value" />
         </el-select>
+        <el-select v-model="templateType" class="wp__sel" @change="load">
+          <el-option v-for="t in TEMPLATES" :key="t.value" :label="t.label" :value="t.value" />
+        </el-select>
         <el-select v-model="columns" class="wp__sel">
           <el-option :value="1" label="单列" />
           <el-option :value="2" label="双列" />
@@ -53,7 +56,8 @@
       <!-- 预览 -->
       <el-card shadow="never" class="wp__preview">
         <div class="wp__h">预览</div>
-        <DynamicForm :fields="selected" :model-value="previewModel" :layout="{ columns }" />
+        <DynamicForm v-if="templateType === 'form'" :fields="selected" :model-value="previewModel" :layout="{ columns }" />
+        <DynamicDetail v-else :fields="selected" :model-value="previewModel" :layout="{ columns }" />
       </el-card>
     </div>
   </div>
@@ -65,6 +69,7 @@ import { ElMessage } from 'element-plus'
 import { Rank } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import DynamicForm from '@/components/DynamicForm.vue'
+import DynamicDetail from '@/components/DynamicDetail.vue'
 import { pageConfigApi } from '@/api/view'
 import { fieldDefApi } from '@/api/field'
 
@@ -72,9 +77,13 @@ const TARGETS = [
   { value: 'task', label: '任务' },
   { value: 'project', label: '项目' },
 ]
-const TEMPLATE = 'form'
+const TEMPLATES = [
+  { value: 'form', label: '表单' },
+  { value: 'detail', label: '详情' },
+]
 
 const target = ref('task')
+const templateType = ref('form')
 const columns = ref(1)
 const loading = ref(false)
 const saving = ref(false)
@@ -128,7 +137,7 @@ async function load() {
   loading.value = true
   try {
     await loadAvailable()
-    const cfg = await pageConfigApi.get(target.value, TEMPLATE)
+    const cfg = await pageConfigApi.get(target.value, templateType.value)
     if (cfg && Array.isArray(cfg.fields) && cfg.fields.length) {
       columns.value = cfg.layout?.columns || 1
       selected.value = cfg.fields
@@ -160,7 +169,7 @@ async function save() {
         required: s.required, readonly: s.readonly, width: s.width,
       })),
     }
-    await pageConfigApi.save(target.value, TEMPLATE, config)
+    await pageConfigApi.save(target.value, templateType.value, config)
     ElMessage.success('页面配置已保存')
   } finally {
     saving.value = false
