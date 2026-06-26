@@ -31,7 +31,7 @@
           @click="$router.push(`/project/${t.projectId}/tasks`)" @keyup.enter="$router.push(`/project/${t.projectId}/tasks`)">
           <span class="wc__row-main">{{ t.title }}</span>
           <StatusTag v-if="overdue(t)" status="逾期" />
-          <StatusTag :status="t.status" />
+          <StatusTag :status="t.status" :color="statusColor(t.status)" />
         </div>
       </template>
 
@@ -78,8 +78,10 @@ import { projectApi, approvalApi } from '@/api/project'
 import { taskApi } from '@/api/task'
 import { notificationApi } from '@/api/collab'
 import { isTaskOverdue, formatDateTime, notificationRoute } from '@/utils/display'
+import { useStatusColors } from '@/composables/useStatusColors'
 
 const router = useRouter()
+const { statusColor } = useStatusColors()
 
 const props = defineProps({
   card: { type: Object, required: true },

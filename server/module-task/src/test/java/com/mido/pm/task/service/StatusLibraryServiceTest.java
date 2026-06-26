@@ -23,9 +23,10 @@ import static org.mockito.Mockito.when;
 class StatusLibraryServiceTest {
 
     @Mock private PmStatusMapper statusMapper;
+    @Mock private com.mido.pm.task.mapper.PmTaskMapper taskMapper;
 
     private StatusLibraryService service() {
-        return new StatusLibraryService(statusMapper);
+        return new StatusLibraryService(statusMapper, taskMapper);
     }
 
     @Test
@@ -39,6 +40,27 @@ class StatusLibraryServiceTest {
     void createPersistsValidStatus() {
         service().create(new StatusSaveDTO("测试中", "warning", MetaCategory.IN_PROGRESS, "通用", 5, null));
         verify(statusMapper).insert(any(PmStatus.class));
+    }
+
+    @Test
+    void updateRenamePropagatesToTasks() {
+        PmStatus s = new PmStatus();
+        s.setId(2L);
+        s.setName("处理中");
+        when(statusMapper.selectById(2L)).thenReturn(s);
+        service().update(2L, new StatusSaveDTO("进行中", "primary", MetaCategory.IN_PROGRESS, "通用", 1, "active"));
+        // 改名 → 同步引用该状态的任务 status 串
+        verify(taskMapper).update(any(), any());
+    }
+
+    @Test
+    void updateNoRenameSkipsTaskSync() {
+        PmStatus s = new PmStatus();
+        s.setId(3L);
+        s.setName("进行中");
+        when(statusMapper.selectById(3L)).thenReturn(s);
+        service().update(3L, new StatusSaveDTO("进行中", "warning", MetaCategory.IN_PROGRESS, "通用", 2, "active"));
+        verify(taskMapper, never()).update(any(), any());
     }
 
     @Test

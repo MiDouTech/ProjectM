@@ -2,6 +2,7 @@ package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.task.domain.MetaCategory;
+import com.mido.pm.task.domain.TaskStatus;
 import com.mido.pm.task.entity.PmPriorityLevel;
 import com.mido.pm.task.entity.PmPriorityMode;
 import com.mido.pm.task.entity.PmStatus;
@@ -50,6 +51,20 @@ public class WorkItemMetaResolver {
         return statusMapper.selectList(Wrappers.<PmStatus>lambdaQuery()
                 .eq(PmStatus::getStatus, "active")
                 .orderByAsc(PmStatus::getSort).orderByAsc(PmStatus::getId));
+    }
+
+    /**
+     * 当前租户「已完成」元类别的状态名集合（供按状态名判定完成的读方，如简报草稿）。
+     * 未配置状态库时回落默认终态 {已完成, 已验收}，行为不变。
+     */
+    public java.util.Set<String> doneStatusNames() {
+        List<String> names = statusMapper.selectList(Wrappers.<PmStatus>lambdaQuery()
+                        .eq(PmStatus::getMetaCategory, MetaCategory.DONE))
+                .stream().map(PmStatus::getName).toList();
+        if (names.isEmpty()) {
+            return java.util.Set.of(TaskStatus.DONE.getCode(), TaskStatus.ACCEPTED.getCode());
+        }
+        return new java.util.HashSet<>(names);
     }
 
     /** 当前租户「已完成」元类别的全部状态 id（供报表/汇总按元类别判定完成；未种子返回空）。 */
