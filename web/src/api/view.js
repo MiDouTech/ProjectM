@@ -8,6 +8,13 @@ export const workspaceNavApi = {
   saveNav: (module, items) => request.put(`/workspace/nav/${module}`, items),
 }
 
+/** 可配置页面表单（ADR-0004 · L3）：内置字段目录 + 页面配置读写（前端再并自定义字段）。 */
+export const pageConfigApi = {
+  fields: (target) => request.get(`/workspace/page/fields/${target}`),
+  get: (target, templateType) => request.get(`/workspace/page/${target}/${templateType}`),
+  save: (target, templateType, config) => request.put(`/workspace/page/${target}/${templateType}`, config),
+}
+
 /** 列表表头偏好（每用户每列表，跨设备）。config: { columns:[key...], frozen:[key...] }。 */
 export const tablePrefApi = {
   get: (listKey) => request.get(`/table-prefs/${listKey}`),
