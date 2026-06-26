@@ -29,17 +29,18 @@
       <el-step v-for="s in LIFECYCLE" :key="s" :title="s" />
     </el-steps>
 
-    <!-- 主体：左项目内导航 + 右内容 -->
+    <!-- 主体：顶部横向导航 + 全宽内容（详情页统一范式，design-system §7） -->
     <div class="pw__body">
-      <el-menu :default-active="tab" class="pw__nav" @select="onSelectTab">
-        <el-menu-item v-for="t in visibleTabs" :key="t.name" :index="t.name">
-          <el-icon><component :is="t.icon" /></el-icon>
-          <span>{{ t.label }}</span>
-        </el-menu-item>
-        <div class="pw__nav-foot">
-          <el-button link type="primary" :icon="Setting" @click="openComp">组件管理</el-button>
-        </div>
-      </el-menu>
+      <div class="pw__tabbar">
+        <el-menu :default-active="tab" mode="horizontal" :ellipsis="true" class="pw__nav"
+          @select="onSelectTab">
+          <el-menu-item v-for="t in visibleTabs" :key="t.name" :index="t.name">
+            <el-icon><component :is="t.icon" /></el-icon>
+            <span>{{ t.label }}</span>
+          </el-menu-item>
+        </el-menu>
+        <el-button link type="primary" :icon="Setting" class="pw__comp-btn" @click="openComp">组件管理</el-button>
+      </div>
 
       <!-- 按 projectId 设 key：切换到另一个项目时强制重挂面板，避免内嵌面板沿用上个项目的数据 -->
       <section class="pw__content" :key="projectId">
@@ -338,22 +339,27 @@ watch(projectId, async () => {
 }
 .pw__body {
   display: flex;
-  gap: var(--mido-space-4);
-  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--mido-space-3);
+}
+.pw__tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-light);
 }
 .pw__nav {
-  width: var(--mido-admin-nav-width);
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+}
+.pw__comp-btn {
   flex: none;
-  border-radius: var(--mido-radius-md);
-  border: var(--mido-border-width) solid var(--el-border-color-light);
+  margin-left: var(--mido-space-3);
 }
 .pw__content {
   flex: 1;
   min-width: 0;
-}
-.pw__nav-foot {
-  padding: var(--mido-space-2);
-  border-top: var(--mido-border-width) solid var(--el-border-color-light);
 }
 .comp__list {
   display: flex;
