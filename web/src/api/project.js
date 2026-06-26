@@ -48,6 +48,13 @@ export const portfolioApi = {
   removeProject: (id, projectId) => request.delete(`/portfolios/${id}/projects/${projectId}`),
 }
 
+/** 组件库 + 项目组件安装（阶段5：项目顶栏由已安装组件动态生成；无安装记录回落默认 Tab） */
+export const componentApi = {
+  catalog: () => request.get('/components'),
+  listInstalled: (projectId) => request.get(`/projects/${projectId}/components`),
+  saveInstalled: (projectId, components) => request.put(`/projects/${projectId}/components`, components),
+}
+
 /** 项目模板（内置 5 套 + 自定义，Step 2-1） */
 export const templateApi = {
   list: (category) => request.get('/project-templates', { params: category ? { category } : {} }),

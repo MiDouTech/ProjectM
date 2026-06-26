@@ -32,10 +32,13 @@
     <!-- 主体：左项目内导航 + 右内容 -->
     <div class="pw__body">
       <el-menu :default-active="tab" class="pw__nav" @select="onSelectTab">
-        <el-menu-item v-for="t in TABS" :key="t.name" :index="t.name">
+        <el-menu-item v-for="t in visibleTabs" :key="t.name" :index="t.name">
           <el-icon><component :is="t.icon" /></el-icon>
           <span>{{ t.label }}</span>
         </el-menu-item>
+        <div class="pw__nav-foot">
+          <el-button link type="primary" :icon="Setting" @click="openComp">组件管理</el-button>
+        </div>
       </el-menu>
 
       <!-- 按 projectId 设 key：切换到另一个项目时强制重挂面板，避免内嵌面板沿用上个项目的数据 -->
@@ -56,6 +59,29 @@
           :entity-id="projectId" :user-name="userName" />
       </section>
     </div>
+
+    <!-- 组件管理：勾选并排序项目顶栏组件（不勾选任何=回落默认全量 Tab） -->
+    <el-dialog v-model="compOpen" title="组件管理" width="var(--mido-login-card-width)">
+      <p class="mido-text-secondary">勾选项目需要的组件，可调整顺序；不修改则保持默认。</p>
+      <draggable v-model="compSel" item-key="self" handle=".comp__drag" class="comp__list">
+        <template #item="{ element }">
+          <div class="comp__row">
+            <el-icon class="comp__drag"><Rank /></el-icon>
+            <el-checkbox :model-value="true" @change="(v) => toggleComp(element, v)">
+              {{ tabByName[element]?.label || element }}
+            </el-checkbox>
+          </div>
+        </template>
+      </draggable>
+      <el-divider>未启用</el-divider>
+      <div v-for="t in TABS.filter((x) => !compSel.includes(x.name))" :key="t.name" class="comp__row">
+        <el-checkbox :model-value="false" @change="(v) => toggleComp(t.name, v)">{{ t.label }}</el-checkbox>
+      </div>
+      <template #footer>
+        <el-button @click="compOpen = false">取消</el-button>
+        <el-button type="primary" @click="saveComp">保存</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 发起项目时间变更：受控变更，走变更中心 + 审批引擎（按变更策略必审/免审） -->
     <el-dialog v-model="changeOpen" title="发起项目时间变更" width="var(--mido-login-card-width)">
@@ -88,8 +114,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Odometer, Stamp, InfoFilled, Tickets, Aim, User,
-  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft, EditPen,
+  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft, EditPen, Setting, Rank,
 } from '@element-plus/icons-vue'
+import draggable from 'vuedraggable'
 import StatusTag from '@/components/StatusTag.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import ActivityTimeline from '@/components/ActivityTimeline.vue'
@@ -103,7 +130,7 @@ import ProjectVerifyPane from './panes/ProjectVerifyPane.vue'
 import ProjectGoalsPane from './panes/ProjectGoalsPane.vue'
 import TaskWorkspaceView from '@/views/task/TaskWorkspaceView.vue'
 import StakeholderView from '@/views/stakeholder/StakeholderView.vue'
-import { projectApi, MANUAL_TRANSITIONS } from '@/api/project'
+import { projectApi, componentApi, MANUAL_TRANSITIONS } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 
 const LIFECYCLE = ['草稿', '审批中', '已注册', '进行中', '结果验收', '已结案', '价值验收中', '已评价']
@@ -134,6 +161,49 @@ const tab = ref('overview')
 
 const userMap = computed(() => Object.fromEntries(users.value.map((u) => [u.id, u.name])))
 const userName = (id) => userMap.value[id] || (id ? `用户#${id}` : '—')
+
+// 阶段5 组件化顶栏：已安装组件驱动可见 Tab；无安装记录则回落默认全量 TABS
+const installed = ref([])
+const tabByName = Object.fromEntries(TABS.map((t) => [t.name, t]))
+const visibleTabs = computed(() => {
+  if (!installed.value.length) return TABS
+  return installed.value.map((c) => tabByName[c.componentCode]).filter(Boolean)
+})
+// 组件管理
+const compOpen = ref(false)
+const compSel = ref([]) // 选中的组件 code（有序）
+async function loadComponents() {
+  if (!projectId.value) return
+  installed.value = (await componentApi.listInstalled(projectId.value)) || []
+  // 当前 Tab 不在可见集合（被卸载/排除）时，切到首个可见 Tab，避免空白内容
+  if (!visibleTabs.value.some((t) => t.name === tab.value)) {
+    tab.value = visibleTabs.value[0]?.name || 'overview'
+  }
+}
+function openComp() {
+  // 默认勾选：已安装则用已安装顺序，否则全选(=默认全量)
+  compSel.value = installed.value.length ? installed.value.map((c) => c.componentCode) : TABS.map((t) => t.name)
+  compOpen.value = true
+}
+function toggleComp(code, checked) {
+  if (checked) {
+    if (!compSel.value.includes(code)) compSel.value = [...compSel.value, code]
+  } else {
+    compSel.value = compSel.value.filter((c) => c !== code)
+  }
+}
+async function saveComp() {
+  const payload = compSel.value.map((code, i) => ({
+    componentCode: code, name: tabByName[code]?.label, sort: i,
+  }))
+  await componentApi.saveInstalled(projectId.value, payload)
+  ElMessage.success('已保存组件')
+  compOpen.value = false
+  await loadComponents()
+  if (!visibleTabs.value.some((t) => t.name === tab.value)) {
+    tab.value = visibleTabs.value[0]?.name || 'overview'
+  }
+}
 
 const activeStage = computed(() => {
   const i = LIFECYCLE.indexOf(project.value.status)
@@ -223,13 +293,13 @@ async function loadMembers() {
 
 onMounted(async () => {
   users.value = await fetchMembers()
-  await Promise.all([reload(), loadMembers()])
+  await Promise.all([reload(), loadMembers(), loadComponents()])
 })
 
 // 切换到另一个项目（同组件复用）时重载
 watch(projectId, async () => {
   tab.value = 'overview'
-  await Promise.all([reload(), loadMembers()])
+  await Promise.all([reload(), loadMembers(), loadComponents()])
 })
 </script>
 
@@ -279,5 +349,24 @@ watch(projectId, async () => {
 .pw__content {
   flex: 1;
   min-width: 0;
+}
+.pw__nav-foot {
+  padding: var(--mido-space-2);
+  border-top: var(--mido-border-width) solid var(--el-border-color-light);
+}
+.comp__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-1);
+}
+.comp__row {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-1) 0;
+}
+.comp__drag {
+  cursor: move;
+  color: var(--el-text-color-secondary);
 }
 </style>
