@@ -39,6 +39,7 @@ import static org.mockito.Mockito.when;
 class WecomContactSyncServiceTest {
 
     @Mock private WecomContactClient contactClient;
+    @Mock private WecomConfigService configService;
     @Mock private SysDeptMapper deptMapper;
     @Mock private SysUserMapper userMapper;
     @Mock private SysIdentityMapMapper identityMapMapper;

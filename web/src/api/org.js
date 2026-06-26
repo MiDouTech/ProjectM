@@ -42,6 +42,15 @@ export const roleApi = {
   saveDataScopes: (id, settings) => request.put(`/roles/${id}/data-scopes`, settings),
 }
 
+/**
+ * 企业微信集成配置（租户自助）。secret 出参脱敏（仅 *Set 布尔位），保存时留空表示不修改原值。
+ */
+export const wecomConfigApi = {
+  get: () => request.get('/wecom/config'),
+  status: () => request.get('/wecom/config/status'),
+  save: (data) => request.put('/wecom/config', data),
+}
+
 /** 部门树（Step 1-1） */
 export const deptApi = {
   tree: () => request.get('/depts'),
