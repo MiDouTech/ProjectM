@@ -149,7 +149,7 @@ stateDiagram-v2
 | RBAC | 功能权限 / 数据范围(self/dept/dept_and_sub/all/custom) / 字段权限 | `/admin/roles` | ✅ |
 | 项目类型 | code/name/color/职级门槛/是否走 NPSS/默认审批流（经 `ProjectTypeResolver` 解析，取代 S/I/O 硬编码） | `/admin/project-types` | ✅ |
 | 审批流 | 可视化设计器：节点/条件分支/会签或签/审批人类型/知会人 | `/admin/approval-flows` | ✅ |
-| NPSS 权重模板 | 评价主体模板 + 权重（受益方≥50%、合计=100% 校验） | `/admin/npss-settings` | ⚠️ 无内置默认种子 |
+| NPSS 权重模板 | 评价主体模板 + 权重（受益方≥50%、合计=100% 校验） | `/admin/npss-settings` | ✅ 已补默认种子（新租户播种+自用租户迁移） |
 | 自定义字段 / 数据源 | EAV 字段定义 | `/admin/fields`、`/admin/data-sources` | ✅ |
 | 工作项类型/状态库/优先级/关联/变更策略 | 元数据配置 | `/admin/work-item-types` 等 | ✅ |
 | **导航配置**（ADR-0003 · L1） | 一级模块顶部导航组件编排：拖拽排序/改名/显隐/挂子菜单，租户级、空配回落内置默认 | `/admin/workspace-nav` | ✅ 新增（含 L2 子菜单） |
@@ -307,7 +307,7 @@ stateDiagram-v2
 | 5 | 项目级 `pm_workflow` 仅建表无代码 | 项目无法自定义状态流 | P1 | 仅 `V1`/`V59` 迁移与 task 域硬编码 | 已验证 |
 | 6 | `TenantContextFilter` 占位固定 tenant=1 | 依赖过滤器顺序，脆弱 | P1 | `TenantContextFilter:29-30` | 已验证 |
 | 7 | 项目模板只读、无编辑接口/管理页 | 租户只能用内置 5 套 | P2 | `ProjectTemplateController`（仅查询） | 已验证 |
-| 8 | NPSS 权重模板无内置默认种子 | 新租户首次配 NPSS 繁琐 | P2 | `ApprovalTenantProvisioner`（无该种子） | 已验证 |
+| 8 | ~~NPSS 权重模板无内置默认种子~~ **（已修复）** | 新增 NpssTemplateTenantProvisioner 播种 + V69 自用租户种子（发起人30/业务方30/团队10/财务10/其他20） | P2 | module-verify | 已修复 |
 | 9 | 日历资源/企微配置 有后端无前端入口 | 只能 API/DB 操作 | P2 | `ResourceController`、`WecomConfigController` | 已验证 |
 | 10 | 消息通道路由硬编码 | 调推送策略需改代码 | P2 | `MessageRouting` | 已验证 |
 | 11 | task→work-item 双写期旧列权威 | 双轨维护窗口 | P2 | `docs/adr/0002` 阶段3 | 已验证 |
