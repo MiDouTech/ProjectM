@@ -56,7 +56,12 @@
             <el-option v-for="t in FIELD_TYPES" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="isOptionType(form.type)" label="选项">
+        <el-form-item v-if="isOptionType(form.type)" label="选项来源">
+          <el-select v-model="form.dataSourceId" clearable placeholder="内联选项（不选则手填）" class="fd__full">
+            <el-option v-for="d in dataSources" :key="d.id" :label="d.name" :value="d.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="isOptionType(form.type) && !form.dataSourceId" label="选项">
           <div class="fd__options">
             <div v-for="(o, i) in form.options" :key="i" class="fd__option">
               <el-input v-model="o.value" placeholder="值(英文)" class="fd__opt-val" />
@@ -82,7 +87,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
-import { fieldDefApi, FIELD_TYPES } from '@/api/field'
+import { fieldDefApi, dataSourceApi, FIELD_TYPES } from '@/api/field'
 import StatusTag from '@/components/StatusTag.vue'
 
 const loading = ref(false)
@@ -93,7 +98,8 @@ const dialog = ref(false)
 const editing = ref(false)
 const editId = ref(null)
 const formRef = ref()
-const form = reactive({ fieldKey: '', name: '', type: 'text', options: [], required: false, sortNo: 0, enabled: true })
+const dataSources = ref([])
+const form = reactive({ fieldKey: '', name: '', type: 'text', options: [], dataSourceId: null, required: false, sortNo: 0, enabled: true })
 const rules = {
   name: [{ required: true, message: '请输入显示名', trigger: 'blur' }],
   fieldKey: [{ required: true, message: '请输入字段标识', trigger: 'blur' }],
@@ -113,7 +119,7 @@ async function load() {
 }
 
 function reset() {
-  Object.assign(form, { fieldKey: '', name: '', type: 'text', options: [], required: false, sortNo: 0, enabled: true })
+  Object.assign(form, { fieldKey: '', name: '', type: 'text', options: [], dataSourceId: null, required: false, sortNo: 0, enabled: true })
 }
 function onTypeChange() {
   if (isOptionType(form.type) && form.options.length === 0) {
@@ -132,6 +138,7 @@ function openEdit(row) {
   Object.assign(form, {
     fieldKey: row.fieldKey, name: row.name, type: row.type,
     options: (row.options || []).map((o) => ({ ...o })),
+    dataSourceId: row.dataSourceId ?? null,
     required: row.required, sortNo: row.sortNo ?? 0, enabled: row.enabled,
   })
   dialog.value = true
@@ -139,9 +146,10 @@ function openEdit(row) {
 
 function validOptions() {
   if (!isOptionType(form.type)) return null
+  if (form.dataSourceId) return [] // 选项来自数据源，内联置空
   const opts = form.options.filter((o) => o.value && o.label)
   if (opts.length === 0) {
-    ElMessage.warning('选项型字段至少需要一个有值的选项')
+    ElMessage.warning('请选择数据源，或至少填写一个有值的选项')
     return false
   }
   return opts
@@ -155,13 +163,13 @@ async function submit() {
   try {
     if (editing.value) {
       await fieldDefApi.update(editId.value, {
-        name: form.name, type: form.type, options: opts,
+        name: form.name, type: form.type, options: opts, dataSourceId: form.dataSourceId,
         required: form.required, sortNo: form.sortNo, enabled: form.enabled,
       })
     } else {
       await fieldDefApi.create({
         scope: scope.value, fieldKey: form.fieldKey, name: form.name, type: form.type,
-        options: opts, required: form.required, sortNo: form.sortNo,
+        options: opts, dataSourceId: form.dataSourceId, required: form.required, sortNo: form.sortNo,
       })
     }
     ElMessage.success('已保存')
@@ -179,7 +187,14 @@ async function remove(row) {
   load()
 }
 
-onMounted(load)
+onMounted(async () => {
+  load()
+  try {
+    dataSources.value = await dataSourceApi.list(true)
+  } catch {
+    dataSources.value = []
+  }
+})
 </script>
 
 <style scoped>

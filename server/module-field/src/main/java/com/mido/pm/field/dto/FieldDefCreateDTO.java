@@ -15,6 +15,7 @@ public record FieldDefCreateDTO(
         @NotBlank(message = "字段名不能为空") String name,
         @NotBlank(message = "字段类型不能为空") String type,
         @Valid List<FieldOption> options,
+        Long dataSourceId,
         Boolean required,
         Integer sortNo) {
 }

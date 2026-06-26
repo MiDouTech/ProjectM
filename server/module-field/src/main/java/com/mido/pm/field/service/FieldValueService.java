@@ -46,15 +46,17 @@ public class FieldValueService {
     private final AuditLogService auditLogService;
     private final DomainEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final DataSourceService dataSourceService;
 
     public FieldValueService(PmFieldValueMapper valueMapper, PmFieldDefMapper defMapper,
                              AuditLogService auditLogService, DomainEventPublisher eventPublisher,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper, DataSourceService dataSourceService) {
         this.valueMapper = valueMapper;
         this.defMapper = defMapper;
         this.auditLogService = auditLogService;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
+        this.dataSourceService = dataSourceService;
     }
 
     /**
@@ -78,7 +80,7 @@ public class FieldValueService {
                         (a, b) -> a));
         return defs.stream().map(def -> new FieldValueVO(
                 def.getId(), def.getFieldKey(), def.getName(), def.getType(),
-                readOptions(def.getOptions()),
+                effectiveOptions(def),
                 def.getRequired() != null && def.getRequired() == 1,
                 def.getSortNo(),
                 valueByField.get(def.getId()))).toList();
@@ -272,8 +274,16 @@ public class FieldValueService {
     }
 
     private Set<String> optionValues(PmFieldDef def) {
-        return readOptions(def.getOptions()).stream().map(FieldOption::value)
+        return effectiveOptions(def).stream().map(FieldOption::value)
                 .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    /** 字段有效选项：引用数据源时取数据源选项，否则取内联 options。 */
+    private List<FieldOption> effectiveOptions(PmFieldDef def) {
+        if (def.getDataSourceId() != null) {
+            return dataSourceService.resolveOptions(def.getDataSourceId());
+        }
+        return readOptions(def.getOptions());
     }
 
     private BizException badValue(PmFieldDef def, String value) {
