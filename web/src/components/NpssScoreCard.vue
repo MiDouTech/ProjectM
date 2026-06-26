@@ -14,8 +14,23 @@
     <el-alert v-if="hasExternal" class="nsc__hint" type="info" :closable="false" show-icon
       title="外部干系人无系统账号，其评分由 PMO/负责人代为录入" />
 
+    <!-- 评价主体分组得分（同主体多人先平均再加权） -->
+    <div v-if="subjectMode" class="nsc__subjects">
+      <div v-for="g in subjectSummary" :key="g.id" class="nsc__subject">
+        <span class="nsc__subject-name">{{ g.name }}</span>
+        <span class="mido-text-secondary">权重 <span class="mido-mono">{{ pct(g.weight) }}</span></span>
+        <span class="mido-text-secondary">主体均分
+          <span v-if="g.avg != null" class="mido-mono">{{ g.avg.toFixed(2) }}</span>
+          <span v-else>评分中</span>
+        </span>
+      </div>
+    </div>
+
     <!-- 干系人打分（0-10），待打分行可内联提交 -->
     <el-table :data="review.scores" size="small">
+      <el-table-column v-if="subjectMode" label="评价主体" width="120">
+        <template #default="{ row }">{{ subjectName(row.subjectId) }}</template>
+      </el-table-column>
       <el-table-column label="干系人" width="140">
         <template #default="{ row }">
           {{ stakeholderName(row.stakeholderId) }}
@@ -57,12 +72,33 @@ const props = defineProps({
   stakeholderName: { type: Function, default: (id) => `干系人#${id}` },
   // 外部干系人 id 列表（无系统账号，评分代录）
   externalIds: { type: Array, default: () => [] },
+  // 评价主体名称解析（id→名称）；提供且评分带 subjectId 时按主体分组展示
+  subjectName: { type: Function, default: null },
 })
 const emit = defineEmits(['scored'])
 
 const isExternal = (id) => props.externalIds.some((x) => String(x) === String(id))
 const hasExternal = computed(() =>
   (props.review?.scores || []).some((s) => isExternal(s.stakeholderId)))
+
+// 评价主体口径：评分带 subjectId 且提供名称解析时启用分组展示
+const subjectMode = computed(() =>
+  !!props.subjectName && (props.review?.scores || []).some((s) => s.subjectId != null))
+const subjectName = (id) => (props.subjectName ? props.subjectName(id) : `主体#${id}`)
+const subjectSummary = computed(() => {
+  if (!subjectMode.value) return []
+  const map = new Map()
+  for (const s of props.review.scores || []) {
+    if (s.subjectId == null) continue
+    if (!map.has(s.subjectId)) {
+      map.set(s.subjectId, { id: s.subjectId, name: subjectName(s.subjectId), weight: s.weight, scored: [] })
+    }
+    if (s.score != null) map.get(s.subjectId).scored.push(Number(s.score))
+  }
+  return [...map.values()].map((g) => ({
+    ...g, avg: g.scored.length ? g.scored.reduce((a, b) => a + b, 0) / g.scored.length : null,
+  }))
+})
 
 const saving = reactive({ value: false })
 // 每个待打分干系人的草稿
@@ -111,6 +147,23 @@ async function submit(row) {
 }
 .nsc__hint {
   margin-bottom: var(--mido-space-3);
+}
+.nsc__subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mido-space-3);
+  margin-bottom: var(--mido-space-3);
+}
+.nsc__subject {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-1) var(--mido-space-3);
+  background-color: var(--el-fill-color-light);
+  border-radius: var(--mido-radius-md);
+}
+.nsc__subject-name {
+  font-weight: var(--mido-font-weight-bold);
 }
 .nsc__score {
   display: flex;
