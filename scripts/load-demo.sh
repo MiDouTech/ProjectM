@@ -14,5 +14,5 @@ PASS="${MYSQL_PASSWORD:-root}"
 [ -f "$SQL_FILE" ] || { echo "未找到 SQL 文件: $SQL_FILE" >&2; exit 1; }
 
 echo "→ 正在向容器 $CONTAINER 的数据库 $DB 写入演示数据…"
-docker exec -i "$CONTAINER" mysql -u"$USER" -p"$PASS" "$DB" < "$SQL_FILE"
+docker exec -i "$CONTAINER" mysql --default-character-set=utf8mb4 -u"$USER" -p"$PASS" "$DB" < "$SQL_FILE"
 echo "✓ 演示数据加载完成。登录 admin/admin123（演示员工密码统一 admin123）。"
