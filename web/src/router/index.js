@@ -86,6 +86,7 @@ const routes = [
           { path: 'fields', component: () => import('@/views/admin/FieldDefManage.vue') },
           { path: 'data-sources', component: () => import('@/views/admin/DataSourceManage.vue') },
           { path: 'work-item-types', component: () => import('@/views/admin/WorkItemTypeManage.vue') },
+          { path: 'relation-defs', component: () => import('@/views/admin/RelationDefManage.vue') },
           { path: 'statuses', component: () => import('@/views/admin/StatusManage.vue') },
           { path: 'priority-modes', component: () => import('@/views/admin/PriorityModeManage.vue') },
           { path: 'audit-logs', component: () => import('@/views/admin/AuditLogView.vue') },

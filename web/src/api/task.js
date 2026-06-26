@@ -69,6 +69,27 @@ export const TASK_PRIORITIES = [
   { value: 3, label: '低' },
 ]
 
+/** 工作项关联（阶段4）：任务间 related/derived 关联，支撑追溯链。 */
+export const relationApi = {
+  list: (taskId) => request.get(`/tasks/${taskId}/relations`),
+  add: (taskId, data) => request.post(`/tasks/${taskId}/relations`, data),
+  remove: (taskId, relationId) => request.delete(`/tasks/${taskId}/relations/${relationId}`),
+}
+
+/** 关联定义（阶段4，管理员配置类型↔类型 的关联语义） */
+export const relationDefApi = {
+  list: () => request.get('/relation-defs'),
+  create: (data) => request.post('/relation-defs', data),
+  update: (id, data) => request.put(`/relation-defs/${id}`, data),
+  remove: (id) => request.delete(`/relation-defs/${id}`),
+}
+
+/** 关联类型字典（与后端 RelationKind 一致） */
+export const RELATION_KINDS = [
+  { value: 'related', label: '相关' },
+  { value: 'derived', label: '派生' },
+]
+
 /** 工作项类型 + 工作流（阶段2）。流转矩阵驱动状态流转引擎；字段绑定供表单布局。 */
 export const workItemTypeApi = {
   list: (onlyActive = false) => request.get('/work-item-types', { params: { onlyActive } }),
