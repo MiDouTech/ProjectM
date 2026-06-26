@@ -68,3 +68,27 @@ export const TASK_PRIORITIES = [
   { value: 2, label: '中' },
   { value: 3, label: '低' },
 ]
+
+/** 状态库（租户自配任务状态字典，阶段1-b；双轨，暂未接管 task 流转） */
+export const statusApi = {
+  list: (onlyActive = false) => request.get('/statuses', { params: { onlyActive } }),
+  create: (data) => request.post('/statuses', data),
+  update: (id, data) => request.put(`/statuses/${id}`, data),
+  remove: (id) => request.delete(`/statuses/${id}`),
+}
+
+/** 状态元类别（与后端 MetaCategory 一致；统计口径基准） */
+export const META_CATEGORIES = [
+  { value: '未开始', label: '未开始' },
+  { value: '进行中', label: '进行中' },
+  { value: '已完成', label: '已完成' },
+]
+
+/** 优先级模式（租户自配，阶段1-c；双轨，暂未接管 task 优先级） */
+export const priorityModeApi = {
+  list: () => request.get('/priority-modes'),
+  get: (id) => request.get(`/priority-modes/${id}`),
+  create: (data) => request.post('/priority-modes', data),
+  update: (id, data) => request.put(`/priority-modes/${id}`, data),
+  remove: (id) => request.delete(`/priority-modes/${id}`),
+}

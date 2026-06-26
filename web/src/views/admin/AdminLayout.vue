@@ -35,6 +35,12 @@
         <el-menu-item index="/admin/data-sources">
           <el-icon><Collection /></el-icon><span>数据源</span>
         </el-menu-item>
+        <el-menu-item index="/admin/statuses">
+          <el-icon><Flag /></el-icon><span>状态库</span>
+        </el-menu-item>
+        <el-menu-item index="/admin/priority-modes">
+          <el-icon><Sort /></el-icon><span>优先级模式</span>
+        </el-menu-item>
         <el-menu-item index="/admin/audit-logs">
           <el-icon><Tickets /></el-icon><span>操作日志</span>
         </el-menu-item>
@@ -50,7 +56,7 @@
 </template>
 
 <script setup>
-import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch, Memo, Histogram, Tickets, Collection } from '@element-plus/icons-vue'
+import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch, Memo, Histogram, Tickets, Collection, Flag, Sort } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
