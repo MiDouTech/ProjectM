@@ -66,6 +66,12 @@
         <el-form-item v-if="!editing" label="编码" prop="code">
           <el-input v-model="form.code" placeholder="2-32 位小写字母/数字/连字符，不以连字符开头" />
         </el-form-item>
+        <el-form-item v-if="!editing" label="管理员账号">
+          <el-input v-model="form.adminUsername" placeholder="留空默认 admin" />
+        </el-form-item>
+        <el-form-item v-if="!editing" label="初始密码">
+          <el-input v-model="form.adminPassword" placeholder="留空默认 Mido@2024，请提示客户首登后修改" />
+        </el-form-item>
         <el-form-item label="行业"><el-input v-model="form.industry" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contactName" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="form.contactPhone" /></el-form-item>
@@ -272,7 +278,7 @@ const formDrawer = ref(false)
 const editing = ref(false)
 const saving = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, name: '', code: '', industry: '', contactName: '', contactPhone: '', contactEmail: '', remark: '' })
+const form = reactive({ id: null, name: '', code: '', industry: '', contactName: '', contactPhone: '', contactEmail: '', remark: '', adminUsername: '', adminPassword: '' })
 const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   code: [
@@ -282,7 +288,7 @@ const rules = {
 }
 
 function resetForm() {
-  Object.assign(form, { id: null, name: '', code: '', industry: '', contactName: '', contactPhone: '', contactEmail: '', remark: '' })
+  Object.assign(form, { id: null, name: '', code: '', industry: '', contactName: '', contactPhone: '', contactEmail: '', remark: '', adminUsername: '', adminPassword: '' })
 }
 function openCreate() {
   editing.value = false
@@ -309,7 +315,7 @@ async function save() {
     if (editing.value) {
       await tenantApi.update(form.id, payload)
     } else {
-      await tenantApi.create({ ...payload, code: form.code })
+      await tenantApi.create({ ...payload, code: form.code, adminUsername: form.adminUsername, adminPassword: form.adminPassword })
     }
     ElMessage.success('保存成功')
     formDrawer.value = false

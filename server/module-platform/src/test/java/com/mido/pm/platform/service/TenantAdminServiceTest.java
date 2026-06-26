@@ -31,20 +31,21 @@ class TenantAdminServiceTest {
     private PlatformAuditService auditService;
 
     private TenantAdminService service() {
-        return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService);
+        // 播种器列表传空：本单测聚焦租户行写入与审计，播种各域已由各自单测/联调覆盖。
+        return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService, java.util.List.of());
     }
 
     @Test
     void createDuplicateCodeRejected() {
         when(tenantMapper.selectCount(any())).thenReturn(1L);
-        TenantCreateDTO dto = new TenantCreateDTO("米多", "mido", null, null, null, null, null);
+        TenantCreateDTO dto = new TenantCreateDTO("米多", "mido", null, null, null, null, null, null, null);
         assertThrows(BizException.class, () -> service().create(dto));
     }
 
     @Test
     void createStartsAsTrialFromManualSource() {
         when(tenantMapper.selectCount(any())).thenReturn(0L);
-        TenantCreateDTO dto = new TenantCreateDTO("新客户", "newco", "互联网", "张三", "13800000000", null, "备注");
+        TenantCreateDTO dto = new TenantCreateDTO("新客户", "newco", "互联网", "张三", "13800000000", null, "备注", null, null);
 
         service().create(dto);
 
