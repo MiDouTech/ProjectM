@@ -1,6 +1,8 @@
 package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.dto.PriorityLevelDTO;
@@ -42,6 +44,7 @@ public class PriorityModeService {
         return toVO(m, levelsOf(id));
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED, target = AuditActions.TARGET_PRIORITY_MODE)
     @Transactional(rollbackFor = Exception.class)
     public Long create(PriorityModeSaveDTO dto) {
         PmPriorityMode m = new PmPriorityMode();
@@ -54,6 +57,7 @@ public class PriorityModeService {
         return m.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_PRIORITY_MODE)
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, PriorityModeSaveDTO dto) {
         PmPriorityMode m = requireExists(id);
@@ -66,6 +70,7 @@ public class PriorityModeService {
         saveLevels(id, dto.levels());
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.DELETED, target = AuditActions.TARGET_PRIORITY_MODE)
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         PmPriorityMode m = requireExists(id);

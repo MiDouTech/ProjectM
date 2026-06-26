@@ -1,6 +1,8 @@
 package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.dto.TransitionDTO;
@@ -45,6 +47,7 @@ public class WorkItemTypeService {
                 .stream().map(this::toVO).toList();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED, target = AuditActions.TARGET_WORK_ITEM_TYPE)
     public Long create(WorkItemTypeSaveDTO dto) {
         assertCodeUnique(dto.code());
         PmWorkItemType t = new PmWorkItemType();
@@ -58,6 +61,7 @@ public class WorkItemTypeService {
         return t.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_WORK_ITEM_TYPE)
     public void update(Long id, WorkItemTypeSaveDTO dto) {
         PmWorkItemType t = requireExists(id);
         t.setName(dto.name());
@@ -71,6 +75,7 @@ public class WorkItemTypeService {
         typeMapper.updateById(t);
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.DELETED, target = AuditActions.TARGET_WORK_ITEM_TYPE)
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         PmWorkItemType t = requireExists(id);
@@ -93,6 +98,7 @@ public class WorkItemTypeService {
                         f.getRequired() != null && f.getRequired() == 1, f.getSort())).toList();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_WORK_ITEM_TYPE)
     @Transactional(rollbackFor = Exception.class)
     public void saveFields(Long typeId, List<TypeFieldDTO> fields) {
         requireExists(typeId);
@@ -121,6 +127,7 @@ public class WorkItemTypeService {
                 .stream().map(t -> new TransitionDTO(t.getFromStatusId(), t.getToStatusId())).toList();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_WORK_ITEM_TYPE)
     @Transactional(rollbackFor = Exception.class)
     public void saveTransitions(Long typeId, List<TransitionDTO> transitions) {
         requireExists(typeId);

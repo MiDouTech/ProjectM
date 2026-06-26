@@ -65,6 +65,24 @@ public final class AuditActions {
     public static final String TARGET_PROJECT_MEMBER = "project_member";
     /** 实体类型：项目类型 */
     public static final String TARGET_PROJECT_TYPE = "project_type";
+    /** 实体类型：状态库状态 */
+    public static final String TARGET_STATUS = "status";
+    /** 实体类型：工作项类型 */
+    public static final String TARGET_WORK_ITEM_TYPE = "work_item_type";
+    /** 实体类型：优先级模式 */
+    public static final String TARGET_PRIORITY_MODE = "priority_mode";
+    /** 实体类型：数据源（选项集） */
+    public static final String TARGET_DATA_SOURCE = "data_source";
+    /** 实体类型：项目角色 */
+    public static final String TARGET_PROJECT_ROLE = "project_role";
+    /** 实体类型：关联类型定义 */
+    public static final String TARGET_RELATION_DEF = "relation_def";
+    /** 实体类型：工作项关联实例（entityId = 源任务 ID） */
+    public static final String TARGET_RELATION = "relation";
+    /** 实体类型：项目组件安装（entityId = 项目 ID） */
+    public static final String TARGET_COMPONENT = "component";
+    /** 实体类型：项目集（组合） */
+    public static final String TARGET_PORTFOLIO = "portfolio";
 
     private AuditActions() {
     }

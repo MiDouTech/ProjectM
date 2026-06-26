@@ -1,6 +1,8 @@
 package com.mido.pm.field.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.field.dto.DataSourceSaveDTO;
@@ -55,6 +57,7 @@ public class DataSourceService {
                 .stream().map(o -> new FieldOption(o.getValue(), o.getLabel())).toList();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED, target = AuditActions.TARGET_DATA_SOURCE)
     @Transactional(rollbackFor = Exception.class)
     public Long create(DataSourceSaveDTO dto) {
         PmDataSource d = new PmDataSource();
@@ -67,6 +70,7 @@ public class DataSourceService {
         return d.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_DATA_SOURCE)
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, DataSourceSaveDTO dto) {
         PmDataSource d = requireExists(id);
@@ -80,6 +84,7 @@ public class DataSourceService {
         saveOptions(id, dto.options());
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.DELETED, target = AuditActions.TARGET_DATA_SOURCE)
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         requireExists(id);

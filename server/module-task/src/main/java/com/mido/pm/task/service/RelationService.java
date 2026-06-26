@@ -1,6 +1,8 @@
 package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.domain.RelationKind;
@@ -35,6 +37,7 @@ public class RelationService {
         this.taskMapper = taskMapper;
     }
 
+    @Audited(module = AuditActions.MODULE_TASK, action = AuditActions.CREATED, target = AuditActions.TARGET_RELATION)
     public Long link(Long sourceTaskId, RelationCreateDTO dto) {
         if (!RelationKind.isValid(dto.relationKind())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法关系类型: " + dto.relationKind());
@@ -59,6 +62,7 @@ public class RelationService {
         return r.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_TASK, action = AuditActions.DELETED, target = AuditActions.TARGET_RELATION)
     public void unlink(Long taskId, Long relationId) {
         PmRelation r = relationMapper.selectById(relationId);
         if (r == null || (!Objects.equals(r.getSourceTaskId(), taskId)

@@ -1,6 +1,8 @@
 package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.domain.MetaCategory;
@@ -40,6 +42,7 @@ public class StatusLibraryService {
                 .stream().map(this::toVO).toList();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED, target = AuditActions.TARGET_STATUS)
     public Long create(StatusSaveDTO dto) {
         assertMeta(dto.metaCategory());
         PmStatus s = new PmStatus();
@@ -54,6 +57,7 @@ public class StatusLibraryService {
         return s.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_STATUS)
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, StatusSaveDTO dto) {
         assertMeta(dto.metaCategory());
@@ -78,6 +82,7 @@ public class StatusLibraryService {
         }
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.DELETED, target = AuditActions.TARGET_STATUS)
     public void delete(Long id) {
         PmStatus s = requireExists(id);
         if (s.getBuiltin() != null && s.getBuiltin() == 1) {

@@ -1,6 +1,8 @@
 package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.task.domain.RelationKind;
@@ -44,6 +46,7 @@ public class RelationDefService {
                 d.getRelationKind(), d.getName())).toList();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED, target = AuditActions.TARGET_RELATION_DEF)
     public Long create(RelationDefSaveDTO dto) {
         validate(dto);
         PmRelationDef d = new PmRelationDef();
@@ -55,6 +58,7 @@ public class RelationDefService {
         return d.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_RELATION_DEF)
     public void update(Long id, RelationDefSaveDTO dto) {
         validate(dto);
         PmRelationDef d = defMapper.selectById(id);
@@ -68,6 +72,7 @@ public class RelationDefService {
         defMapper.updateById(d);
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.DELETED, target = AuditActions.TARGET_RELATION_DEF)
     public void delete(Long id) {
         defMapper.deleteById(id);
     }

@@ -1,6 +1,8 @@
 package com.mido.pm.project.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.project.dto.PortfolioOverviewVO;
@@ -50,6 +52,7 @@ public class PortfolioService {
                 .toList();
     }
 
+    @Audited(module = AuditActions.MODULE_PROJECT, action = AuditActions.CREATED, target = AuditActions.TARGET_PORTFOLIO)
     public Long create(PortfolioSaveDTO dto) {
         PmPortfolio p = new PmPortfolio();
         p.setName(dto.name());
@@ -60,6 +63,7 @@ public class PortfolioService {
         return p.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_PROJECT, action = AuditActions.UPDATED, target = AuditActions.TARGET_PORTFOLIO)
     public void update(Long id, PortfolioSaveDTO dto) {
         PmPortfolio p = requireExists(id);
         p.setName(dto.name());
@@ -71,6 +75,7 @@ public class PortfolioService {
         portfolioMapper.updateById(p);
     }
 
+    @Audited(module = AuditActions.MODULE_PROJECT, action = AuditActions.DELETED, target = AuditActions.TARGET_PORTFOLIO)
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         requireExists(id);
@@ -79,6 +84,7 @@ public class PortfolioService {
     }
 
     /** 向项目集挂接项目（去重，已存在的跳过）。 */
+    @Audited(module = AuditActions.MODULE_PROJECT, action = AuditActions.UPDATED, target = AuditActions.TARGET_PORTFOLIO)
     @Transactional(rollbackFor = Exception.class)
     public void addProjects(Long portfolioId, List<Long> projectIds) {
         requireExists(portfolioId);
@@ -97,6 +103,7 @@ public class PortfolioService {
         }
     }
 
+    @Audited(module = AuditActions.MODULE_PROJECT, action = AuditActions.UPDATED, target = AuditActions.TARGET_PORTFOLIO)
     public void removeProject(Long portfolioId, Long projectId) {
         requireExists(portfolioId);
         linkMapper.delete(Wrappers.<PmPortfolioProject>lambdaQuery()

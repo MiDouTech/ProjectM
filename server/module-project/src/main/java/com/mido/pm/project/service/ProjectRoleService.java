@@ -1,6 +1,8 @@
 package com.mido.pm.project.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.project.dto.ProjectRoleSaveDTO;
@@ -47,6 +49,7 @@ public class ProjectRoleService {
         return c != null && c > 0;
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED, target = AuditActions.TARGET_PROJECT_ROLE)
     public Long create(ProjectRoleSaveDTO dto) {
         assertCodeUnique(dto.code());
         PmProjectRole r = new PmProjectRole();
@@ -60,6 +63,7 @@ public class ProjectRoleService {
     }
 
     /** 更新：code 不可改（以 id 为准），其余覆盖。 */
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED, target = AuditActions.TARGET_PROJECT_ROLE)
     public void update(Long id, ProjectRoleSaveDTO dto) {
         PmProjectRole r = requireExists(id);
         r.setName(dto.name());
@@ -72,6 +76,7 @@ public class ProjectRoleService {
         roleMapper.updateById(r);
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.DELETED, target = AuditActions.TARGET_PROJECT_ROLE)
     public void delete(Long id) {
         PmProjectRole r = requireExists(id);
         if (r.getBuiltin() != null && r.getBuiltin() == 1) {

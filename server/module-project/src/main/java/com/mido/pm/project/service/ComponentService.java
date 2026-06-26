@@ -1,6 +1,8 @@
 package com.mido.pm.project.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.project.dto.ComponentVO;
 import com.mido.pm.project.dto.ProjectComponentSaveDTO;
 import com.mido.pm.project.dto.ProjectComponentVO;
@@ -47,6 +49,7 @@ public class ComponentService {
     }
 
     /** 整列表保存（先清后插，sort 取列表顺序）。空列表=回落默认 Tab。 */
+    @Audited(module = AuditActions.MODULE_PROJECT, action = AuditActions.UPDATED, target = AuditActions.TARGET_COMPONENT)
     @Transactional(rollbackFor = Exception.class)
     public void saveInstalled(Long projectId, List<ProjectComponentSaveDTO> components) {
         projectComponentMapper.delete(Wrappers.<PmProjectComponent>lambdaQuery()
