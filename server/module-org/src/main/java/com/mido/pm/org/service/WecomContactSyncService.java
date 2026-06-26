@@ -36,15 +36,17 @@ public class WecomContactSyncService {
     private static final long LOCAL_ROOT_PARENT = 0L;
 
     private final WecomContactClient contactClient;
+    private final WecomConfigService configService;
     private final SysDeptMapper deptMapper;
     private final SysUserMapper userMapper;
     private final SysIdentityMapMapper identityMapMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public WecomContactSyncService(WecomContactClient contactClient, SysDeptMapper deptMapper,
-                                   SysUserMapper userMapper, SysIdentityMapMapper identityMapMapper,
-                                   PasswordEncoder passwordEncoder) {
+    public WecomContactSyncService(WecomContactClient contactClient, WecomConfigService configService,
+                                   SysDeptMapper deptMapper, SysUserMapper userMapper,
+                                   SysIdentityMapMapper identityMapMapper, PasswordEncoder passwordEncoder) {
         this.contactClient = contactClient;
+        this.configService = configService;
         this.deptMapper = deptMapper;
         this.userMapper = userMapper;
         this.identityMapMapper = identityMapMapper;
@@ -53,12 +55,22 @@ public class WecomContactSyncService {
 
     @Transactional(rollbackFor = Exception.class)
     public WecomSyncResultVO sync() {
-        if (!contactClient.enabled()) {
+        // 有效凭证优先取租户 DB 配置（「企微集成」页），回落环境变量；都没有则未启用。
+        WecomConfigService.ContactsCreds creds = configService.findEnabledContactsCreds();
+        List<WecomDept> depts;
+        List<WecomMember> members;
+        if (creds != null) {
+            depts = contactClient.listDepartments(creds.corpId(), creds.secret());
+            members = contactClient.listMembers(creds.corpId(), creds.secret());
+        } else if (contactClient.enabled()) {
+            depts = contactClient.listDepartments();
+            members = contactClient.listMembers();
+        } else {
             throw new BizException(ErrorCode.FORBIDDEN, "企微通讯录同步未启用");
         }
-        List<WecomDept> depts = contactClient.listDepartments();
         Map<Long, Long> deptIdMap = upsertDepts(depts);
-        int[] uc = upsertMembers(contactClient.listMembers(), deptIdMap);
+        int[] uc = upsertMembers(members, deptIdMap);
+        configService.recordSync("部门 " + depts.size() + " 个 / 新增成员 " + uc[0] + " / 更新成员 " + uc[1]);
         return new WecomSyncResultVO(depts.size(), uc[0], uc[1]);
     }
 

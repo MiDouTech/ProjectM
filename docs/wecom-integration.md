@@ -66,12 +66,18 @@ export MIDO_WECOM_MSG_AGENT_ID=1000002
 4. 流程：前端跳企微授权 → 回调带 `code` → `WecomSsoClient` 用 code 换 `userid` → 映射 `sys_identity_map` 到本地用户 → 签发本地 JWT（与 `LocalSsoProvider` 同一套 `mido.jwt.*`）。
 5. 联调校验：未注册用户的 `userid` 应走「身份映射缺失」分支（拒绝或引导绑定），不得静默放行。
 
-### 3.3 通讯录/组织同步（P2 激活）
+### 3.3 通讯录/组织同步（已可用）
 
-1. 企微「通讯录同步」助手获取 Secret；注入 `MIDO_WECOM_CONTACTS_*`、置 `MIDO_WECOM_CONTACTS_ENABLED=true`。
-2. 注册 `WecomIdentityProvider` 为 Bean（同上条件注册范式）。
-3. `WecomContactClient` 拉部门/成员 → 映射到 `sys_dept`/`sys_user` + `sys_identity_map`（企微 userid ↔ 本地 userId）。
-4. 联调校验：同步幂等（重复拉取不产生重复用户）、离职/调岗的增量处理、`tenant_id` 正确归属。
+两种启用方式（择一）：
+
+- **租户自助（推荐，可视化）**：登录后进入 `管理后台 → 企业微信集成`（`/admin/org`），填写 CorpID + 通讯录 Secret 并打开「通讯录同步」开关。配置存 `pm_wecom_config`（业务表，带 `tenant_id`），secret 经 `SecretCipher`（AES）**加密入库、接口脱敏不回显**，加密密钥取环境变量 `mido.secret.enc-key`。保存并启用后页面「企微同步」按钮即可点，触发 `POST /api/v1/wecom/contacts/sync`。
+- **部署级环境变量（运维）**：注入 `MIDO_WECOM_CORP_ID` / `MIDO_WECOM_CONTACTS_SECRET`、置 `MIDO_WECOM_CONTACTS_ENABLED=true`。
+
+同步取凭证顺序：**优先租户 DB 配置，回落环境变量**；两者皆无则返回「企微通讯录同步未启用」。
+
+1. `WecomContactClient` 拉部门/成员 → 映射到 `sys_dept`/`sys_user` + `sys_identity_map`（企微 userid ↔ 本地 userId）。
+2. 联调校验：同步幂等（重复拉取不产生重复用户）、离职/调岗的增量处理、`tenant_id` 正确归属。
+3. 注：SSO 身份映射 `WecomIdentityProvider` 真实实现仍为 P2 占位；通讯录同步链路已可用。
 
 ## 4. 验证清单
 
