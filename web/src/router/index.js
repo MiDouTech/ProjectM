@@ -77,6 +77,7 @@ const routes = [
           { path: 'depts', component: () => import('@/views/admin/DeptTree.vue') },
           { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
           { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
+          { path: 'project-roles', component: () => import('@/views/admin/ProjectRoleManage.vue') },
           { path: 'npss-settings', component: () => import('@/views/admin/NpssSettingsManage.vue') },
           { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
           { path: 'change-policies', component: () => import('@/views/admin/ChangePolicyManage.vue') },

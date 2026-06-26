@@ -29,6 +29,14 @@ export const projectApi = {
   activities: (id, params) => request.get(`/projects/${id}/activities`, { params }),
 }
 
+/** 项目角色（租户自配，pm_project_role）。成员角色取本表 code。 */
+export const projectRoleApi = {
+  list: (onlyActive = false) => request.get('/project-roles', { params: { onlyActive } }),
+  create: (data) => request.post('/project-roles', data),
+  update: (id, data) => request.put(`/project-roles/${id}`, data),
+  remove: (id) => request.delete(`/project-roles/${id}`),
+}
+
 /** 项目模板（内置 5 套 + 自定义，Step 2-1） */
 export const templateApi = {
   list: (category) => request.get('/project-templates', { params: category ? { category } : {} }),

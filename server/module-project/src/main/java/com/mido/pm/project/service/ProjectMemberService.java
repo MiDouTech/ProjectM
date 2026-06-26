@@ -25,16 +25,23 @@ public class ProjectMemberService {
     private final PmProjectMemberMapper memberMapper;
     private final PmProjectMapper projectMapper;
     private final AuditLogService auditLogService;
+    private final ProjectRoleService projectRoleService;
 
     public ProjectMemberService(PmProjectMemberMapper memberMapper, PmProjectMapper projectMapper,
-                                AuditLogService auditLogService) {
+                                AuditLogService auditLogService, ProjectRoleService projectRoleService) {
         this.memberMapper = memberMapper;
         this.projectMapper = projectMapper;
         this.auditLogService = auditLogService;
+        this.projectRoleService = projectRoleService;
     }
 
     public Long add(Long projectId, ProjectMemberCreateDTO dto) {
         requireProject(projectId);
+        // 项目角色自定义化：若租户已配置项目角色，则成员角色须为已配置项 code（未配置则放行，兼容旧数据）
+        if (dto.projectRole() != null && projectRoleService.anyConfigured()
+                && !projectRoleService.existsByCode(dto.projectRole())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "非法项目角色: " + dto.projectRole());
+        }
         PmProjectMember m = new PmProjectMember();
         m.setProjectId(projectId);
         m.setUserId(dto.userId());
