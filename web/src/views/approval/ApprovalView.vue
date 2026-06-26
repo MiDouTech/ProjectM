@@ -1,15 +1,16 @@
 <template>
   <div class="mido-page">
-    <div class="apv__bar">
-      <h1 class="mido-h1">审批中心</h1>
-      <div v-show="activeTab === 'mine'" class="apv__lookup">
-        <el-input v-model="lookupId" placeholder="输入审批实例 ID" class="apv__input"
-          :prefix-icon="Search" @keyup.enter="open" />
-        <el-button type="primary" :disabled="!lookupId" @click="open">打开</el-button>
-      </div>
-    </div>
+    <WorkspaceShell module="approval">
+      <template #actions>
+        <div v-show="activeTab === 'mine'" class="apv__lookup">
+          <el-input v-model="lookupId" placeholder="输入审批实例 ID" class="apv__input"
+            :prefix-icon="Search" @keyup.enter="open" />
+          <el-button type="primary" :disabled="!lookupId" @click="open">打开</el-button>
+        </div>
+      </template>
+    </WorkspaceShell>
 
-    <el-tabs v-model="activeTab" class="apv__tabs">
+    <el-tabs v-model="activeTab" class="apv__tabs apv__tabs--headless">
       <el-tab-pane label="待我审批" name="mine">
     <el-row :gutter="16">
       <!-- 待我审批（当前登录人未处理且实例 pending 的待办） + 会话内最近打开 -->
@@ -166,6 +167,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import ChangeCenter from '@/views/ChangeCenter.vue'
@@ -275,9 +277,16 @@ async function loadMine() {
   }
 }
 const route = useRoute()
+// 顶部导航(WorkspaceShell)按 ?tab 切换内容；驱动 activeTab 跟随路由
+watch(() => route.query.tab, (t) => {
+  if (t === 'change') activeTab.value = showChange.value ? 'change' : 'mine'
+  else if (t === 'initiated') activeTab.value = 'initiated'
+  else activeTab.value = 'mine'
+})
 onMounted(async () => {
   // 旧 /change 深链重定向至此，按 tab 参数定位变更台账（无 change 功能则不切，留在待我审批）
   if (route.query.tab === 'change' && showChange.value) activeTab.value = 'change'
+  else if (route.query.tab === 'initiated') activeTab.value = 'initiated'
   try {
     bizTypes.value = await approvalApi.bizTypes() || []
   } catch {
@@ -356,6 +365,10 @@ async function doTransfer() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+/* 顶部导航(WorkspaceShell)已提供 tab 切换，隐藏 el-tabs 自带头避免双层 */
+.apv__tabs--headless :deep(.el-tabs__header) {
+  display: none;
 }
 .apv__recent {
   margin-top: var(--mido-space-4);
