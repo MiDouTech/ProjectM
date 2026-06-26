@@ -1,5 +1,6 @@
 <template>
   <div class="mido-page">
+    <ProjectSubNav active="project" />
     <!-- 顶部操作条（§7-A：新建 + 视图切换 + 排序 + 筛选 + 搜索） -->
     <div class="pl__bar">
       <div class="pl__bar-left">
@@ -115,6 +116,7 @@ import CategoryBadge from '@/components/CategoryBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FilterBuilder from '@/components/FilterBuilder.vue'
 import CreateProjectWizard from './CreateProjectWizard.vue'
+import ProjectSubNav from './ProjectSubNav.vue'
 import { projectApi, PROJECT_CATEGORIES } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { applyFilter, applySort } from '@/utils/filter'

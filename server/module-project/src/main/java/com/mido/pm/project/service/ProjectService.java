@@ -125,6 +125,29 @@ public class ProjectService {
     }
 
 
+    /**
+     * 指定用户负责(leader) ∪ 参与(成员)的项目（项目集「可加入的项目」口径）。
+     * 与 {@link #myProjects()} 同口径但针对给定用户、不限工作台 50 条上限，按 id 倒序。
+     */
+    public List<ProjectVO> projectsLedOrMemberOf(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        List<Long> memberPids = memberMapper.selectList(Wrappers.<PmProjectMember>lambdaQuery()
+                        .select(PmProjectMember::getProjectId)
+                        .eq(PmProjectMember::getUserId, userId))
+                .stream().map(PmProjectMember::getProjectId).distinct().toList();
+        var wrapper = Wrappers.<PmProject>lambdaQuery();
+        wrapper.and(w -> {
+            w.eq(PmProject::getLeaderId, userId);
+            if (!memberPids.isEmpty()) {
+                w.or().in(PmProject::getId, memberPids);
+            }
+        });
+        wrapper.orderByDesc(PmProject::getId);
+        return projectMapper.selectList(wrapper).stream().map(this::toVO).toList();
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectCreateDTO dto) {
         // 配额硬校验：当前租户项目数不得超过订阅套餐上限（不限/未订阅则放行）

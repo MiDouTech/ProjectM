@@ -1,5 +1,7 @@
 <template>
-  <div class="pf">
+  <div class="pf-page">
+    <ProjectSubNav active="portfolios" />
+    <div class="pf">
     <!-- 左：项目集列表 -->
     <el-card shadow="never" class="pf__side">
       <div class="bar">
@@ -61,7 +63,10 @@
     <el-drawer v-model="drawer" :title="editing ? '编辑项目集' : '新建项目集'" size="var(--mido-drawer-width)">
       <el-form ref="formRef" :model="form" :rules="rules" :label-width="80">
         <el-form-item label="名称" prop="name"><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="负责人"><UserSelect v-model="form.ownerId" placeholder="选择负责人" /></el-form-item>
+        <el-form-item label="创建人"><UserSelect v-model="form.ownerId" placeholder="默认为当前用户" /></el-form-item>
+        <el-form-item label="成员">
+          <UserSelect v-model="form.memberIds" multiple placeholder="添加成员（创建人默认在内）" />
+        </el-form-item>
         <el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="3" /></el-form-item>
       </el-form>
       <template #footer>
@@ -70,16 +75,18 @@
       </template>
     </el-drawer>
 
-    <!-- 添加项目 -->
+    <!-- 添加项目（仅可加入创建人负责∪参与的项目） -->
     <el-dialog v-model="addDialog" title="添加项目" width="var(--mido-login-card-width)">
       <el-select v-model="selectedProjectIds" multiple filterable placeholder="选择项目" class="full">
         <el-option v-for="p in allProjects" :key="p.id" :label="p.name" :value="p.id" />
       </el-select>
+      <p v-if="!allProjects.length" class="mido-text-secondary">创建人暂无可加入的项目（负责或参与的项目）。</p>
       <template #footer>
         <el-button @click="addDialog = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="confirmAddProjects">添加</el-button>
       </template>
     </el-dialog>
+    </div>
   </div>
 </template>
 
@@ -89,7 +96,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'
-import { portfolioApi, projectApi } from '@/api/project'
+import ProjectSubNav from '@/views/project/ProjectSubNav.vue'
+import { portfolioApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'
 
@@ -104,7 +112,7 @@ const userName = (id) => nameOf(members.value, id)
 const drawer = ref(false)
 const editing = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, name: '', ownerId: null, description: '' })
+const form = reactive({ id: null, name: '', ownerId: null, description: '', memberIds: [] })
 const rules = { name: [{ required: true, message: '请输入项目集名称', trigger: 'blur' }] }
 
 const addDialog = ref(false)
@@ -115,7 +123,8 @@ async function loadList() {
   portfolios.value = await portfolioApi.list()
 }
 async function select(id) {
-  currentId.value = Number(id)
+  // 雪花 ID 为 19 位，禁止 Number() 转换（会丢精度→后端「项目集不存在」），保持字符串透传
+  currentId.value = String(id)
   loading.value = true
   try {
     overview.value = await portfolioApi.overview(currentId.value)
@@ -126,23 +135,28 @@ async function select(id) {
 
 function openCreate() {
   editing.value = false
-  Object.assign(form, { id: null, name: '', ownerId: null, description: '' })
+  Object.assign(form, { id: null, name: '', ownerId: null, description: '', memberIds: [] })
   drawer.value = true
 }
-function openEdit(item) {
+async function openEdit(item) {
   editing.value = true
-  Object.assign(form, { id: item.id, name: item.name, ownerId: item.ownerId, description: item.description })
+  Object.assign(form, {
+    id: item.id, name: item.name, ownerId: item.ownerId, description: item.description, memberIds: [],
+  })
   drawer.value = true
+  form.memberIds = await portfolioApi.members(item.id).catch(() => [])
 }
 async function save() {
   await formRef.value.validate()
   saving.value = true
   try {
-    const payload = { name: form.name, ownerId: form.ownerId, description: form.description }
+    const payload = {
+      name: form.name, ownerId: form.ownerId, description: form.description, memberIds: form.memberIds,
+    }
     if (editing.value) await portfolioApi.update(form.id, payload)
     else {
       const id = await portfolioApi.create(payload)
-      currentId.value = id
+      currentId.value = String(id)
     }
     ElMessage.success('保存成功')
     drawer.value = false
@@ -163,8 +177,8 @@ async function removePortfolio(item) {
 
 async function openAddProjects() {
   selectedProjectIds.value = []
-  const res = await projectApi.query({ page: 1, size: 200 })
-  allProjects.value = res.list || []
+  // 仅可加入创建人负责∪参与的项目（与已确认口径一致）
+  allProjects.value = await portfolioApi.candidateProjects(currentId.value).catch(() => [])
   addDialog.value = true
 }
 async function confirmAddProjects() {
@@ -196,10 +210,16 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.pf-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .pf {
   display: flex;
   gap: var(--mido-space-4);
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 .pf__side {
   width: 260px;

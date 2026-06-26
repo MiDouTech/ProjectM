@@ -6,8 +6,8 @@ import { useOpsUserStore } from '@/store/opsUser'
 // 顶层主导航（design-system §4 / architecture-overview §1.2）
 export const navItems = [
   { path: '/workbench', title: '工作台', icon: 'Monitor' },
+  // 项目集并入「项目」域（其下二级入口 /project/portfolios），不再单列一级导航
   { path: '/project', title: '项目', icon: 'Folder' },
-  { path: '/portfolio', title: '项目集', icon: 'Files' },
   { path: '/goal', title: '目标', icon: 'Aim' },
   { path: '/approval', title: '审批中心', icon: 'Stamp' },
   { path: '/report', title: '报表', icon: 'DataAnalysis' },
@@ -56,7 +56,10 @@ const routes = [
       { path: 'workbench', component: () => import('@/views/Workbench.vue') },
       { path: 'notifications', component: () => import('@/views/NotificationListView.vue') },
       { path: 'project', component: () => import('@/views/project/ProjectListView.vue') },
-      { path: 'portfolio', component: () => import('@/views/portfolio/PortfolioView.vue') },
+      // 项目集：项目域二级入口（须置于 project/:projectId 之前，避免被当作 projectId）
+      { path: 'project/portfolios', component: () => import('@/views/portfolio/PortfolioView.vue') },
+      // 兼容旧顶级路径书签/深链
+      { path: 'portfolio', redirect: '/project/portfolios' },
       { path: 'project/:projectId', component: () => import('@/views/project/ProjectWorkspaceView.vue') },
       { path: 'project/:projectId/tasks', component: () => import('@/views/task/TaskWorkspaceView.vue') },
       { path: 'project/:projectId/task/:taskId', component: () => import('@/views/task/TaskDetailView.vue') },
