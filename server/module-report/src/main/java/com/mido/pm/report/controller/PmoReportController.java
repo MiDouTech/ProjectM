@@ -1,8 +1,10 @@
 package com.mido.pm.report.controller;
 
 import com.mido.pm.common.api.R;
+import com.mido.pm.report.dto.PmoNpssRangeVO;
 import com.mido.pm.report.dto.PmoNpssVO;
 import com.mido.pm.report.service.PmoReportService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,5 +27,13 @@ public class PmoReportController {
     @GetMapping("/pmo-npss")
     public R<PmoNpssVO> pmoNpss(@RequestParam(required = false) Integer year) {
         return R.ok(pmoReportService.pmoNpss(year == null ? LocalDate.now().getYear() : year));
+    }
+
+    /** PMO 总体评价（任意周期）：统计 [from, to) 内组织 NPSS，动态计算一定周期内的组织得分。 */
+    @GetMapping("/pmo-npss/range")
+    public R<PmoNpssRangeVO> pmoNpssRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return R.ok(pmoReportService.pmoNpssRange(from, to));
     }
 }

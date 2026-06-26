@@ -44,15 +44,18 @@ public class NpssReviewService {
     private final PmNpssScoreMapper scoreMapper;
     private final ProjectService projectService;
     private final StakeholderService stakeholderService;
+    private final NpssSubjectService npssSubjectService;
     private final DomainEventPublisher eventPublisher;
 
     public NpssReviewService(PmNpssReviewMapper reviewMapper, PmNpssScoreMapper scoreMapper,
                              ProjectService projectService, StakeholderService stakeholderService,
+                             NpssSubjectService npssSubjectService,
                              DomainEventPublisher eventPublisher) {
         this.reviewMapper = reviewMapper;
         this.scoreMapper = scoreMapper;
         this.projectService = projectService;
         this.stakeholderService = stakeholderService;
+        this.npssSubjectService = npssSubjectService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -81,22 +84,52 @@ public class NpssReviewService {
         reviewMapper.insert(review);
 
         List<StakeholderVO> stakeholders = stakeholderService.list(projectId);
+        // 主体口径优先（npss-rule §3A）：项目已配置评价主体则按主体成员建待办；否则回退个人口径
+        List<NpssSubjectService.MaterializedSubject> subjects = npssSubjectService.subjectsForReview(projectId);
         List<Long> recipientUserIds = new ArrayList<>();
-        for (StakeholderVO s : stakeholders) {
-            PmNpssScore todo = new PmNpssScore();
-            todo.setReviewId(review.getId());
-            todo.setStakeholderId(s.id());
-            todo.setWeight(s.npssWeight());
-            scoreMapper.insert(todo); // score 留空=待打分
-            if (s.userId() != null) {
-                recipientUserIds.add(s.userId());
+        int todoCount;
+        if (subjects != null && !subjects.isEmpty()) {
+            Map<Long, Long> userIdByStakeholder = new LinkedHashMap<>();
+            for (StakeholderVO s : stakeholders) {
+                if (s.userId() != null) {
+                    userIdByStakeholder.put(s.id(), s.userId());
+                }
             }
+            int count = 0;
+            for (NpssSubjectService.MaterializedSubject sub : subjects) {
+                for (Long stakeholderId : sub.memberStakeholderIds()) {
+                    PmNpssScore todo = new PmNpssScore();
+                    todo.setReviewId(review.getId());
+                    todo.setStakeholderId(stakeholderId);
+                    todo.setSubjectId(sub.subjectId());
+                    todo.setWeight(sub.weight()); // 主体权重快照（同主体成员共享，汇总时组内平均后加权）
+                    scoreMapper.insert(todo); // score 留空=待打分
+                    count++;
+                    Long uid = userIdByStakeholder.get(stakeholderId);
+                    if (uid != null && !recipientUserIds.contains(uid)) {
+                        recipientUserIds.add(uid);
+                    }
+                }
+            }
+            todoCount = count;
+        } else {
+            for (StakeholderVO s : stakeholders) {
+                PmNpssScore todo = new PmNpssScore();
+                todo.setReviewId(review.getId());
+                todo.setStakeholderId(s.id());
+                todo.setWeight(s.npssWeight());
+                scoreMapper.insert(todo); // score 留空=待打分
+                if (s.userId() != null) {
+                    recipientUserIds.add(s.userId());
+                }
+            }
+            todoCount = stakeholders.size();
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("reviewId", review.getId());
         payload.put("projectId", projectId);
-        payload.put("stakeholderCount", stakeholders.size());
+        payload.put("stakeholderCount", todoCount);
         payload.put("recipientUserIds", recipientUserIds); // 收件干系人，监听器据此多通道通知
         eventPublisher.publish(NpssEvents.REVIEW_STARTED, payload);
         return review.getId();
@@ -137,16 +170,35 @@ public class NpssReviewService {
         return toVO(row);
     }
 
-    /** 汇总分级（npss-rule §3）：算加权满意度 → 分级 → 写 review → 发 npss.review.completed。 */
+    /**
+     * 汇总分级（npss-rule §3）：算加权满意度 → 分级 → 写 review → 发 npss.review.completed。
+     * 主体口径（评分行带 subject_id）→ 组内平均后按主体权重加权；否则个人口径加权。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void summarize(PmNpssReview review) {
-        List<ScoreWeight> scores = scoreMapper.selectList(Wrappers.<PmNpssScore>lambdaQuery()
+        List<PmNpssScore> rows = scoreMapper.selectList(Wrappers.<PmNpssScore>lambdaQuery()
                         .eq(PmNpssScore::getReviewId, review.getId()))
                 .stream()
                 .filter(s -> s.getScore() != null)
-                .map(s -> new ScoreWeight(s.getScore(), s.getWeight()))
                 .toList();
-        java.math.BigDecimal weighted = NpssCalculator.weightedSatisfaction(scores);
+        boolean subjectMode = rows.stream().anyMatch(s -> s.getSubjectId() != null);
+        java.math.BigDecimal weighted;
+        if (subjectMode) {
+            Map<Long, List<PmNpssScore>> bySubject = new LinkedHashMap<>();
+            for (PmNpssScore s : rows) {
+                bySubject.computeIfAbsent(s.getSubjectId(), k -> new ArrayList<>()).add(s);
+            }
+            List<NpssCalculator.SubjectScores> subjectScores = bySubject.values().stream()
+                    .map(list -> new NpssCalculator.SubjectScores(list.get(0).getWeight(),
+                            list.stream().map(PmNpssScore::getScore).toList()))
+                    .toList();
+            weighted = NpssCalculator.weightedSatisfactionBySubject(subjectScores);
+        } else {
+            List<ScoreWeight> scores = rows.stream()
+                    .map(s -> new ScoreWeight(s.getScore(), s.getWeight()))
+                    .toList();
+            weighted = NpssCalculator.weightedSatisfaction(scores);
+        }
         ResultLevel level = NpssCalculator.level(weighted);
 
         review.setWeightedScore(weighted);
@@ -208,7 +260,7 @@ public class NpssReviewService {
     }
 
     private NpssScoreVO toVO(PmNpssScore s) {
-        return new NpssScoreVO(s.getId(), s.getReviewId(), s.getStakeholderId(),
+        return new NpssScoreVO(s.getId(), s.getReviewId(), s.getStakeholderId(), s.getSubjectId(),
                 s.getScore(), s.getWeight(), s.getComment());
     }
 }

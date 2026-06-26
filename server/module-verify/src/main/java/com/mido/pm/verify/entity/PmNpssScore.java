@@ -14,6 +14,8 @@ public class PmNpssScore extends BaseEntity {
 
     private Long reviewId;
     private Long stakeholderId;
+    /** 评价主体快照（pm_npss_subject.id）；汇总时按主体分组先平均再加权。无主体配置时为 null（退化为个人加权）。 */
+    private Long subjectId;
     private Integer score;
     private BigDecimal weight;
     private String comment;
@@ -22,6 +24,8 @@ public class PmNpssScore extends BaseEntity {
     public void setReviewId(Long reviewId) { this.reviewId = reviewId; }
     public Long getStakeholderId() { return stakeholderId; }
     public void setStakeholderId(Long stakeholderId) { this.stakeholderId = stakeholderId; }
+    public Long getSubjectId() { return subjectId; }
+    public void setSubjectId(Long subjectId) { this.subjectId = subjectId; }
     public Integer getScore() { return score; }
     public void setScore(Integer score) { this.score = score; }
     public BigDecimal getWeight() { return weight; }
