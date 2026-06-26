@@ -284,10 +284,10 @@ stateDiagram-v2
 | 节点 | 状态 | 说明 |
 |---|---|---|
 | ① 平台建租户 | 🟢 通 | 12 项接口齐全、四步播种事务化（已验证）；注销物理清除 `PlatformMaintenanceScheduler` + `TenantDataPurger` **已交付**（已验证，更正早前误判） |
-| ② 租户登录 | 🟡 通但脆 | 多租户隔离链完整（已验证）；缺自助改密/登出/`/me`，叠加默认密码成体验断点 |
+| ② 租户登录 | 🟢 通（已修复改密/me） | 多租户隔离链完整；已补自助改密/重置/`/me`（登出令牌撤销仍待办） |
 | ③ 租户配置 | 🟡 73% | 主配置开箱即用；项目级工作流、项目模板编辑、若干集成前端缺失 |
 | ④ 建项目/推进 | 🟢 通 | 状态机/审批引擎/职级 guard 完整（已验证） |
-| ⑤ 结果验收 | 🔴 断 | 仅前端只读，无后端判定与流转拦截 |
+| ⑤ 结果验收 | 🟢 通（已修复） | 已补 `pm_result_verify` + `ResultVerifyGate` 硬闸门，达标方可结案 |
 | ⑥ NPSS 价值验收 | 🟢 通 | 算分/延后/打分/汇总完整且有单测（已验证） |
 | ⑦ 奖金 | 🟠 半通 | 算法+单测在，但无调用方/不落库/不展示 |
 
@@ -295,8 +295,8 @@ stateDiagram-v2
 
 | # | 断点 | 影响 | 严重度 | 落点 | 标注 |
 |---|---|---|---|---|---|
-| 1 | 结果验收（铁三角）无后端实现 | 可不证铁三角达标就流转结案，闸门虚设 | P0 | `module-verify` 骨架；`ProjectVerifyPane.vue:3-17` | 已验证 |
-| 2 | 自助改密/重置/登出 接口缺失 | 首登只能用默认密码 `Mido@2024` 且无法改 | P0 | `module-org`（无对应接口） | 已验证 |
+| 1 | ~~结果验收（铁三角）无后端实现~~ **（已修复）** | 已补 `pm_result_verify`(V65)+`ResultVerifyGate` 硬闸门，达标方可结案 | P0 | `ResultVerifyService`、`ProjectService` 流转 guard | 已修复 |
+| 2 | ~~自助改密/重置接口缺失~~ **（已修复）** | 已补 `GET /users/me`、`PUT /users/me/password`、`PUT /users/{id}/password`；登出令牌撤销仍待办 | P0 | `UserController`、`SysUserService` | 已修复 |
 | 3 | 奖金未接入业务（无调用/不落库/不展示） | NPSS→奖金闭环断 | P1 | `BonusCalculator:30-43`（仅自身+测试引用） | 已验证 |
 | 4 | ~~`dueForValueReview` 未过滤 `requiresNpss`~~ **（误判已撤销）** | 复核 `ProjectService:328-332`：结案时仅对 NPSS 项目写 `value_review_due_date`，扫描按 `isNotNull` 过滤，非 NPSS 项目天然不被唤醒——**无此 bug** | — | `ProjectService:328-332` | 已更正 |
 | 5 | 项目级 `pm_workflow` 仅建表无代码 | 项目无法自定义状态流 | P1 | 仅 `V1`/`V59` 迁移与 task 域硬编码 | 已验证 |
