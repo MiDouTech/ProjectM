@@ -26,6 +26,8 @@
             <p class="mido-text-secondary">{{ overview.item.description || '—' }}</p>
           </div>
           <div class="bar__right">
+            <TableColumnSetting list-key="portfolio-projects" :all-columns="PROJ_COLUMNS"
+              :default-columns="PROJ_DEFAULT_COLS" @change="onProjColsChange" />
             <el-button :icon="Plus" @click="openAddProjects">添加项目</el-button>
             <el-button :icon="Edit" @click="openEdit(overview.item)">编辑</el-button>
             <el-button type="danger" :icon="Delete" @click="removePortfolio(overview.item)">删除</el-button>
@@ -39,15 +41,16 @@
         </div>
 
         <el-table :data="overview.projects" stripe>
-          <el-table-column prop="name" label="项目" min-width="180" />
-          <el-table-column label="状态" width="120">
-            <template #default="{ row }"><StatusTag :status="row.status" /></template>
+          <el-table-column v-for="key in projCols" :key="key" :label="projColLabel(key)"
+            :prop="key === 'status' || key === 'leaderId' ? undefined : key"
+            :width="projColWidth(key)" :min-width="projColMinWidth(key)"
+            :fixed="projFrozen.includes(key) ? 'left' : false">
+            <template #default="{ row }">
+              <StatusTag v-if="key === 'status'" :status="row.status" />
+              <span v-else-if="key === 'leaderId'">{{ userName(row.leaderId) }}</span>
+              <span v-else>{{ row[key] ?? '—' }}</span>
+            </template>
           </el-table-column>
-          <el-table-column label="负责人" width="120">
-            <template #default="{ row }">{{ userName(row.leaderId) }}</template>
-          </el-table-column>
-          <el-table-column prop="startDate" label="开始" width="120" />
-          <el-table-column prop="endDate" label="结束" width="120" />
           <el-table-column label="操作" width="90">
             <template #default="{ row }">
               <el-button link type="danger" @click="removeProject(row)">移出</el-button>
@@ -97,9 +100,36 @@ import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
+import TableColumnSetting from '@/components/TableColumnSetting.vue'
 import { portfolioApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'
+
+// 项目集总览表头设置
+const PROJ_COLUMNS = [
+  { key: 'name', label: '项目', required: true },
+  { key: 'status', label: '状态' },
+  { key: 'leaderId', label: '负责人' },
+  { key: 'startDate', label: '开始时间' },
+  { key: 'endDate', label: '结束时间' },
+]
+const PROJ_DEFAULT_COLS = ['name', 'status', 'leaderId', 'startDate', 'endDate']
+const PROJ_COL_META = {
+  name: { minWidth: 180 },
+  status: { width: 120 },
+  leaderId: { width: 120 },
+  startDate: { width: 120 },
+  endDate: { width: 120 },
+}
+const projCols = ref([...PROJ_DEFAULT_COLS])
+const projFrozen = ref([])
+const projColLabel = (k) => PROJ_COLUMNS.find((c) => c.key === k)?.label || k
+const projColWidth = (k) => PROJ_COL_META[k]?.width
+const projColMinWidth = (k) => PROJ_COL_META[k]?.minWidth
+function onProjColsChange({ columns, frozen }) {
+  projCols.value = columns
+  projFrozen.value = frozen
+}
 
 const loading = ref(false)
 const saving = ref(false)
