@@ -7,7 +7,7 @@
       <div class="td__title">
         <el-icon v-if="task.isMilestone"><Flag /></el-icon>
         <h2 class="mido-h2">{{ task.title }}</h2>
-        <StatusTag :status="task.status" />
+        <StatusTag :status="task.status" :color="statusColor(task.status)" />
         <el-button v-if="embedded" class="td__expand" link type="primary" :icon="TopRight" @click="openInPage">在新页打开</el-button>
         <el-button v-if="task.id" link type="primary" :icon="EditPen" @click="openChange">发起变更</el-button>
       </div>
@@ -62,7 +62,7 @@
             <el-table :data="subtasks" class="is-clickable" @row-click="(r) => $emit('open', r.id)">
               <el-table-column label="标题" prop="title" />
               <el-table-column label="状态" width="100">
-                <template #default="{ row }"><StatusTag :status="row.status" /></template>
+                <template #default="{ row }"><StatusTag :status="row.status" :color="statusColor(row.status)" /></template>
               </el-table-column>
               <el-table-column label="负责人" width="110">
                 <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
@@ -92,7 +92,7 @@
               </el-table-column>
               <el-table-column label="关联任务" prop="relatedTitle" min-width="160" />
               <el-table-column label="状态" width="100">
-                <template #default="{ row }"><StatusTag :status="row.relatedStatus" /></template>
+                <template #default="{ row }"><StatusTag :status="row.relatedStatus" :color="statusColor(row.relatedStatus)" /></template>
               </el-table-column>
               <el-table-column label="操作" width="70">
                 <template #default="{ row }">
@@ -193,6 +193,7 @@ import UserSelect from '@/components/UserSelect.vue'
 import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS, relationApi, RELATION_KINDS } from '@/api/task'
 import { fetchMembers, fieldPermApi } from '@/api/org'
+import { useStatusColors } from '@/composables/useStatusColors'
 import { userName as nameOf } from '@/utils/display'
 
 const props = defineProps({
@@ -225,6 +226,7 @@ const relOpen = ref(false)
 const relForm = reactive({ targetTaskId: null, relationKind: 'related' })
 const relCandidates = ref([])
 const relationLabel = (k) => RELATION_KINDS.find((x) => x.value === k)?.label || k
+const { statusColor } = useStatusColors()
 
 // 成员：优先用调用方传入，否则自行加载（独立页场景）
 const localUsers = ref([])

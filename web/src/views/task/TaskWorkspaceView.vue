@@ -52,7 +52,7 @@
                 </template>
               </el-table-column>
               <el-table-column label="状态" width="110">
-                <template #default="{ row }"><StatusTag :status="row.status" /></template>
+                <template #default="{ row }"><StatusTag :status="row.status" :color="statusColor(row.status)" /></template>
               </el-table-column>
               <el-table-column label="负责人" width="120">
                 <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
@@ -97,7 +97,7 @@
           </template>
         </el-table-column>
         <el-table-column label="状态" width="110">
-          <template #default="{ row }"><StatusTag :status="row.status" /></template>
+          <template #default="{ row }"><StatusTag :status="row.status" :color="statusColor(row.status)" /></template>
         </el-table-column>
         <el-table-column label="负责人" width="120">
           <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
@@ -152,6 +152,7 @@ import { ArrowLeft, Plus, Flag, ArrowDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import KanbanBoard from '@/components/KanbanBoard.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { useStatusColors } from '@/composables/useStatusColors'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import ViewDesigner from '@/components/ViewDesigner.vue'
@@ -177,6 +178,7 @@ const props = defineProps({
 const route = useRoute()
 // 雪花 ID 为字符串，禁止 Number() 转换（会丢精度），直接透传给后端
 const projectId = props.projectId ?? route.params.projectId
+const { statusColor } = useStatusColors()
 
 const loading = ref(false)
 const saving = ref(false)
