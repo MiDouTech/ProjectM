@@ -117,9 +117,11 @@
       </div>
     </el-card>
 
-    <!-- 新建任务 -->
+    <!-- 新建任务（有页面配置走动态表单，否则回落原表单 fail-safe） -->
     <el-dialog v-model="createDialog" title="新建任务" width="var(--mido-login-card-width)">
-      <el-form ref="createRef" :model="createForm" :rules="createRules" :label-width="72">
+      <DynamicForm v-if="usePageConfig" ref="dynRef" :fields="pageFields" :model-value="createForm"
+        :layout="pageLayout" />
+      <el-form v-else ref="createRef" :model="createForm" :rules="createRules" :label-width="72">
         <el-form-item label="标题" prop="title"><el-input v-model="createForm.title" /></el-form-item>
         <el-form-item label="负责人">
           <UserSelect v-model="createForm.assigneeId" placeholder="选择负责人" />
@@ -153,6 +155,7 @@ import { ArrowLeft, Plus, Flag, ArrowDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import KanbanBoard from '@/components/KanbanBoard.vue'
 import TableColumnSetting from '@/components/TableColumnSetting.vue'
+import DynamicForm from '@/components/DynamicForm.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useStatusColors } from '@/composables/useStatusColors'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -160,7 +163,7 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
-import { viewApi } from '@/api/view'
+import { viewApi, pageConfigApi } from '@/api/view'
 import { fieldDefApi, isCfRef, cfKey } from '@/api/field'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
@@ -257,6 +260,44 @@ const createDialog = ref(false)
 const createRef = ref()
 const createForm = reactive({ title: '', assigneeId: null, priority: null, dueDate: null, isMilestone: false })
 const createRules = { title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }] }
+
+// L3.1c 可配置建单表单（仅编排可提交的内置字段；无配置回落原表单 fail-safe）
+const dynRef = ref()
+const usePageConfig = ref(false)
+const pageFields = ref([])
+const pageLayout = ref({ columns: 1 })
+const TASK_FORM_BUILTIN = {
+  title: { label: '标题', type: 'text', required: true },
+  assigneeId: { label: '负责人', type: 'user' },
+  priority: { label: '优先级', type: 'select', options: TASK_PRIORITIES },
+  dueDate: { label: '截止', type: 'date' },
+  isMilestone: { label: '里程碑', type: 'checkbox' },
+}
+async function loadPageConfig() {
+  try {
+    const cfg = await pageConfigApi.get('task', 'form')
+    const fields = (cfg?.fields || [])
+      .filter((f) => f.source === 'builtin' && TASK_FORM_BUILTIN[f.fieldKey])
+      .map((f) => {
+        const b = TASK_FORM_BUILTIN[f.fieldKey]
+        return {
+          fieldKey: f.fieldKey, label: b.label, type: b.type, options: b.options,
+          required: f.required ?? b.required ?? false, readonly: !!f.readonly,
+          width: f.width, group: f.group || '',
+        }
+      })
+    // 安全兜底：配置漏掉标题(提交必需)则不启用动态表单，回落原表单
+    if (fields.length && fields.some((f) => f.fieldKey === 'title')) {
+      pageFields.value = fields
+      pageLayout.value = cfg.layout || { columns: 1 }
+      usePageConfig.value = true
+    } else {
+      usePageConfig.value = false
+    }
+  } catch {
+    usePageConfig.value = false
+  }
+}
 
 const userName = (id) => nameOf(users.value, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
@@ -382,7 +423,7 @@ function openCreate() {
   createDialog.value = true
 }
 async function doCreate() {
-  await createRef.value.validate()
+  await (usePageConfig.value ? dynRef.value.validate() : createRef.value.validate())
   saving.value = true
   try {
     await taskApi.create({
@@ -404,6 +445,7 @@ onMounted(async () => {
   users.value = members
   load()
   loadViews()
+  loadPageConfig()
   try {
     cfFieldList.value = await fieldDefApi.list('task', true)
   } catch {
