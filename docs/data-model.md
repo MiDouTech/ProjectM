@@ -114,8 +114,24 @@ CREATE TABLE pm_npss_review (
 );
 CREATE TABLE pm_npss_score (
   id BIGINT PRIMARY KEY, tenant_id BIGINT, review_id BIGINT NOT NULL,
-  stakeholder_id BIGINT NOT NULL, score TINYINT, weight DECIMAL(5,2), comment TEXT,
+  stakeholder_id BIGINT NOT NULL, subject_id BIGINT, -- V48 追加：评价主体快照，汇总按主体分组先平均再加权
+  score TINYINT, weight DECIMAL(5,2), comment TEXT,
   KEY idx_review(review_id)
+);
+-- 评价主体（V48）：评分单位由"干系人个人加权"升级为"评价主体加权 + 组内平均"。
+--   模板(租户级) → 物化为项目级实例(可覆盖) → 主体成员即干系人，同主体多人先平均再加权。
+--   启用主体权重合计=100%，受益方主体合计≥50%（SubjectWeightValidator，npss-rule §4）。
+CREATE TABLE pm_npss_subject_template ( -- 租户级评价主体模板
+  id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), weight DECIMAL(5,2),
+  beneficiary TINYINT DEFAULT 0, sort INT DEFAULT 0, enabled TINYINT DEFAULT 1, KEY idx_tenant(tenant_id)
+);
+CREATE TABLE pm_npss_subject ( -- 项目级评价主体实例（从模板物化，项目可覆盖）
+  id BIGINT PRIMARY KEY, tenant_id BIGINT, project_id BIGINT NOT NULL, template_id BIGINT,
+  name VARCHAR(64), weight DECIMAL(5,2), beneficiary TINYINT DEFAULT 0, sort INT DEFAULT 0, KEY idx_proj(project_id)
+);
+CREATE TABLE pm_npss_subject_member ( -- 主体成员（成员即干系人）
+  id BIGINT PRIMARY KEY, tenant_id BIGINT, subject_id BIGINT NOT NULL, stakeholder_id BIGINT NOT NULL,
+  KEY idx_subject(subject_id)
 );
 
 -- ========== 立项/审批引擎 ==========

@@ -8,6 +8,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.mido.pm.verify.domain.NpssCalculator.ScoreWeight;
+import com.mido.pm.verify.domain.NpssCalculator.SubjectScores;
 
 /**
  * NPSS 加权算分与三档边界（npss-rule §9.1/§9.2）。
@@ -59,5 +60,40 @@ class NpssCalculatorTest {
     @Test
     void emptyScoresZero() {
         assertEquals(0, BigDecimal.ZERO.compareTo(NpssCalculator.weightedSatisfaction(List.of())));
+    }
+
+    // ===== 评价主体口径：组内平均 + 主体加权（需求 + npss-rule §3）=====
+
+    private static SubjectScores ss(String weight, Integer... scores) {
+        return new SubjectScores(bd(weight), List.of(scores));
+    }
+
+    @Test
+    void subjectAveragesWithinGroupThenWeights() {
+        // 主体A 权重30 成员[9,10]→平均9.5；主体B 权重70 成员[8]→平均8
+        // (30×9.5 + 70×8)/100 ×10 = 845/100 ×10 = 84.50
+        BigDecimal w = NpssCalculator.weightedSatisfactionBySubject(List.of(
+                ss("30", 9, 10), ss("70", 8)));
+        assertEquals(0, bd("84.50").compareTo(w));
+    }
+
+    @Test
+    void subjectSingleGroupIsPlainAverage() {
+        // 单主体权重100 成员[10,8,6]→平均8 → 80.00
+        BigDecimal w = NpssCalculator.weightedSatisfactionBySubject(List.of(ss("100", 10, 8, 6)));
+        assertEquals(0, bd("80.00").compareTo(w));
+    }
+
+    @Test
+    void subjectSkipsEmptyMemberAndRenormalizes() {
+        // 主体B 无成员评分被跳过，权重不计入归一化：(50×9)/50 ×10 = 90.00
+        BigDecimal w = NpssCalculator.weightedSatisfactionBySubject(List.of(
+                ss("50", 9), new SubjectScores(bd("50"), List.of())));
+        assertEquals(0, bd("90.00").compareTo(w));
+    }
+
+    @Test
+    void subjectEmptyZero() {
+        assertEquals(0, BigDecimal.ZERO.compareTo(NpssCalculator.weightedSatisfactionBySubject(List.of())));
     }
 }
