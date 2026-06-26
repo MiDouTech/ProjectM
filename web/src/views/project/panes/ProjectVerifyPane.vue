@@ -1,8 +1,13 @@
 <template>
   <div v-loading="loading">
-    <!-- ① 结果验收（铁三角：时间-成本-范围/状态） -->
+    <!-- ① 结果验收（铁三角：时间-成本-范围） -->
     <div class="pv__seg">
-      <span class="mido-h2">结果验收（铁三角）</span>
+      <div class="pv__seg-head">
+        <span class="mido-h2">结果验收（铁三角）</span>
+        <span v-if="latestVerify" :class="['pv__verdict', latestVerify.verdict === 'pass' ? 'is-pass' : 'is-fail']">
+          {{ latestVerify.verdict === 'pass' ? '已通过 · 达标' : '不达标' }}
+        </span>
+      </div>
       <el-descriptions :column="1" border size="small" class="pv__desc">
         <el-descriptions-item label="时间">
           {{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}
@@ -12,8 +17,40 @@
           <span class="mido-text-secondary"> / 预算 </span>
           <span class="mido-mono">{{ money(project.budget) }}</span>
         </el-descriptions-item>
+        <el-descriptions-item label="范围">
+          任务完成率 <span class="mido-mono">{{ completionText }}</span>
+        </el-descriptions-item>
         <el-descriptions-item label="状态"><StatusTag :status="project.status" /></el-descriptions-item>
       </el-descriptions>
+
+      <!-- 处于「结果验收」态：PMO 录入结论。达标(pass)方可结案（后端硬闸门）。 -->
+      <div v-if="isResultVerify" class="pv__form">
+        <el-form label-width="92px">
+          <el-form-item label="三角达标">
+            <el-checkbox v-model="form.onTime">时间达标</el-checkbox>
+            <el-checkbox v-model="form.inBudget">成本达标</el-checkbox>
+            <el-checkbox v-model="form.inScope">范围达标</el-checkbox>
+          </el-form-item>
+          <el-form-item label="验收结论">
+            <el-radio-group v-model="form.verdict">
+              <el-radio label="pass">达标</el-radio>
+              <el-radio label="fail">不达标</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input v-model="form.remark" type="textarea" :rows="2" maxlength="1000" show-word-limit
+              placeholder="结果验收说明（可选）" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="submitting" @click="submitResultVerify">提交结果验收</el-button>
+            <el-button v-if="latestVerify && latestVerify.verdict === 'pass'" type="success"
+              :loading="closing" @click="confirmClose">确认结案</el-button>
+          </el-form-item>
+        </el-form>
+        <p class="pv__hint mido-text-secondary">
+          三角指标已按项目数据自动预填，可调整；结论为「达标」并提交后方可结案。
+        </p>
+      </div>
     </div>
 
     <!-- ② 价值验收（NPSS） -->
@@ -33,11 +70,13 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import NpssScoreCard from '@/components/NpssScoreCard.vue'
 import NpssSubjectConfig from '@/components/NpssSubjectConfig.vue'
-import { npssApi } from '@/api/npss'
+import { npssApi, resultVerifyApi, reportApi } from '@/api/npss'
+import { projectApi } from '@/api/project'
 import { stakeholderApi } from '@/api/stakeholder'
 
 const props = defineProps({
@@ -45,12 +84,24 @@ const props = defineProps({
   projectId: { type: [Number, String], default: null },
   userName: { type: Function, default: (id) => (id ? `用户#${id}` : '—') },
 })
+const emit = defineEmits(['changed'])
 
 const loading = ref(false)
 const review = ref(null)
 const stakeholders = ref([])
 const subjects = ref([])
 const configVisible = ref(false)
+
+// 结果验收（铁三角）
+const latestVerify = ref(null)
+const completionRate = ref(null)
+const submitting = ref(false)
+const closing = ref(false)
+const form = reactive({ verdict: '', onTime: false, inBudget: false, inScope: false, remark: '' })
+
+const isResultVerify = computed(() => props.project?.status === '结果验收')
+const completionText = computed(() =>
+  completionRate.value == null ? '—' : `${Number(completionRate.value).toFixed(0)}%`)
 
 // 评价主体 id→名称（用于验收 Tab 按主体分组展示得分）
 const subjectName = (id) => {
@@ -69,20 +120,76 @@ const stakeholderName = (id) => {
 const externalIds = computed(() =>
   stakeholders.value.filter((s) => !s.userId).map((s) => s.id))
 
+// 三角指标自动预填：时间(今日≤计划截止)/成本(实际≤预算)/范围(完成率≥100%)
+function autofillForm() {
+  if (latestVerify.value) {
+    form.verdict = latestVerify.value.verdict || ''
+    form.onTime = !!latestVerify.value.onTime
+    form.inBudget = !!latestVerify.value.inBudget
+    form.inScope = !!latestVerify.value.inScope
+    form.remark = latestVerify.value.remark || ''
+    return
+  }
+  const p = props.project || {}
+  const today = new Date().toISOString().slice(0, 10)
+  form.onTime = !!p.endDate && today <= p.endDate
+  form.inBudget = p.budget != null && Number(p.actualCost || 0) <= Number(p.budget)
+  form.inScope = completionRate.value != null && Number(completionRate.value) >= 100
+  form.verdict = form.onTime && form.inBudget && form.inScope ? 'pass' : ''
+}
+
 async function load() {
   if (!props.projectId) return
   loading.value = true
   try {
-    const [reviews, stks, subs] = await Promise.all([
+    const [reviews, stks, subs, verify, health] = await Promise.all([
       npssApi.listByProject(props.projectId),
       stakeholderApi.list(props.projectId),
       npssApi.listProjectSubjects(props.projectId),
+      resultVerifyApi.latest(props.projectId),
+      reportApi.projectHealth(props.projectId).catch(() => null),
     ])
     review.value = reviews && reviews.length ? reviews[0] : null // 取最新一轮
     stakeholders.value = stks || []
     subjects.value = subs || []
+    latestVerify.value = verify || null
+    completionRate.value = health ? health.completionRate : null
+    autofillForm()
   } finally {
     loading.value = false
+  }
+}
+
+async function submitResultVerify() {
+  if (!form.verdict) {
+    ElMessage.warning('请选择验收结论')
+    return
+  }
+  submitting.value = true
+  try {
+    await resultVerifyApi.save(props.projectId, {
+      verdict: form.verdict,
+      onTime: form.onTime,
+      inBudget: form.inBudget,
+      inScope: form.inScope,
+      completionRate: completionRate.value,
+      remark: form.remark,
+    })
+    ElMessage.success('结果验收已提交')
+    await load()
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function confirmClose() {
+  closing.value = true
+  try {
+    await projectApi.transition(props.projectId, { targetStatus: '已结案' })
+    ElMessage.success('项目已结案')
+    emit('changed')
+  } finally {
+    closing.value = false
   }
 }
 
@@ -101,5 +208,22 @@ watch(() => props.projectId, load, { immediate: true })
 }
 .pv__desc {
   margin-top: var(--mido-space-2);
+}
+.pv__form {
+  margin-top: var(--mido-space-3);
+}
+.pv__hint {
+  margin: 0;
+  font-size: var(--mido-font-size-sm);
+}
+.pv__verdict {
+  font-size: var(--mido-font-size-sm);
+  font-weight: 600;
+}
+.pv__verdict.is-pass {
+  color: var(--el-color-success);
+}
+.pv__verdict.is-fail {
+  color: var(--el-color-danger);
 }
 </style>

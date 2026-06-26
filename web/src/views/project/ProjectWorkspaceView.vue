@@ -51,7 +51,8 @@
         <TaskWorkspaceView v-else-if="tab === 'task'" :embedded="true" :project-id="projectId" />
         <ProjectGoalsPane v-else-if="tab === 'goal'" :project-id="projectId" :user-name="userName" />
         <StakeholderView v-else-if="tab === 'stakeholder'" :embedded="true" :project-id="projectId" />
-        <ProjectVerifyPane v-else-if="tab === 'verify'" :project="project" :project-id="projectId" :user-name="userName" />
+        <ProjectVerifyPane v-else-if="tab === 'verify'" :project="project" :project-id="projectId"
+          :user-name="userName" @changed="reload" />
         <GanttChart v-else-if="tab === 'gantt'" :project-id="projectId" />
         <CostPanel v-else-if="tab === 'cost'" :project-id="projectId" />
         <ProjectFilesPanel v-else-if="tab === 'doc'" :project-id="projectId" :user-name="userName" />

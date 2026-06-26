@@ -56,6 +56,8 @@ class ProjectServiceTest {
     private com.mido.pm.common.quota.QuotaGuard quotaGuard;
     @Mock
     private com.mido.pm.common.security.FieldPermGuard fieldPermGuard;
+    @Mock
+    private com.mido.pm.common.verify.ResultVerifyGate resultVerifyGate;
     @InjectMocks
     private ProjectService service;
 

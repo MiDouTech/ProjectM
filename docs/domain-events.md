@@ -62,10 +62,11 @@
 | `change.applied` | 变更生效(回写被改实体) | 被改域(联动)、报表、活动流 |
 | `change.rejected` | 变更驳回/撤回，未生效 | 消息(通知发起人)、活动流 |
 
-## 4. 干系人/验收域 stakeholder.* / npss.*
+## 4. 干系人/验收域 stakeholder.* / npss.* / result.*
 | 事件 | 触发 | 订阅方 |
 |---|---|---|
 | `stakeholder.registered` | 干系人登记 | 报表 |
+| `result.verified` | 提交结果验收结论(铁三角 pass/fail) | 报表、活动流 |
 | `npss.review.started` | 定时唤醒价值验收 | 消息(通知干系人打分)、AI(价值重估·R) |
 | `npss.scored` | 干系人提交评分 | 报表 |
 | `npss.review.completed` | 评分汇总完成 | 报表(PMO汇总)、消息、AI |

@@ -14,6 +14,7 @@ import com.mido.pm.common.quota.QuotaResources;
 import com.mido.pm.common.security.FieldPermGuard;
 import com.mido.pm.common.security.JobLevelRule;
 import com.mido.pm.common.security.UserContext;
+import com.mido.pm.common.verify.ResultVerifyGate;
 import com.mido.pm.project.domain.ProjectStateMachine;
 import com.mido.pm.project.domain.ProjectStatus;
 import com.mido.pm.project.entity.PmProjectType;
@@ -82,6 +83,7 @@ public class ProjectService {
     private final ProjectTypeResolver projectTypeResolver;
     private final QuotaGuard quotaGuard;
     private final FieldPermGuard fieldPermGuard;
+    private final ResultVerifyGate resultVerifyGate;
 
     /** 字段级权限资源标识：项目 */
     public static final String FIELD_RESOURCE = "project";
@@ -90,7 +92,7 @@ public class ProjectService {
                           DomainEventPublisher eventPublisher,
                           IdentityProvider identityProvider, AuditLogService auditLogService,
                           ProjectTypeResolver projectTypeResolver, QuotaGuard quotaGuard,
-                          FieldPermGuard fieldPermGuard) {
+                          FieldPermGuard fieldPermGuard, ResultVerifyGate resultVerifyGate) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
@@ -99,6 +101,7 @@ public class ProjectService {
         this.projectTypeResolver = projectTypeResolver;
         this.quotaGuard = quotaGuard;
         this.fieldPermGuard = fieldPermGuard;
+        this.resultVerifyGate = resultVerifyGate;
     }
 
     /**
@@ -320,6 +323,9 @@ public class ProjectService {
             // 职级 guard：门槛取自项目类型 min_job_level（取代硬编码 S/O）
             PmProjectType type = projectTypeResolver.require(p.getCategory(), p.getSubCategory());
             JobLevelRule.assertQualified(type.getMinJobLevel(), leaderJobLevel(p));
+        } else if (to == ProjectStatus.CLOSED) {
+            // 结果验收 guard（严肃闸门）：须有「达标」结果验收结论方可结案（铁三角）。
+            resultVerifyGate.assertClosable(id);
         }
 
         // 3) 副作用
