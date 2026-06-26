@@ -63,6 +63,18 @@ public class WorkspaceNavService {
         return WorkspaceCatalog.catalog(module);
     }
 
+    /** 原始编排（含停用项，按 sort），供编排器回显；无编排返回空表示"用默认"。 */
+    public List<NavItemSaveDTO> rawConfig(String module) {
+        requireKnown(module);
+        return navMapper.selectList(Wrappers.<PmModuleNav>lambdaQuery()
+                        .eq(PmModuleNav::getModule, module)
+                        .orderByAsc(PmModuleNav::getSort))
+                .stream()
+                .map(r -> new NavItemSaveDTO(r.getComponentCode(), r.getParentCode(),
+                        r.getDisplayName(), r.getIcon(), !Integer.valueOf(0).equals(r.getEnabled())))
+                .toList();
+    }
+
     /** 整组替换某模块的导航编排（replace-all，按列表顺序为 sort）。 */
     @Transactional(rollbackFor = Exception.class)
     public void saveNav(String module, List<NavItemSaveDTO> items) {

@@ -4,6 +4,7 @@ import request from './request'
 export const workspaceNavApi = {
   nav: (module) => request.get(`/workspace/nav/${module}`),
   catalog: (module) => request.get(`/workspace/catalog/${module}`),
+  rawConfig: (module) => request.get(`/workspace/nav/${module}/config`),
   saveNav: (module, items) => request.put(`/workspace/nav/${module}`, items),
 }
 

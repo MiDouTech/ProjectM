@@ -39,6 +39,12 @@ public class WorkspaceNavController {
         return R.ok(service.catalog(module));
     }
 
+    /** 原始编排（含停用项，编排器回显用；空=用默认）。 */
+    @GetMapping("/nav/{module}/config")
+    public R<List<NavItemSaveDTO>> rawConfig(@PathVariable String module) {
+        return R.ok(service.rawConfig(module));
+    }
+
     /** 整组保存某模块导航编排（管理后台）。 */
     @PutMapping("/nav/{module}")
     public R<Void> saveNav(@PathVariable String module, @RequestBody List<NavItemSaveDTO> items) {
