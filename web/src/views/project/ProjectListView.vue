@@ -32,14 +32,16 @@
           </template>
           <FilterBuilder :fields="FILTER_FIELDS" @apply="onApplyFilter" />
         </el-popover>
+        <TableColumnSetting v-if="view === 'table'" list-key="projects"
+          :all-columns="PROJECT_COLUMNS" :default-columns="PROJECT_DEFAULT_COLS" @change="onColsChange" />
         <el-button type="primary" :icon="Plus" @click="wizardOpen = true">新建项目</el-button>
       </div>
     </div>
 
     <!-- 主体视图区 -->
     <el-card shadow="never" v-loading="loading">
-      <!-- 列表 / 表格 -->
-      <el-table v-if="view !== 'card'" :data="viewRows" stripe class="is-clickable" @row-click="openDetail">
+      <!-- 列表视图：精简固定列 -->
+      <el-table v-if="view === 'list'" :data="viewRows" stripe class="is-clickable" @row-click="openDetail">
         <el-table-column label="项目" min-width="220">
           <template #default="{ row }">
             <div class="pl__name">
@@ -55,23 +57,34 @@
         <el-table-column label="负责人" width="120">
           <template #default="{ row }">{{ userName(row.leaderId) }}</template>
         </el-table-column>
-        <!-- 表格视图：更多字段 -->
-        <template v-if="view === 'table'">
-          <el-table-column label="子类" width="110">
-            <template #default="{ row }">{{ row.subCategory || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="预算" width="120" align="right">
-            <template #default="{ row }">{{ money(row.budget) }}</template>
-          </el-table-column>
-          <el-table-column label="开始" width="120">
-            <template #default="{ row }">{{ row.startDate || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="结束" width="120">
-            <template #default="{ row }">{{ row.endDate || '—' }}</template>
-          </el-table-column>
-        </template>
-        <el-table-column label="周期" v-else min-width="180">
+        <el-table-column label="周期" min-width="180">
           <template #default="{ row }">{{ row.startDate || '—' }} ~ {{ row.endDate || '—' }}</template>
+        </el-table-column>
+        <template #empty>
+          <EmptyState description="还没有项目" action-text="新建项目" :action-icon="Plus" @action="wizardOpen = true" />
+        </template>
+      </el-table>
+
+      <!-- 表格视图：表头可自定义（列/顺序/冻结，每用户持久化） -->
+      <el-table v-else-if="view === 'table'" :data="viewRows" stripe class="is-clickable" @row-click="openDetail">
+        <el-table-column v-for="key in tableCols" :key="key" :label="colLabel(key)"
+          :width="colWidth(key)" :min-width="colMinWidth(key)" :align="colAlign(key)"
+          :fixed="tableFrozen.includes(key) ? 'left' : false">
+          <template #default="{ row }">
+            <div v-if="key === 'name'" class="pl__name">
+              <CategoryBadge :category="row.category" :show-label="false" />
+              <span>{{ row.name }}</span>
+              <span class="mido-mono mido-text-secondary">{{ row.code }}</span>
+            </div>
+            <StatusTag v-else-if="key === 'status'" :status="row.status" />
+            <span v-else-if="key === 'leaderId'">{{ userName(row.leaderId) }}</span>
+            <span v-else-if="key === 'subCategory'">{{ row.subCategory || '—' }}</span>
+            <span v-else-if="key === 'budget'">{{ money(row.budget) }}</span>
+            <span v-else-if="key === 'startDate'">{{ row.startDate || '—' }}</span>
+            <span v-else-if="key === 'endDate'">{{ row.endDate || '—' }}</span>
+            <span v-else-if="key === 'code'" class="mido-mono">{{ row.code || '—' }}</span>
+            <span v-else>{{ row[key] ?? '—' }}</span>
+          </template>
         </el-table-column>
         <template #empty>
           <EmptyState description="还没有项目" action-text="新建项目" :action-icon="Plus" @action="wizardOpen = true" />
@@ -117,6 +130,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import FilterBuilder from '@/components/FilterBuilder.vue'
 import CreateProjectWizard from './CreateProjectWizard.vue'
 import ProjectSubNav from './ProjectSubNav.vue'
+import TableColumnSetting from '@/components/TableColumnSetting.vue'
 import { projectApi, PROJECT_CATEGORIES } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { applyFilter, applySort } from '@/utils/filter'
@@ -167,6 +181,39 @@ const users = ref([])
 const userMap = computed(() => Object.fromEntries(users.value.map((u) => [u.id, u.name])))
 const userName = (id) => userMap.value[id] || (id ? `用户#${id}` : '—')
 const money = (v) => (v == null ? '—' : `¥${Number(v).toLocaleString()}`)
+
+// 表格视图列定义（表头设置用）。name 必选；width/minWidth/align 决定渲染。
+const PROJECT_COLUMNS = [
+  { key: 'name', label: '项目', required: true },
+  { key: 'status', label: '状态' },
+  { key: 'leaderId', label: '负责人' },
+  { key: 'subCategory', label: '子类' },
+  { key: 'budget', label: '预算' },
+  { key: 'startDate', label: '开始时间' },
+  { key: 'endDate', label: '截止时间' },
+  { key: 'code', label: '项目编号' },
+]
+const PROJECT_DEFAULT_COLS = ['name', 'status', 'leaderId', 'subCategory', 'budget', 'startDate', 'endDate']
+const COL_META = {
+  name: { minWidth: 220 },
+  status: { width: 110 },
+  leaderId: { width: 120 },
+  subCategory: { width: 110 },
+  budget: { width: 130, align: 'right' },
+  startDate: { width: 120 },
+  endDate: { width: 120 },
+  code: { width: 120 },
+}
+const tableCols = ref([...PROJECT_DEFAULT_COLS])
+const tableFrozen = ref([])
+const colLabel = (key) => PROJECT_COLUMNS.find((c) => c.key === key)?.label || key
+const colWidth = (key) => COL_META[key]?.width
+const colMinWidth = (key) => COL_META[key]?.minWidth
+const colAlign = (key) => COL_META[key]?.align
+function onColsChange({ columns, frozen }) {
+  tableCols.value = columns
+  tableFrozen.value = frozen
+}
 
 // 服务端粗筛（type/status/keyword）→ 前端高级筛选 + 排序精筛
 const viewRows = computed(() => {

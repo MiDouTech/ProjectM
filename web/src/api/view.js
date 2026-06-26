@@ -1,5 +1,11 @@
 import request from './request'
 
+/** 列表表头偏好（每用户每列表，跨设备）。config: { columns:[key...], frozen:[key...] }。 */
+export const tablePrefApi = {
+  get: (listKey) => request.get(`/table-prefs/${listKey}`),
+  save: (listKey, config) => request.put(`/table-prefs/${listKey}`, config),
+}
+
 /** 视图设计器：命名视图 CRUD（个人/项目级）。config 结构见后端 ViewConfig（锁定）。 */
 export const viewApi = {
   list: (projectId) => request.get('/views', { params: { projectId } }),
