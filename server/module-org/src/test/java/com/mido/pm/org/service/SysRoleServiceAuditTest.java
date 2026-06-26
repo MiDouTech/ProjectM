@@ -7,6 +7,7 @@ import com.mido.pm.org.dto.FieldPermSettingDTO;
 import com.mido.pm.org.entity.SysRole;
 import com.mido.pm.org.entity.SysRolePerm;
 import com.mido.pm.org.mapper.SysFieldPermMapper;
+import com.mido.pm.org.mapper.SysRoleCustomDeptMapper;
 import com.mido.pm.org.mapper.SysRoleDataScopeMapper;
 import com.mido.pm.org.mapper.SysRoleMapper;
 import com.mido.pm.org.mapper.SysRolePermMapper;
@@ -33,11 +34,12 @@ class SysRoleServiceAuditTest {
     @Mock private SysRolePermMapper rolePermMapper;
     @Mock private SysRoleDataScopeMapper roleDataScopeMapper;
     @Mock private SysFieldPermMapper fieldPermMapper;
+    @Mock private SysRoleCustomDeptMapper roleCustomDeptMapper;
     @Mock private AuditLogService auditLogService;
 
     private SysRoleService service() {
         return new SysRoleService(roleMapper, rolePermMapper, roleDataScopeMapper,
-                fieldPermMapper, auditLogService);
+                fieldPermMapper, roleCustomDeptMapper, auditLogService);
     }
 
     @Test

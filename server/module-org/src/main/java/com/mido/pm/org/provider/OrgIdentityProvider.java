@@ -5,12 +5,14 @@ import com.mido.pm.common.security.DataScopeResolver;
 import com.mido.pm.common.security.FieldAccess;
 import com.mido.pm.org.entity.SysDept;
 import com.mido.pm.org.entity.SysFieldPerm;
+import com.mido.pm.org.entity.SysRoleCustomDept;
 import com.mido.pm.org.entity.SysRoleDataScope;
 import com.mido.pm.org.entity.SysRolePerm;
 import com.mido.pm.org.entity.SysUser;
 import com.mido.pm.org.entity.SysUserRole;
 import com.mido.pm.org.mapper.SysDeptMapper;
 import com.mido.pm.org.mapper.SysFieldPermMapper;
+import com.mido.pm.org.mapper.SysRoleCustomDeptMapper;
 import com.mido.pm.org.mapper.SysRoleDataScopeMapper;
 import com.mido.pm.org.mapper.SysRolePermMapper;
 import com.mido.pm.org.mapper.SysUserMapper;
@@ -42,16 +44,19 @@ public class OrgIdentityProvider implements IdentityProvider {
     private final SysRolePermMapper rolePermMapper;
     private final SysRoleDataScopeMapper roleDataScopeMapper;
     private final SysFieldPermMapper fieldPermMapper;
+    private final SysRoleCustomDeptMapper roleCustomDeptMapper;
     private final SysDeptMapper deptMapper;
 
     public OrgIdentityProvider(SysUserMapper userMapper, SysUserRoleMapper userRoleMapper,
                                SysRolePermMapper rolePermMapper, SysRoleDataScopeMapper roleDataScopeMapper,
-                               SysFieldPermMapper fieldPermMapper, SysDeptMapper deptMapper) {
+                               SysFieldPermMapper fieldPermMapper, SysRoleCustomDeptMapper roleCustomDeptMapper,
+                               SysDeptMapper deptMapper) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.rolePermMapper = rolePermMapper;
         this.roleDataScopeMapper = roleDataScopeMapper;
         this.fieldPermMapper = fieldPermMapper;
+        this.roleCustomDeptMapper = roleCustomDeptMapper;
         this.deptMapper = deptMapper;
     }
 
@@ -102,6 +107,10 @@ public class OrgIdentityProvider implements IdentityProvider {
             p.setResourceScopes(DataScopeResolver.mergeBroadest(rawScopes));
 
             p.setViewOnlyFields(computeViewOnlyFields(roleIds));
+
+            p.setCustomDeptIds(roleCustomDeptMapper.selectList(
+                            Wrappers.<SysRoleCustomDept>lambdaQuery().in(SysRoleCustomDept::getRoleId, roleIds))
+                    .stream().map(SysRoleCustomDept::getDeptId).distinct().toList());
         }
 
         p.setSubDeptIds(subDeptIds(user.getDeptId()));

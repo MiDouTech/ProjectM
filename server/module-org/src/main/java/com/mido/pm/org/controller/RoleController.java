@@ -81,6 +81,18 @@ public class RoleController {
         return R.ok();
     }
 
+    @GetMapping("/{id}/custom-depts")
+    public R<List<Long>> getCustomDepts(@PathVariable Long id) {
+        return R.ok(roleService.getCustomDepts(id));
+    }
+
+    @PreAuthorize("hasAuthority('org:role:create')")
+    @PutMapping("/{id}/custom-depts")
+    public R<Void> saveCustomDepts(@PathVariable Long id, @RequestBody List<Long> deptIds) {
+        roleService.saveCustomDepts(id, deptIds);
+        return R.ok();
+    }
+
     @GetMapping("/{id}/field-perms")
     public R<List<FieldPermSettingDTO>> getFieldPerms(@PathVariable Long id) {
         return R.ok(roleService.getFieldPerms(id));

@@ -56,6 +56,14 @@
         <el-button link type="danger" @click="scopes.splice(idx, 1)">删除</el-button>
       </div>
       <el-button :icon="Plus" @click="scopes.push({ resource: '', scope: 'self' })">添加范围</el-button>
+
+      <div class="custom-dept">
+        <p class="mido-text-secondary">自定义部门集（任一资源数据范围选「自定义」时，按下列部门可见）</p>
+        <el-select v-model="customDepts" multiple filterable placeholder="选择部门" class="full">
+          <el-option v-for="d in deptOptions" :key="d.id" :label="d.name" :value="d.id" />
+        </el-select>
+      </div>
+
       <template #footer>
         <el-button @click="scopesDrawer = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="saveScopes">保存</el-button>
@@ -90,7 +98,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { roleApi, DATA_SCOPES, DATA_SCOPE_RESOURCES, FIELD_ACCESS, FIELD_PERM_RESOURCES } from '@/api/org'
+import { roleApi, deptApi, DATA_SCOPES, DATA_SCOPE_RESOURCES, FIELD_ACCESS, FIELD_PERM_RESOURCES } from '@/api/org'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -109,6 +117,8 @@ const permsDrawer = ref(false)
 const permCodes = ref([])
 const scopesDrawer = ref(false)
 const scopes = ref([])
+const customDepts = ref([])
+const deptOptions = ref([])
 const fieldPermsDrawer = ref(false)
 const fieldPerms = ref([])
 const currentRoleId = ref(null)
@@ -172,15 +182,31 @@ async function savePerms() {
   }
 }
 
+function flattenDepts(nodes, acc = []) {
+  for (const n of nodes || []) {
+    acc.push({ id: n.id, name: n.name })
+    if (n.children?.length) flattenDepts(n.children, acc)
+  }
+  return acc
+}
+
 async function openScopes(row) {
   currentRoleId.value = row.id
-  scopes.value = await roleApi.getDataScopes(row.id)
+  const [scopeList, customList, tree] = await Promise.all([
+    roleApi.getDataScopes(row.id),
+    roleApi.getCustomDepts(row.id),
+    deptApi.tree(),
+  ])
+  scopes.value = scopeList
+  customDepts.value = customList
+  deptOptions.value = flattenDepts(tree)
   scopesDrawer.value = true
 }
 async function saveScopes() {
   saving.value = true
   try {
     await roleApi.saveDataScopes(currentRoleId.value, scopes.value)
+    await roleApi.saveCustomDepts(currentRoleId.value, customDepts.value)
     ElMessage.success('已保存数据范围')
     scopesDrawer.value = false
   } finally {
@@ -229,5 +255,8 @@ onMounted(load)
 }
 .ds-row__scope {
   width: var(--mido-admin-nav-width);
+}
+.custom-dept {
+  margin-top: var(--mido-space-4);
 }
 </style>

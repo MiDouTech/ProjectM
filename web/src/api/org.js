@@ -42,6 +42,8 @@ export const roleApi = {
   saveDataScopes: (id, settings) => request.put(`/roles/${id}/data-scopes`, settings),
   getFieldPerms: (id) => request.get(`/roles/${id}/field-perms`),
   saveFieldPerms: (id, settings) => request.put(`/roles/${id}/field-perms`, settings),
+  getCustomDepts: (id) => request.get(`/roles/${id}/custom-depts`),
+  saveCustomDepts: (id, deptIds) => request.put(`/roles/${id}/custom-depts`, deptIds),
 }
 
 /**

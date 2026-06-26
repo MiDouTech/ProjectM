@@ -15,9 +15,11 @@ import com.mido.pm.org.dto.RoleUpdateDTO;
 import com.mido.pm.org.dto.RoleVO;
 import com.mido.pm.org.entity.SysFieldPerm;
 import com.mido.pm.org.entity.SysRole;
+import com.mido.pm.org.entity.SysRoleCustomDept;
 import com.mido.pm.org.entity.SysRoleDataScope;
 import com.mido.pm.org.entity.SysRolePerm;
 import com.mido.pm.org.mapper.SysFieldPermMapper;
+import com.mido.pm.org.mapper.SysRoleCustomDeptMapper;
 import com.mido.pm.org.mapper.SysRoleDataScopeMapper;
 import com.mido.pm.org.mapper.SysRoleMapper;
 import com.mido.pm.org.mapper.SysRolePermMapper;
@@ -37,15 +39,17 @@ public class SysRoleService {
     private final SysRolePermMapper rolePermMapper;
     private final SysRoleDataScopeMapper roleDataScopeMapper;
     private final SysFieldPermMapper fieldPermMapper;
+    private final SysRoleCustomDeptMapper roleCustomDeptMapper;
     private final AuditLogService auditLogService;
 
     public SysRoleService(SysRoleMapper roleMapper, SysRolePermMapper rolePermMapper,
                           SysRoleDataScopeMapper roleDataScopeMapper, SysFieldPermMapper fieldPermMapper,
-                          AuditLogService auditLogService) {
+                          SysRoleCustomDeptMapper roleCustomDeptMapper, AuditLogService auditLogService) {
         this.roleMapper = roleMapper;
         this.rolePermMapper = rolePermMapper;
         this.roleDataScopeMapper = roleDataScopeMapper;
         this.fieldPermMapper = fieldPermMapper;
+        this.roleCustomDeptMapper = roleCustomDeptMapper;
         this.auditLogService = auditLogService;
     }
 
@@ -190,6 +194,35 @@ public class SysRoleService {
         auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, roleId,
                 AuditActions.FIELD_PERM_CHANGED,
                 Map.of("from", before, "to", settings == null ? List.of() : settings));
+    }
+
+    // ===== 自定义部门集（custom 数据范围）=====
+
+    public List<Long> getCustomDepts(Long roleId) {
+        requireExists(roleId);
+        return roleCustomDeptMapper.selectList(
+                        Wrappers.<SysRoleCustomDept>lambdaQuery().eq(SysRoleCustomDept::getRoleId, roleId))
+                .stream().map(SysRoleCustomDept::getDeptId).toList();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void saveCustomDepts(Long roleId, List<Long> deptIds) {
+        requireExists(roleId);
+        List<Long> before = getCustomDepts(roleId);
+        roleCustomDeptMapper.delete(
+                Wrappers.<SysRoleCustomDept>lambdaQuery().eq(SysRoleCustomDept::getRoleId, roleId));
+        if (deptIds != null) {
+            for (Long deptId : deptIds) {
+                SysRoleCustomDept cd = new SysRoleCustomDept();
+                cd.setRoleId(roleId);
+                cd.setDeptId(deptId);
+                roleCustomDeptMapper.insert(cd);
+            }
+        }
+        // 自定义部门集属数据可见范围范畴：复用 DATA_SCOPE_CHANGED 记录 before/after
+        auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, roleId,
+                AuditActions.DATA_SCOPE_CHANGED,
+                Map.of("customDepts", Map.of("from", before, "to", deptIds == null ? List.of() : deptIds)));
     }
 
     private SysRole requireExists(Long id) {
