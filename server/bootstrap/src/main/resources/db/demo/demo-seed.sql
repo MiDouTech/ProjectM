@@ -313,9 +313,9 @@ INSERT INTO pm_doc_version (id, tenant_id, doc_id, version_no, title, content, c
 -- ============================ 11. 日历 / 日程 / 参与人 =======================
 -- calendar type：personal/meeting/team/resource  visibility：private/busy/public
 INSERT INTO pm_calendar (id, tenant_id, name, type, owner_id, color, visibility, is_default, status, create_by, create_time, is_deleted) VALUES
-  (9011001, @T, '我的日程', 'personal', @U,      '--mido-color-primary', 'private', 1, 'active', @U, '2026-01-02 09:00:00', 0),
-  (9011002, @T, '项目会议', 'meeting',  9002001, '--mido-color-success', 'busy',    0, 'active', @U, '2026-01-02 09:00:00', 0),
-  (9011003, @T, '团队日历', 'team',     9002001, '--mido-color-warning', 'public',  0, 'active', @U, '2026-01-02 09:00:00', 0);
+  (9011001, @T, '我的日程', 'personal', @U,      'primary', 'private', 1, 'active', @U, '2026-01-02 09:00:00', 0),
+  (9011002, @T, '项目会议', 'meeting',  9002001, 'success', 'busy',    0, 'active', @U, '2026-01-02 09:00:00', 0),
+  (9011003, @T, '团队日历', 'team',     9002001, 'warning', 'public',  0, 'active', @U, '2026-01-02 09:00:00', 0);
 
 -- schedule source_type：manual/task/meeting  status：confirmed/cancelled
 INSERT INTO pm_schedule (id, tenant_id, calendar_id, title, description, start_time, end_time, all_day, location, allow_feedback, source_type, organizer_id, status, create_by, create_time, is_deleted) VALUES
