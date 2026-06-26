@@ -14,7 +14,11 @@
         </el-select>
         <el-button link type="primary" :icon="Plus" @click="designerOpen = true">新建视图</el-button>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建任务</el-button>
+      <div class="tw__bar-right">
+        <TableColumnSetting v-if="view !== 'board' && view !== 'view'" list-key="tasks"
+          :all-columns="TASK_COLUMNS" :default-columns="TASK_DEFAULT_COLS" @change="onTaskColsChange" />
+        <el-button type="primary" :icon="Plus" @click="openCreate">新建任务</el-button>
+      </div>
     </div>
 
     <el-card shadow="never" v-loading="loading">
@@ -89,28 +93,25 @@
         <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }"
           default-expand-all class="is-clickable" @row-click="(r) => openDetail(r.id)" @selection-change="onSelectionChange">
           <el-table-column type="selection" width="48" />
-          <el-table-column label="标题" min-width="240">
-          <template #default="{ row }">
-            <span class="tc__title">
-              <el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="110">
-          <template #default="{ row }"><StatusTag :status="row.status" :color="statusColor(row.status)" /></template>
-        </el-table-column>
-        <el-table-column label="负责人" width="120">
-          <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
-        </el-table-column>
-        <el-table-column label="优先级" width="90">
-          <template #default="{ row }">{{ priorityLabel(row.priority) }}</template>
-        </el-table-column>
-        <el-table-column label="截止" width="150">
-          <template #default="{ row }">
-            {{ row.dueDate || '—' }}
-            <StatusTag v-if="isOverdue(row)" status="逾期" />
-          </template>
-        </el-table-column>
+          <el-table-column v-for="key in taskCols" :key="key" :label="taskColLabel(key)"
+            :width="taskColWidth(key)" :min-width="taskColMinWidth(key)"
+            :fixed="taskFrozen.includes(key) ? 'left' : false">
+            <template #default="{ row }">
+              <span v-if="key === 'title'" class="tc__title">
+                <el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}
+              </span>
+              <StatusTag v-else-if="key === 'status'" :status="row.status" :color="statusColor(row.status)" />
+              <span v-else-if="key === 'assigneeId'">{{ userName(row.assigneeId) }}</span>
+              <span v-else-if="key === 'priority'">{{ priorityLabel(row.priority) }}</span>
+              <template v-else-if="key === 'dueDate'">
+                {{ row.dueDate || '—' }}
+                <StatusTag v-if="isOverdue(row)" status="逾期" />
+              </template>
+              <span v-else-if="key === 'startDate'">{{ row.startDate || '—' }}</span>
+              <span v-else-if="key === 'stage'">{{ row.stage || '—' }}</span>
+              <span v-else>{{ row[key] ?? '—' }}</span>
+            </template>
+          </el-table-column>
           <template #empty><el-empty description="暂无任务，点击右上角新建任务" /></template>
         </el-table>
       </div>
@@ -151,6 +152,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, Flag, ArrowDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import KanbanBoard from '@/components/KanbanBoard.vue'
+import TableColumnSetting from '@/components/TableColumnSetting.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useStatusColors } from '@/composables/useStatusColors'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -183,6 +185,37 @@ const { statusColor } = useStatusColors()
 const loading = ref(false)
 const saving = ref(false)
 const view = ref('board')
+
+// 任务列表（树形表）表头设置
+const TASK_COLUMNS = [
+  { key: 'title', label: '标题', required: true },
+  { key: 'status', label: '状态' },
+  { key: 'assigneeId', label: '负责人' },
+  { key: 'priority', label: '优先级' },
+  { key: 'dueDate', label: '截止时间' },
+  { key: 'startDate', label: '开始时间' },
+  { key: 'stage', label: '阶段' },
+]
+const TASK_DEFAULT_COLS = ['title', 'status', 'assigneeId', 'priority', 'dueDate']
+const TASK_COL_META = {
+  title: { minWidth: 240 },
+  status: { width: 110 },
+  assigneeId: { width: 120 },
+  priority: { width: 90 },
+  dueDate: { width: 150 },
+  startDate: { width: 120 },
+  stage: { width: 110 },
+}
+const taskCols = ref([...TASK_DEFAULT_COLS])
+const taskFrozen = ref([])
+const taskColLabel = (key) => TASK_COLUMNS.find((c) => c.key === key)?.label || key
+const taskColWidth = (key) => TASK_COL_META[key]?.width
+const taskColMinWidth = (key) => TASK_COL_META[key]?.minWidth
+function onTaskColsChange({ columns: cols, frozen }) {
+  taskCols.value = cols
+  taskFrozen.value = frozen
+}
+
 const project = ref({})
 const tasks = ref([])
 const columns = ref(TASK_STATUSES.map((s) => ({ status: s, tasks: [] })))
@@ -391,6 +424,11 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--mido-space-3);
+}
+.tw__bar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
 }
 .tw__viewsel {
   width: var(--mido-admin-nav-width);
