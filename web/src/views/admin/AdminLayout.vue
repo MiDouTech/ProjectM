@@ -29,6 +29,9 @@
         <el-menu-item index="/admin/fields">
           <el-icon><Memo /></el-icon><span>自定义字段</span>
         </el-menu-item>
+        <el-menu-item index="/admin/audit-logs">
+          <el-icon><Tickets /></el-icon><span>操作日志</span>
+        </el-menu-item>
         <el-menu-item v-if="userStore.hasFeature('openapi')" index="/admin/apikeys">
           <el-icon><Key /></el-icon><span>开放平台</span>
         </el-menu-item>
@@ -41,7 +44,7 @@
 </template>
 
 <script setup>
-import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch, Memo, Histogram } from '@element-plus/icons-vue'
+import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch, Memo, Histogram, Tickets } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()

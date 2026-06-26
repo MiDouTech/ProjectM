@@ -4,6 +4,9 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mido.pm.common.api.PageResult;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.datascope.DataScopeContext;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户服务：CRUD（含 job_level）+ 分配角色。
@@ -39,13 +43,16 @@ public class SysUserService {
     private final SysUserRoleMapper userRoleMapper;
     private final PasswordEncoder passwordEncoder;
     private final QuotaGuard quotaGuard;
+    private final AuditLogService auditLogService;
 
     public SysUserService(SysUserMapper userMapper, SysUserRoleMapper userRoleMapper,
-                          PasswordEncoder passwordEncoder, QuotaGuard quotaGuard) {
+                          PasswordEncoder passwordEncoder, QuotaGuard quotaGuard,
+                          AuditLogService auditLogService) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
         this.quotaGuard = quotaGuard;
+        this.auditLogService = auditLogService;
     }
 
     public PageResult<UserVO> page(UserQueryDTO query) {
@@ -75,6 +82,8 @@ public class SysUserService {
         return toVO(requireExists(id));
     }
 
+    @Audited(module = AuditActions.MODULE_MEMBER, action = AuditActions.CREATED,
+            target = AuditActions.TARGET_USER)
     public Long create(UserCreateDTO dto) {
         // 配额硬校验：当前租户成员数不得超过订阅套餐上限（不限/未订阅则放行）
         Long currentUserCount = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery());
@@ -105,6 +114,8 @@ public class SysUserService {
         return user.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_MEMBER, action = AuditActions.UPDATED,
+            target = AuditActions.TARGET_USER)
     public void update(Long id, UserUpdateDTO dto) {
         SysUser user = requireExists(id);
         user.setName(dto.name());
@@ -115,6 +126,8 @@ public class SysUserService {
         userMapper.updateById(user);
     }
 
+    @Audited(module = AuditActions.MODULE_MEMBER, action = AuditActions.DELETED,
+            target = AuditActions.TARGET_USER)
     public void delete(Long id) {
         requireExists(id);
         userMapper.deleteById(id);
@@ -134,16 +147,20 @@ public class SysUserService {
     @Transactional(rollbackFor = Exception.class)
     public void assignRoles(Long userId, List<Long> roleIds) {
         requireExists(userId);
+        List<Long> before = roleIdsOf(userId);
         userRoleMapper.delete(Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, userId));
-        if (roleIds == null) {
-            return;
+        if (roleIds != null) {
+            for (Long roleId : roleIds) {
+                SysUserRole ur = new SysUserRole();
+                ur.setUserId(userId);
+                ur.setRoleId(roleId);
+                userRoleMapper.insert(ur);
+            }
         }
-        for (Long roleId : roleIds) {
-            SysUserRole ur = new SysUserRole();
-            ur.setUserId(userId);
-            ur.setRoleId(roleId);
-            userRoleMapper.insert(ur);
-        }
+        // 账号权限变更：同事务记录角色 before/after（雪花 ID 经全局序列化为字符串）
+        auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_USER, userId,
+                AuditActions.ROLES_ASSIGNED,
+                Map.of("from", before, "to", roleIds == null ? List.of() : roleIds));
     }
 
     private SysUser requireExists(Long id) {

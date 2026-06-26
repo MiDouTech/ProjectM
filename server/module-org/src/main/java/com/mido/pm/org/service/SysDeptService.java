@@ -1,6 +1,8 @@
 package com.mido.pm.org.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.org.dto.DeptCreateDTO;
@@ -62,6 +64,8 @@ public class SysDeptService {
         return roots;
     }
 
+    @Audited(module = AuditActions.MODULE_MEMBER, action = AuditActions.CREATED,
+            target = AuditActions.TARGET_DEPT)
     public Long create(DeptCreateDTO dto) {
         Long parentId = dto.parentId() == null ? ROOT : dto.parentId();
         if (parentId != ROOT && deptMapper.selectById(parentId) == null) {
@@ -74,6 +78,8 @@ public class SysDeptService {
         return dept.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_MEMBER, action = AuditActions.UPDATED,
+            target = AuditActions.TARGET_DEPT)
     public void update(Long id, DeptUpdateDTO dto) {
         SysDept dept = requireExists(id);
         Long parentId = dto.parentId() == null ? ROOT : dto.parentId();
@@ -85,6 +91,8 @@ public class SysDeptService {
         deptMapper.updateById(dept);
     }
 
+    @Audited(module = AuditActions.MODULE_MEMBER, action = AuditActions.DELETED,
+            target = AuditActions.TARGET_DEPT)
     public void delete(Long id) {
         requireExists(id);
         Long childCount = deptMapper.selectCount(

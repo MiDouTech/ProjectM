@@ -75,6 +75,46 @@ class AuditLogServiceTest {
     }
 
     @Test
+    void recordWithModulePersistsModuleField() {
+        service().record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, 1L,
+                AuditActions.PERMS_CHANGED, Map.of("from", List.of(), "to", List.of("a")));
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogMapper).insert(captor.capture());
+        AuditLog saved = captor.getValue();
+        assertEquals(AuditActions.MODULE_PERMISSION, saved.getModule());
+        assertEquals(AuditActions.TARGET_ROLE, saved.getTarget());
+        assertEquals(AuditActions.PERMS_CHANGED, saved.getAction());
+        assertEquals(1L, saved.getTargetId());
+    }
+
+    @Test
+    void queryLogsMapsModuleAndIpToVo() {
+        AuditLog row = new AuditLog();
+        row.setId(99L);
+        row.setUserId(5L);
+        row.setModule(AuditActions.MODULE_MEMBER);
+        row.setAction(AuditActions.MEMBER_ADDED);
+        row.setTarget(AuditActions.TARGET_PROJECT_MEMBER);
+        row.setTargetId(3L);
+        row.setIp("1.2.3.4");
+        row.setCreateTime(LocalDateTime.now());
+        Page<AuditLog> page = new Page<>(1, 20);
+        page.setRecords(List.of(row));
+        page.setTotal(1);
+        when(auditLogMapper.selectPage(any(), any())).thenReturn(page);
+
+        PageResult<AuditLogVO> result = service().queryLogs(
+                new AuditLogQueryDTO(null, null, null, null, null, null, null, 1L, 20L));
+
+        assertEquals(1, result.getList().size());
+        AuditLogVO vo = result.getList().get(0);
+        assertEquals(99L, vo.id());
+        assertEquals(AuditActions.MODULE_MEMBER, vo.module());
+        assertEquals("1.2.3.4", vo.ip());
+    }
+
+    @Test
     void queryMapsRecordsToActivityVoWithParsedDetail() {
         AuditLog row = new AuditLog();
         row.setId(100L);

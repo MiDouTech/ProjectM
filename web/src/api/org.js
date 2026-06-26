@@ -70,6 +70,53 @@ export const apiKeyApi = {
   remove: (id) => request.delete(`/apikeys/${id}`),
 }
 
+/**
+ * 操作日志（租户管理后台，合规审计）。复杂过滤走 POST /query。
+ * query 入参：{ userId, module, action, target, targetId, startTime, endTime, page, size }
+ */
+export const auditLogApi = {
+  query: (data) => request.post('/audit-logs/query', data),
+}
+
+/** 操作日志功能模块字典（与后端 AuditActions.MODULE_* 一致） */
+export const AUDIT_MODULES = [
+  { value: 'permission', label: '账号权限' },
+  { value: 'member', label: '成员组织' },
+  { value: 'config', label: '配置' },
+  { value: 'project', label: '项目' },
+  { value: 'task', label: '任务' },
+  { value: 'mcp', label: '开放平台' },
+]
+
+/** 操作日志动作码字典（与后端 AuditActions.* 一致） */
+export const AUDIT_ACTIONS = [
+  { value: 'created', label: '创建' },
+  { value: 'updated', label: '编辑' },
+  { value: 'deleted', label: '删除' },
+  { value: 'status_changed', label: '状态变更' },
+  { value: 'archived', label: '归档/恢复' },
+  { value: 'assigned', label: '指派/改派' },
+  { value: 'perms_changed', label: '权限码变更' },
+  { value: 'data_scope_changed', label: '数据范围变更' },
+  { value: 'field_perm_changed', label: '字段权限变更' },
+  { value: 'roles_assigned', label: '分配角色' },
+  { value: 'member_added', label: '添加成员' },
+  { value: 'member_removed', label: '移除成员' },
+  { value: 'mcp_invoke', label: 'MCP 调用' },
+]
+
+/** 操作日志实体类型字典（target → 可读名） */
+export const AUDIT_TARGETS = [
+  { value: 'project', label: '项目' },
+  { value: 'task', label: '任务' },
+  { value: 'role', label: '角色' },
+  { value: 'user', label: '用户' },
+  { value: 'dept', label: '部门' },
+  { value: 'project_member', label: '项目成员' },
+  { value: 'project_type', label: '项目类型' },
+  { value: 'mcp', label: 'API Key' },
+]
+
 /** 数据范围可选值（design-system / data-model 状态字典） */
 export const DATA_SCOPES = [
   { value: 'self', label: '本人' },

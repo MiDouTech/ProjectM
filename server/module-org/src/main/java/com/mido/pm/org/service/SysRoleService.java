@@ -1,6 +1,9 @@
 package com.mido.pm.org.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.AuditLogService;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.security.DataScope;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 角色服务：CRUD + 配权限码 + 配数据范围。
@@ -28,12 +32,14 @@ public class SysRoleService {
     private final SysRoleMapper roleMapper;
     private final SysRolePermMapper rolePermMapper;
     private final SysRoleDataScopeMapper roleDataScopeMapper;
+    private final AuditLogService auditLogService;
 
     public SysRoleService(SysRoleMapper roleMapper, SysRolePermMapper rolePermMapper,
-                          SysRoleDataScopeMapper roleDataScopeMapper) {
+                          SysRoleDataScopeMapper roleDataScopeMapper, AuditLogService auditLogService) {
         this.roleMapper = roleMapper;
         this.rolePermMapper = rolePermMapper;
         this.roleDataScopeMapper = roleDataScopeMapper;
+        this.auditLogService = auditLogService;
     }
 
     public List<RoleVO> list() {
@@ -45,6 +51,8 @@ public class SysRoleService {
         return toVO(requireExists(id));
     }
 
+    @Audited(module = AuditActions.MODULE_PERMISSION, action = AuditActions.CREATED,
+            target = AuditActions.TARGET_ROLE)
     public Long create(RoleCreateDTO dto) {
         Long exists = roleMapper.selectCount(
                 Wrappers.<SysRole>lambdaQuery().eq(SysRole::getCode, dto.code()));
@@ -58,6 +66,8 @@ public class SysRoleService {
         return role.getId();
     }
 
+    @Audited(module = AuditActions.MODULE_PERMISSION, action = AuditActions.UPDATED,
+            target = AuditActions.TARGET_ROLE)
     public void update(Long id, RoleUpdateDTO dto) {
         SysRole role = requireExists(id);
         role.setName(dto.name());
@@ -65,6 +75,8 @@ public class SysRoleService {
         roleMapper.updateById(role);
     }
 
+    @Audited(module = AuditActions.MODULE_PERMISSION, action = AuditActions.DELETED,
+            target = AuditActions.TARGET_ROLE)
     public void delete(Long id) {
         requireExists(id);
         roleMapper.deleteById(id);
@@ -82,16 +94,20 @@ public class SysRoleService {
     @Transactional(rollbackFor = Exception.class)
     public void savePerms(Long roleId, List<String> permCodes) {
         requireExists(roleId);
+        List<String> before = getPerms(roleId);
         rolePermMapper.delete(Wrappers.<SysRolePerm>lambdaQuery().eq(SysRolePerm::getRoleId, roleId));
-        if (permCodes == null) {
-            return;
+        if (permCodes != null) {
+            for (String code : permCodes) {
+                SysRolePerm rp = new SysRolePerm();
+                rp.setRoleId(roleId);
+                rp.setPermCode(code);
+                rolePermMapper.insert(rp);
+            }
         }
-        for (String code : permCodes) {
-            SysRolePerm rp = new SysRolePerm();
-            rp.setRoleId(roleId);
-            rp.setPermCode(code);
-            rolePermMapper.insert(rp);
-        }
+        // 权限变更是敏感操作：同事务记录 before/after，含操作人/IP
+        auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, roleId,
+                AuditActions.PERMS_CHANGED,
+                Map.of("from", before, "to", permCodes == null ? List.of() : permCodes));
     }
 
     // ===== 数据范围 =====
@@ -113,18 +129,22 @@ public class SysRoleService {
                 }
             }
         }
+        List<DataScopeSettingDTO> before = getDataScopes(roleId);
         roleDataScopeMapper.delete(
                 Wrappers.<SysRoleDataScope>lambdaQuery().eq(SysRoleDataScope::getRoleId, roleId));
-        if (settings == null) {
-            return;
+        if (settings != null) {
+            for (DataScopeSettingDTO s : settings) {
+                SysRoleDataScope ds = new SysRoleDataScope();
+                ds.setRoleId(roleId);
+                ds.setResource(s.resource());
+                ds.setScope(s.scope());
+                roleDataScopeMapper.insert(ds);
+            }
         }
-        for (DataScopeSettingDTO s : settings) {
-            SysRoleDataScope ds = new SysRoleDataScope();
-            ds.setRoleId(roleId);
-            ds.setResource(s.resource());
-            ds.setScope(s.scope());
-            roleDataScopeMapper.insert(ds);
-        }
+        // 数据可见范围变更同样敏感：同事务记录 before/after
+        auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, roleId,
+                AuditActions.DATA_SCOPE_CHANGED,
+                Map.of("from", before, "to", settings == null ? List.of() : settings));
     }
 
     private SysRole requireExists(Long id) {
