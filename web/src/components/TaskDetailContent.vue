@@ -7,7 +7,7 @@
       <div class="td__title">
         <el-icon v-if="task.isMilestone"><Flag /></el-icon>
         <h2 class="mido-h2">{{ task.title }}</h2>
-        <StatusTag :status="task.status" />
+        <StatusTag :status="task.status" :color="statusColor(task.status)" />
         <el-button v-if="embedded" class="td__expand" link type="primary" :icon="TopRight" @click="openInPage">在新页打开</el-button>
         <el-button v-if="task.id" link type="primary" :icon="EditPen" @click="openChange">发起变更</el-button>
       </div>
@@ -19,7 +19,8 @@
       <!-- 状态流转（合法下一态按钮，看板外的另一入口） -->
       <div v-if="nextStatuses.length" class="td__trans">
         <span class="mido-text-secondary">流转：</span>
-        <el-button v-for="s in nextStatuses" :key="s" size="small" plain type="primary" @click="transition(s)">
+        <el-button v-for="s in nextStatuses" :key="s" size="small" plain type="primary"
+          :disabled="isViewOnly('status')" @click="transition(s)">
           → {{ s }}
         </el-button>
       </div>
@@ -32,10 +33,12 @@
             <el-form ref="formRef" :model="form" :rules="rules" :label-width="80" class="td__form">
               <el-form-item label="标题" prop="title"><el-input v-model="form.title" /></el-form-item>
               <el-form-item label="负责人">
-                <UserSelect v-model="form.assigneeId" placeholder="选择负责人" @change="onAssign" />
+                <UserSelect v-model="form.assigneeId" placeholder="选择负责人"
+                  :disabled="isViewOnly('assignee')" @change="onAssign" />
               </el-form-item>
               <el-form-item label="优先级">
-                <el-select v-model="form.priority" clearable placeholder="选择优先级" class="full">
+                <el-select v-model="form.priority" clearable placeholder="选择优先级" class="full"
+                  :disabled="isViewOnly('priority')">
                   <el-option v-for="p in TASK_PRIORITIES" :key="p.value" :label="p.label" :value="p.value" />
                 </el-select>
               </el-form-item>
@@ -59,7 +62,7 @@
             <el-table :data="subtasks" class="is-clickable" @row-click="(r) => $emit('open', r.id)">
               <el-table-column label="标题" prop="title" />
               <el-table-column label="状态" width="100">
-                <template #default="{ row }"><StatusTag :status="row.status" /></template>
+                <template #default="{ row }"><StatusTag :status="row.status" :color="statusColor(row.status)" /></template>
               </el-table-column>
               <el-table-column label="负责人" width="110">
                 <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
@@ -74,6 +77,30 @@
 
           <el-tab-pane label="附件" name="attach">
             <AttachmentPanel entity-type="task" :entity-id="taskId" :user-name="userName" />
+          </el-tab-pane>
+
+          <el-tab-pane label="关联" name="relation">
+            <div class="td__bar">
+              <span class="mido-text-secondary">共 {{ relations.length }} 条关联（追溯链）</span>
+              <el-button link type="primary" :icon="Plus" @click="openRel">添加关联</el-button>
+            </div>
+            <el-table :data="relations" class="is-clickable" @row-click="(r) => $emit('open', r.relatedTaskId)">
+              <el-table-column label="关系" width="120">
+                <template #default="{ row }">
+                  {{ relationLabel(row.relationKind) }}<span class="mido-text-secondary"> · {{ row.direction === 'outgoing' ? '指向' : '来自' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="关联任务" prop="relatedTitle" min-width="160" />
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }"><StatusTag :status="row.relatedStatus" :color="statusColor(row.relatedStatus)" /></template>
+              </el-table-column>
+              <el-table-column label="操作" width="70">
+                <template #default="{ row }">
+                  <el-button link type="danger" @click.stop="removeRel(row)">移除</el-button>
+                </template>
+              </el-table-column>
+              <template #empty><el-empty description="暂无关联" :image-size="60" /></template>
+            </el-table>
           </el-tab-pane>
         </el-tabs>
       </section>
@@ -101,6 +128,26 @@
       <template #footer>
         <el-button @click="subDialog = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="addSub">添加</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 添加关联（同项目任务） -->
+    <el-dialog v-model="relOpen" title="添加关联" width="var(--mido-login-card-width)" append-to-body>
+      <el-form :label-width="64">
+        <el-form-item label="关系">
+          <el-select v-model="relForm.relationKind" class="full">
+            <el-option v-for="k in RELATION_KINDS" :key="k.value" :label="k.label" :value="k.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="目标任务">
+          <el-select v-model="relForm.targetTaskId" filterable placeholder="选择同项目任务" class="full">
+            <el-option v-for="t in relCandidates" :key="t.id" :label="t.title" :value="t.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="relOpen = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveRel">添加</el-button>
       </template>
     </el-dialog>
 
@@ -135,7 +182,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Flag, Plus, TopRight, EditPen } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import CommentThread from '@/components/CommentThread.vue'
@@ -144,8 +191,9 @@ import AttachmentPanel from '@/components/AttachmentPanel.vue'
 import WorkHourPanel from '@/components/WorkHourPanel.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
-import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
-import { fetchMembers } from '@/api/org'
+import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS, relationApi, RELATION_KINDS } from '@/api/task'
+import { fetchMembers, fieldPermApi } from '@/api/org'
+import { useStatusColors } from '@/composables/useStatusColors'
 import { userName as nameOf } from '@/utils/display'
 
 const props = defineProps({
@@ -172,12 +220,24 @@ const rules = { title: [{ required: true, message: '请输入任务标题', trig
 const subDialog = ref(false)
 const subForm = reactive({ title: '', assigneeId: null })
 
+// 关联（追溯）
+const relations = ref([])
+const relOpen = ref(false)
+const relForm = reactive({ targetTaskId: null, relationKind: 'related' })
+const relCandidates = ref([])
+const relationLabel = (k) => RELATION_KINDS.find((x) => x.value === k)?.label || k
+const { statusColor } = useStatusColors()
+
 // 成员：优先用调用方传入，否则自行加载（独立页场景）
 const localUsers = ref([])
 const resolvedUsers = computed(() => (props.users.length ? props.users : localUsers.value))
 const userName = (id) => nameOf(resolvedUsers.value, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
 const nextStatuses = computed(() => TASK_TRANSITIONS[task.value.status] || [])
+
+// 字段级权限：当前用户在 task 资源下的只读字段（仅 UX，写入拦截在后端）
+const viewOnlyFields = ref(new Set())
+const isViewOnly = (field) => viewOnlyFields.value.has(field)
 
 watch(() => props.taskId, (id) => { if (id) { tab.value = 'info'; sideTab.value = 'comment'; reload() } }, { immediate: true })
 
@@ -189,15 +249,21 @@ onMounted(async () => {
       localUsers.value = []
     }
   }
+  try {
+    viewOnlyFields.value = new Set(await fieldPermApi.viewOnly('task'))
+  } catch {
+    viewOnlyFields.value = new Set()
+  }
 })
 
 async function reload() {
   if (!props.taskId) return
   loading.value = true
   try {
-    const [detail, subs] = await Promise.all([
+    const [detail, subs, rels] = await Promise.all([
       taskApi.get(props.taskId),
       taskApi.subtasks(props.taskId),
+      relationApi.list(props.taskId),
     ])
     task.value = detail
     Object.assign(form, {
@@ -207,9 +273,40 @@ async function reload() {
     })
     milestone.value = detail.isMilestone === 1
     subtasks.value = subs
+    relations.value = rels || []
   } finally {
     loading.value = false
   }
+}
+
+async function loadRelations() {
+  relations.value = (await relationApi.list(props.taskId)) || []
+}
+async function openRel() {
+  relForm.targetTaskId = null
+  relForm.relationKind = 'related'
+  // 候选：同项目任务（排除自身）
+  const res = await taskApi.query({ projectId: task.value.projectId, page: 1, size: 200 })
+  relCandidates.value = (res.list || []).filter((t) => t.id !== task.value.id)
+  relOpen.value = true
+}
+async function saveRel() {
+  if (!relForm.targetTaskId) return ElMessage.warning('请选择目标任务')
+  saving.value = true
+  try {
+    await relationApi.add(task.value.id, { targetTaskId: relForm.targetTaskId, relationKind: relForm.relationKind })
+    ElMessage.success('已添加关联')
+    relOpen.value = false
+    loadRelations()
+  } finally {
+    saving.value = false
+  }
+}
+async function removeRel(row) {
+  await ElMessageBox.confirm('确认移除该关联？', '提示', { type: 'warning' })
+  await relationApi.remove(task.value.id, row.id)
+  ElMessage.success('已移除')
+  loadRelations()
 }
 async function save() {
   await formRef.value.validate()

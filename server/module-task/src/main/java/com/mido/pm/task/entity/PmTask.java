@@ -21,7 +21,13 @@ public class PmTask extends BaseEntity {
     /** 归属部门（=所属项目部门）：数据范围按部门过滤（V9） */
     private Long deptId;
     private String status;
+    /** 工作项类型 → pm_work_item_type（阶段3 双写，可空；source-of-truth 仍为 status 字符串） */
+    private Long typeId;
+    /** 状态 → pm_status（阶段3 双写，与 status 字符串保持一致） */
+    private Long statusId;
     private Integer priority;
+    /** 优先级档位 → pm_priority_level（阶段3 双写，与 priority 值保持一致） */
+    private Long priorityLevelId;
     private String stage;
     private LocalDate startDate;
     private LocalDate dueDate;
@@ -46,8 +52,14 @@ public class PmTask extends BaseEntity {
     public void setDeptId(Long deptId) { this.deptId = deptId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public Long getTypeId() { return typeId; }
+    public void setTypeId(Long typeId) { this.typeId = typeId; }
+    public Long getStatusId() { return statusId; }
+    public void setStatusId(Long statusId) { this.statusId = statusId; }
     public Integer getPriority() { return priority; }
     public void setPriority(Integer priority) { this.priority = priority; }
+    public Long getPriorityLevelId() { return priorityLevelId; }
+    public void setPriorityLevelId(Long priorityLevelId) { this.priorityLevelId = priorityLevelId; }
     public String getStage() { return stage; }
     public void setStage(String stage) { this.stage = stage; }
     public LocalDate getStartDate() { return startDate; }

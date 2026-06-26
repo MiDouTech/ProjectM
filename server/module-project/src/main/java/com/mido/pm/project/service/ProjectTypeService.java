@@ -1,6 +1,8 @@
 package com.mido.pm.project.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.audit.AuditActions;
+import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
@@ -47,6 +49,8 @@ public class ProjectTypeService {
         return toVO(requireExists(id));
     }
 
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.CREATED,
+            target = AuditActions.TARGET_PROJECT_TYPE)
     @Transactional(rollbackFor = Exception.class)
     public Long create(ProjectTypeSaveDTO dto) {
         assertCodeUnique(dto.code(), null);
@@ -61,6 +65,8 @@ public class ProjectTypeService {
     }
 
     /** 更新：code 不可改（以路径 id 为准），其余字段整体覆盖。 */
+    @Audited(module = AuditActions.MODULE_CONFIG, action = AuditActions.UPDATED,
+            target = AuditActions.TARGET_PROJECT_TYPE)
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, ProjectTypeSaveDTO dto) {
         PmProjectType t = requireExists(id);

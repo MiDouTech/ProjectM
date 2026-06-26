@@ -38,11 +38,14 @@ class FieldValueServiceTest {
     private AuditLogService auditLogService;
     @Mock
     private DomainEventPublisher eventPublisher;
+    @Mock
+    private DataSourceService dataSourceService;
     private FieldValueService service;
 
     @BeforeEach
     void setUp() {
-        service = new FieldValueService(valueMapper, defMapper, auditLogService, eventPublisher, new ObjectMapper());
+        service = new FieldValueService(valueMapper, defMapper, auditLogService, eventPublisher,
+                new ObjectMapper(), dataSourceService);
     }
 
     private PmFieldDef def(Long id, String scope, String type, boolean required, String optionsJson) {

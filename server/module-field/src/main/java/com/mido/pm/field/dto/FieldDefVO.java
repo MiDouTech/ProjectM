@@ -10,6 +10,7 @@ public record FieldDefVO(
         String name,
         String type,
         List<FieldOption> options,
+        Long dataSourceId,
         boolean required,
         Integer sortNo,
         boolean enabled) {

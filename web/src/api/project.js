@@ -29,6 +29,32 @@ export const projectApi = {
   activities: (id, params) => request.get(`/projects/${id}/activities`, { params }),
 }
 
+/** 项目角色（租户自配，pm_project_role）。成员角色取本表 code。 */
+export const projectRoleApi = {
+  list: (onlyActive = false) => request.get('/project-roles', { params: { onlyActive } }),
+  create: (data) => request.post('/project-roles', data),
+  update: (id, data) => request.put(`/project-roles/${id}`, data),
+  remove: (id) => request.delete(`/project-roles/${id}`),
+}
+
+/** 项目集（portfolio）：管理层跨部门总览。总览项目按数据范围过滤。 */
+export const portfolioApi = {
+  list: () => request.get('/portfolios'),
+  create: (data) => request.post('/portfolios', data),
+  update: (id, data) => request.put(`/portfolios/${id}`, data),
+  remove: (id) => request.delete(`/portfolios/${id}`),
+  overview: (id) => request.get(`/portfolios/${id}/overview`),
+  addProjects: (id, projectIds) => request.post(`/portfolios/${id}/projects`, projectIds),
+  removeProject: (id, projectId) => request.delete(`/portfolios/${id}/projects/${projectId}`),
+}
+
+/** 组件库 + 项目组件安装（阶段5：项目顶栏由已安装组件动态生成；无安装记录回落默认 Tab） */
+export const componentApi = {
+  catalog: () => request.get('/components'),
+  listInstalled: (projectId) => request.get(`/projects/${projectId}/components`),
+  saveInstalled: (projectId, components) => request.put(`/projects/${projectId}/components`, components),
+}
+
 /** 项目模板（内置 5 套 + 自定义，Step 2-1） */
 export const templateApi = {
   list: (category) => request.get('/project-templates', { params: category ? { category } : {} }),

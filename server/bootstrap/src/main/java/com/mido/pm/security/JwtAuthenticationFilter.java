@@ -73,6 +73,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         current.setSubDeptIds(principal.getSubDeptIds());
         current.setCustomDeptIds(principal.getCustomDeptIds());
         current.setResourceScopes(principal.getResourceScopes());
+        current.setViewOnlyFields(principal.getViewOnlyFields());
         current.setImpersonatedBy(impersonatedBy);
         UserContext.set(current);
     }

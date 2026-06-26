@@ -28,51 +28,53 @@ class FieldDefServiceTest {
 
     @Mock
     private PmFieldDefMapper defMapper;
+    @Mock
+    private DataSourceService dataSourceService;
     private FieldDefService service;
 
     @BeforeEach
     void setUp() {
-        service = new FieldDefService(defMapper, new ObjectMapper());
+        service = new FieldDefService(defMapper, new ObjectMapper(), dataSourceService);
         lenient().when(defMapper.selectCount(any())).thenReturn(0L);
     }
 
     @Test
     void createRejectsInvalidScope() {
         assertThrows(BizException.class, () -> service.create(
-                new FieldDefCreateDTO("invalid", "k1", "字段", "text", null, false, 0)));
+                new FieldDefCreateDTO("invalid", "k1", "字段", "text", null, null, false, 0)));
         verify(defMapper, never()).insert(any(PmFieldDef.class));
     }
 
     @Test
     void createRejectsInvalidType() {
         assertThrows(BizException.class, () -> service.create(
-                new FieldDefCreateDTO("task", "k1", "字段", "rating", null, false, 0)));
+                new FieldDefCreateDTO("task", "k1", "字段", "rating", null, null, false, 0)));
     }
 
     @Test
     void createRejectsOptionTypeWithoutOptions() {
         assertThrows(BizException.class, () -> service.create(
-                new FieldDefCreateDTO("task", "k1", "下拉", "select", null, false, 0)));
+                new FieldDefCreateDTO("task", "k1", "下拉", "select", null, null, false, 0)));
     }
 
     @Test
     void createRejectsDuplicateOptionValue() {
         List<FieldOption> options = List.of(new FieldOption("a", "甲"), new FieldOption("a", "乙"));
         assertThrows(BizException.class, () -> service.create(
-                new FieldDefCreateDTO("task", "k1", "下拉", "select", options, false, 0)));
+                new FieldDefCreateDTO("task", "k1", "下拉", "select", options, null, false, 0)));
     }
 
     @Test
     void createRejectsDuplicateKey() {
         when(defMapper.selectCount(any())).thenReturn(1L);
         assertThrows(BizException.class, () -> service.create(
-                new FieldDefCreateDTO("task", "dup", "字段", "text", null, false, 0)));
+                new FieldDefCreateDTO("task", "dup", "字段", "text", null, null, false, 0)));
         verify(defMapper, never()).insert(any(PmFieldDef.class));
     }
 
     @Test
     void createTextOk() {
-        Long id = service.create(new FieldDefCreateDTO("project", "owner", "负责人", "text", null, true, 3));
+        Long id = service.create(new FieldDefCreateDTO("project", "owner", "负责人", "text", null, null, true, 3));
         // id 由 MP 雪花在 insert 时回填，这里 mock 不回填，仅校验流程未抛错且执行 insert
         verify(defMapper).insert(any(PmFieldDef.class));
     }
@@ -84,13 +86,13 @@ class FieldDefServiceTest {
         def.setScope("task");
         when(defMapper.selectById(1L)).thenReturn(def);
         assertThrows(BizException.class, () -> service.update(1L,
-                new FieldDefUpdateDTO("字段", "bogus", null, null, null, null)));
+                new FieldDefUpdateDTO("字段", "bogus", null, null, null, null, null)));
     }
 
     @Test
     void updateMissingThrows() {
         when(defMapper.selectById(9L)).thenReturn(null);
         assertThrows(BizException.class, () -> service.update(9L,
-                new FieldDefUpdateDTO("字段", "text", null, null, null, null)));
+                new FieldDefUpdateDTO("字段", "text", null, null, null, null, null)));
     }
 }

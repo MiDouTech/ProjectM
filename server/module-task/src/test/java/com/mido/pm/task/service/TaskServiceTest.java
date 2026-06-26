@@ -10,8 +10,11 @@ import com.mido.pm.task.entity.PmTask;
 import com.mido.pm.task.entity.PmTaskDependency;
 import com.mido.pm.task.mapper.PmTaskDependencyMapper;
 import com.mido.pm.task.mapper.PmTaskMapper;
+import com.mido.pm.task.domain.TaskStatus;
+import com.mido.pm.task.domain.TaskWorkflow;
 import java.time.LocalDate;
 import com.mido.pm.common.audit.AuditActions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +33,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * 任务服务编排单测（mock mapper/事件，无 DB）：建任务发事件、指派、状态流转合法/非法、看板分组。
@@ -43,7 +48,20 @@ class TaskServiceTest {
     @Mock private AuditLogService auditLogService;
     @Mock private com.mido.pm.project.service.ProjectService projectService;
     @Mock private RecurringTaskService recurringTaskService;
+    @Mock private com.mido.pm.common.security.FieldPermGuard fieldPermGuard;
+    @Mock private WorkflowEngine workflowEngine;
+    @Mock private WorkItemMetaResolver metaResolver;
     @InjectMocks private TaskService service;
+
+    @BeforeEach
+    void setUp() {
+        // 引擎委托回 TaskWorkflow，保持单测对"默认流转"的合法/非法断言不变
+        lenient().doAnswer(inv -> {
+            TaskWorkflow.assertTransit(TaskStatus.fromCode(inv.getArgument(0)),
+                    TaskStatus.fromCode(inv.getArgument(1)));
+            return null;
+        }).when(workflowEngine).assertTaskTransit(any(), any());
+    }
 
     private PmTask task(String status) {
         PmTask t = new PmTask();
@@ -51,6 +69,30 @@ class TaskServiceTest {
         t.setProjectId(9L);
         t.setStatus(status);
         return t;
+    }
+
+    @Test
+    void kanbanUsesStatusLibraryWhenConfigured() {
+        com.mido.pm.task.entity.PmStatus s1 = new com.mido.pm.task.entity.PmStatus();
+        s1.setName("待办");
+        s1.setColor("info");
+        s1.setMetaCategory("未开始");
+        com.mido.pm.task.entity.PmStatus s2 = new com.mido.pm.task.entity.PmStatus();
+        s2.setName("处理中");
+        s2.setColor("primary");
+        s2.setMetaCategory("进行中");
+        when(metaResolver.activeStatuses()).thenReturn(List.of(s1, s2));
+        PmTask t = task("处理中");
+        when(taskMapper.selectList(any())).thenReturn(List.of(t));
+
+        List<KanbanColumnVO> columns = service.kanban(9L);
+
+        assertEquals(2, columns.size());
+        assertEquals("待办", columns.get(0).status());
+        assertEquals("info", columns.get(0).color());
+        assertEquals("处理中", columns.get(1).status());
+        assertEquals("primary", columns.get(1).color());
+        assertEquals(1, columns.get(1).tasks().size());
     }
 
     @Test

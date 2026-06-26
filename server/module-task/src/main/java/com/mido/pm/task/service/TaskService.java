@@ -9,9 +9,9 @@ import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.security.FieldPermGuard;
 import com.mido.pm.task.domain.TaskRecurrence;
 import com.mido.pm.task.domain.TaskStatus;
-import com.mido.pm.task.domain.TaskWorkflow;
 import com.mido.pm.task.dto.KanbanColumnVO;
 import com.mido.pm.task.dto.TaskCreateDTO;
 import com.mido.pm.task.dto.TaskQueryDTO;
@@ -51,16 +51,27 @@ public class TaskService {
     private final AuditLogService auditLogService;
     private final ProjectService projectService;
     private final RecurringTaskService recurringTaskService;
+    private final FieldPermGuard fieldPermGuard;
+    private final WorkflowEngine workflowEngine;
+    private final WorkItemMetaResolver metaResolver;
+
+    /** 字段级权限资源标识：任务 */
+    public static final String FIELD_RESOURCE = "task";
 
     public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
                        DomainEventPublisher eventPublisher, AuditLogService auditLogService,
-                       ProjectService projectService, RecurringTaskService recurringTaskService) {
+                       ProjectService projectService, RecurringTaskService recurringTaskService,
+                       FieldPermGuard fieldPermGuard, WorkflowEngine workflowEngine,
+                       WorkItemMetaResolver metaResolver) {
         this.projectService = projectService;
         this.taskMapper = taskMapper;
         this.dependencyMapper = dependencyMapper;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
         this.recurringTaskService = recurringTaskService;
+        this.fieldPermGuard = fieldPermGuard;
+        this.workflowEngine = workflowEngine;
+        this.metaResolver = metaResolver;
     }
 
     /**
@@ -118,6 +129,10 @@ public class TaskService {
         // 校验并存循环规则（非法即抛 PARAM_ERROR；空白存 null）
         TaskRecurrence recurrence = TaskRecurrence.parse(dto.recurRule());
         task.setRecurRule(recurrence == null ? null : dto.recurRule());
+        // 阶段3 双写：解析工作项类型/状态/优先级档位 id（best-effort，未种子则为 null）
+        task.setTypeId(metaResolver.defaultTaskTypeId());
+        task.setStatusId(metaResolver.statusIdByName(task.getStatus()));
+        task.setPriorityLevelId(metaResolver.priorityLevelId(task.getPriority()));
         taskMapper.insert(task);
 
         eventPublisher.publish(TaskEvents.CREATED, payload(
@@ -196,8 +211,14 @@ public class TaskService {
         }
         addChange(changes, "description", task.getDescription(), dto.description());
 
+        // 字段级权限：仅对「实际发生变更」的字段校验可编辑，命中只读字段即拒（403）
+        for (Map<String, Object> change : changes) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, (String) change.get("field"));
+        }
+
         task.setTitle(dto.title());
         task.setPriority(dto.priority());
+        task.setPriorityLevelId(metaResolver.priorityLevelId(dto.priority())); // 阶段3 双写
         task.setStage(dto.stage());
         task.setStartDate(dto.startDate());
         task.setDueDate(dto.dueDate());
@@ -262,6 +283,9 @@ public class TaskService {
     public void assign(Long id, Long assigneeId) {
         PmTask task = requireExists(id);
         Long oldAssignee = task.getAssigneeId();
+        if (!Objects.equals(oldAssignee, assigneeId)) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, "assignee");
+        }
         task.setAssigneeId(assigneeId);
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.ASSIGNED,
@@ -279,8 +303,14 @@ public class TaskService {
         if (to == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法目标状态: " + targetStatus);
         }
-        TaskWorkflow.assertTransit(from, to);
+        // 字段级权限：仅当状态确有变化时校验「status」可编辑
+        if (!Objects.equals(task.getStatus(), to.getCode())) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, "status");
+        }
+        // 工作流引擎校验（默认任务类型矩阵；未配置租户回落 TaskWorkflow）
+        workflowEngine.assertTaskTransit(task.getStatus(), to.getCode());
         task.setStatus(to.getCode());
+        task.setStatusId(metaResolver.statusIdByName(to.getCode())); // 阶段3 双写
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.STATUS_CHANGED, payload(
                 "taskId", id, "projectId", task.getProjectId(),
@@ -294,11 +324,22 @@ public class TaskService {
         List<PmTask> tasks = taskMapper.selectList(Wrappers.<PmTask>lambdaQuery()
                 .eq(PmTask::getProjectId, projectId).orderByDesc(PmTask::getId));
         List<KanbanColumnVO> columns = new java.util.ArrayList<>();
-        for (TaskStatus s : TaskStatus.values()) {
-            List<TaskVO> cards = tasks.stream()
-                    .filter(t -> s.getCode().equals(t.getStatus()))
-                    .map(this::toVO).toList();
-            columns.add(new KanbanColumnVO(s.getCode(), cards));
+        // 翻转读方：列与颜色由状态库驱动（按 sort 排序，含自定义状态）；未配置状态库则回落 TaskStatus 枚举
+        List<com.mido.pm.task.entity.PmStatus> lib = metaResolver.activeStatuses();
+        if (lib != null && !lib.isEmpty()) {
+            for (com.mido.pm.task.entity.PmStatus s : lib) {
+                List<TaskVO> cards = tasks.stream()
+                        .filter(t -> s.getName().equals(t.getStatus()))
+                        .map(this::toVO).toList();
+                columns.add(new KanbanColumnVO(s.getName(), s.getColor(), s.getMetaCategory(), cards));
+            }
+        } else {
+            for (TaskStatus s : TaskStatus.values()) {
+                List<TaskVO> cards = tasks.stream()
+                        .filter(t -> s.getCode().equals(t.getStatus()))
+                        .map(this::toVO).toList();
+                columns.add(new KanbanColumnVO(s.getCode(), null, null, cards));
+            }
         }
         return columns;
     }

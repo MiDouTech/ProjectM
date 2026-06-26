@@ -13,12 +13,16 @@ import com.mido.pm.platform.dto.TenantQueryDTO;
 import com.mido.pm.platform.dto.TenantStatusDTO;
 import com.mido.pm.platform.dto.TenantUpdateDTO;
 import com.mido.pm.platform.dto.TenantVO;
+import com.mido.pm.common.tenant.TenantContext;
+import com.mido.pm.common.tenant.TenantProvisionContext;
+import com.mido.pm.common.tenant.TenantProvisioner;
 import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.mapper.SysTenantMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,19 +38,27 @@ public class TenantAdminService {
     /** 允许的状态流转目标值（运营手动设置） */
     private static final Set<String> SETTABLE_STATUS = Set.of("active", "suspended", "closed");
 
+    /** 管理员凭据缺省值（开通时未指定则用此，运营须提示客户首登后修改）。 */
+    private static final String DEFAULT_ADMIN_USERNAME = "admin";
+    private static final String DEFAULT_ADMIN_PASSWORD = "Mido@2024";
+
     private final SysTenantMapper tenantMapper;
     private final PlatformSubscriptionService subscriptionService;
     private final PlatformPlanService planService;
     private final PlatformAuditService auditService;
+    /** 各业务域租户播种器（org/approval/task/project…），Spring 注入全部实现，按 order 升序执行。 */
+    private final List<TenantProvisioner> provisioners;
 
     public TenantAdminService(SysTenantMapper tenantMapper,
                               PlatformSubscriptionService subscriptionService,
                               PlatformPlanService planService,
-                              PlatformAuditService auditService) {
+                              PlatformAuditService auditService,
+                              List<TenantProvisioner> provisioners) {
         this.tenantMapper = tenantMapper;
         this.subscriptionService = subscriptionService;
         this.planService = planService;
         this.auditService = auditService;
+        this.provisioners = provisioners;
     }
 
     public PageResult<TenantVO> page(TenantQueryDTO query) {
@@ -89,9 +101,40 @@ public class TenantAdminService {
         t.setSource("manual");
         t.setRemark(dto.remark());
         tenantMapper.insert(t);
+
+        String adminUsername = StringUtils.hasText(dto.adminUsername()) ? dto.adminUsername().trim() : DEFAULT_ADMIN_USERNAME;
+        String adminPassword = StringUtils.hasText(dto.adminPassword()) ? dto.adminPassword() : DEFAULT_ADMIN_PASSWORD;
+        Long adminUserId = provisionTenant(t.getId(), dto.code(), dto.name(), adminUsername, adminPassword);
+        if (adminUserId != null) {
+            t.setAdminUserId(adminUserId);
+            tenantMapper.updateById(t);
+        }
+
         auditService.record(PlatformAuditActions.TENANT_CREATED, PlatformAuditActions.TARGET_TENANT, t.getId(),
-                Map.of("code", dto.code(), "name", dto.name()));
+                Map.of("code", dto.code(), "name", dto.name(), "adminUsername", adminUsername));
         return t.getId();
+    }
+
+    /**
+     * 租户开通播种：切到新租户 TenantContext，按 order 升序依次调用各域 provisioner 播种默认数据
+     * （组织/审批流/状态库/工作项类型/项目类型…），使「开通即可用」。同事务执行，任一失败整体回滚。
+     * 返回组织域生成的管理员用户 id（供回填 sys_tenant.admin_user_id），无则 null。
+     */
+    private Long provisionTenant(Long tenantId, String code, String name, String adminUsername, String adminPassword) {
+        TenantProvisionContext ctx = new TenantProvisionContext(tenantId, code, name, adminUsername, adminPassword);
+        Long prev = TenantContext.get();
+        try {
+            TenantContext.set(tenantId);
+            provisioners.stream().sorted(Comparator.comparingInt(TenantProvisioner::order))
+                    .forEach(p -> p.provision(ctx));
+        } finally {
+            if (prev != null) {
+                TenantContext.set(prev);
+            } else {
+                TenantContext.clear();
+            }
+        }
+        return ctx.get(TenantProvisionContext.KEY_ADMIN_USER_ID);
     }
 
     @Transactional(rollbackFor = Exception.class)

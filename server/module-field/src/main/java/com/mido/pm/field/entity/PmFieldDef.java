@@ -18,8 +18,10 @@ public class PmFieldDef extends BaseEntity {
     private String name;
     /** 类型：text/number/date/select/multi_select/checkbox/user */
     private String type;
-    /** 选项 JSON（[{value,label}]，select/multi_select 用） */
+    /** 选项 JSON（[{value,label}]，select/multi_select 用；data_source_id 为空时生效） */
     private String options;
+    /** 引用的数据源 ID（select/multi_select 用，优先于内联 options） */
+    private Long dataSourceId;
     /** 是否必填：0 否 1 是 */
     private Integer required;
     /** 展示排序（升序） */
@@ -37,6 +39,8 @@ public class PmFieldDef extends BaseEntity {
     public void setType(String type) { this.type = type; }
     public String getOptions() { return options; }
     public void setOptions(String options) { this.options = options; }
+    public Long getDataSourceId() { return dataSourceId; }
+    public void setDataSourceId(Long dataSourceId) { this.dataSourceId = dataSourceId; }
     public Integer getRequired() { return required; }
     public void setRequired(Integer required) { this.required = required; }
     public Integer getSortNo() { return sortNo; }

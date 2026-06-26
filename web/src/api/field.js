@@ -9,6 +9,15 @@ export const fieldDefApi = {
   remove: (id) => request.delete(`/field-defs/${id}`),
 }
 
+/** 数据源（选项集库）：可复用下拉选项，下拉字段可引用（阶段1-a） */
+export const dataSourceApi = {
+  list: (onlyActive = false) => request.get('/data-sources', { params: { onlyActive } }),
+  get: (id) => request.get(`/data-sources/${id}`),
+  create: (data) => request.post('/data-sources', data),
+  update: (id, data) => request.put(`/data-sources/${id}`, data),
+  remove: (id) => request.delete(`/data-sources/${id}`),
+}
+
 /** 自定义字段值：按实体读取「定义+值」、批量写入（详情抽屉读写） */
 export const fieldValueApi = {
   list: (entityType, entityId) =>

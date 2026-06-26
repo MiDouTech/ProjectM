@@ -40,7 +40,60 @@ export const roleApi = {
   savePerms: (id, permCodes) => request.put(`/roles/${id}/perms`, permCodes),
   getDataScopes: (id) => request.get(`/roles/${id}/data-scopes`),
   saveDataScopes: (id, settings) => request.put(`/roles/${id}/data-scopes`, settings),
+  getFieldPerms: (id) => request.get(`/roles/${id}/field-perms`),
+  saveFieldPerms: (id, settings) => request.put(`/roles/${id}/field-perms`, settings),
+  getCustomDepts: (id) => request.get(`/roles/${id}/custom-depts`),
+  saveCustomDepts: (id, deptIds) => request.put(`/roles/${id}/custom-depts`, deptIds),
 }
+
+/**
+ * 字段级权限（当前用户视角）：返回某资源下当前用户的只读字段键集合，供表单只读渲染。
+ * 安全边界在后端（写入拦截），本接口仅 UX。
+ */
+export const fieldPermApi = {
+  viewOnly: (resource) => request.get('/field-perms/view-only', { params: { resource } }),
+}
+
+/** 字段权限访问级别（对齐截图「仅查看/可编辑」） */
+export const FIELD_ACCESS = [
+  { value: 'edit', label: '可编辑' },
+  { value: 'view', label: '仅查看' },
+]
+
+/**
+ * 可配置字段权限的资源与字段清单（与后端字段键一致）。
+ * 未在此登记的字段默认可编辑；新增受控字段时同步维护本表与后端 enforcement。
+ */
+export const FIELD_PERM_RESOURCES = [
+  {
+    value: 'task',
+    label: '任务',
+    fields: [
+      { value: 'title', label: '标题' },
+      { value: 'priority', label: '优先级' },
+      { value: 'status', label: '状态' },
+      { value: 'stage', label: '阶段' },
+      { value: 'assignee', label: '负责人' },
+      { value: 'startDate', label: '开始日期' },
+      { value: 'dueDate', label: '截止日期' },
+      { value: 'isMilestone', label: '里程碑' },
+      { value: 'description', label: '描述' },
+    ],
+  },
+  {
+    value: 'project',
+    label: '项目',
+    fields: [
+      { value: 'name', label: '名称' },
+      { value: 'subCategory', label: '子类别' },
+      { value: 'leaderId', label: '负责人' },
+      { value: 'budget', label: '预算' },
+      { value: 'description', label: '描述' },
+      { value: 'startDate', label: '开始日期' },
+      { value: 'endDate', label: '结束日期' },
+    ],
+  },
+]
 
 /**
  * 企业微信集成配置（租户自助）。secret 出参脱敏（仅 *Set 布尔位），保存时留空表示不修改原值。
@@ -69,6 +122,53 @@ export const apiKeyApi = {
   revoke: (id) => request.put(`/apikeys/${id}/revoke`),
   remove: (id) => request.delete(`/apikeys/${id}`),
 }
+
+/**
+ * 操作日志（租户管理后台，合规审计）。复杂过滤走 POST /query。
+ * query 入参：{ userId, module, action, target, targetId, startTime, endTime, page, size }
+ */
+export const auditLogApi = {
+  query: (data) => request.post('/audit-logs/query', data),
+}
+
+/** 操作日志功能模块字典（与后端 AuditActions.MODULE_* 一致） */
+export const AUDIT_MODULES = [
+  { value: 'permission', label: '账号权限' },
+  { value: 'member', label: '成员组织' },
+  { value: 'config', label: '配置' },
+  { value: 'project', label: '项目' },
+  { value: 'task', label: '任务' },
+  { value: 'mcp', label: '开放平台' },
+]
+
+/** 操作日志动作码字典（与后端 AuditActions.* 一致） */
+export const AUDIT_ACTIONS = [
+  { value: 'created', label: '创建' },
+  { value: 'updated', label: '编辑' },
+  { value: 'deleted', label: '删除' },
+  { value: 'status_changed', label: '状态变更' },
+  { value: 'archived', label: '归档/恢复' },
+  { value: 'assigned', label: '指派/改派' },
+  { value: 'perms_changed', label: '权限码变更' },
+  { value: 'data_scope_changed', label: '数据范围变更' },
+  { value: 'field_perm_changed', label: '字段权限变更' },
+  { value: 'roles_assigned', label: '分配角色' },
+  { value: 'member_added', label: '添加成员' },
+  { value: 'member_removed', label: '移除成员' },
+  { value: 'mcp_invoke', label: 'MCP 调用' },
+]
+
+/** 操作日志实体类型字典（target → 可读名） */
+export const AUDIT_TARGETS = [
+  { value: 'project', label: '项目' },
+  { value: 'task', label: '任务' },
+  { value: 'role', label: '角色' },
+  { value: 'user', label: '用户' },
+  { value: 'dept', label: '部门' },
+  { value: 'project_member', label: '项目成员' },
+  { value: 'project_type', label: '项目类型' },
+  { value: 'mcp', label: 'API Key' },
+]
 
 /** 数据范围可选值（design-system / data-model 状态字典） */
 export const DATA_SCOPES = [

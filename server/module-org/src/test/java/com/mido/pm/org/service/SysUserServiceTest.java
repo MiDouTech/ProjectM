@@ -1,6 +1,7 @@
 package com.mido.pm.org.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.quota.QuotaGuard;
 import com.mido.pm.org.dto.UserCreateDTO;
@@ -35,9 +36,11 @@ class SysUserServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private QuotaGuard quotaGuard;
+    @Mock
+    private AuditLogService auditLogService;
 
     private SysUserService service() {
-        return new SysUserService(userMapper, userRoleMapper, passwordEncoder, quotaGuard);
+        return new SysUserService(userMapper, userRoleMapper, passwordEncoder, quotaGuard, auditLogService);
     }
 
     @Test

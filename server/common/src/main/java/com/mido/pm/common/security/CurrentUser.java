@@ -2,8 +2,10 @@ package com.mido.pm.common.security;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 当前登录用户的安全上下文载体。由组织域（module-org）在认证/加载用户时填充并写入 {@link UserContext}。
@@ -24,6 +26,11 @@ public class CurrentUser {
     private List<Long> customDeptIds = new ArrayList<>();
     /** 资源 → 有效数据范围（已按多角色合并取最宽） */
     private Map<String, DataScope> resourceScopes = Collections.emptyMap();
+    /**
+     * 仅查看（不可编辑）的字段键集合，元素形如 "resource.field"（如 "task.priority"）。
+     * 已按多角色合并取最宽：仅当某字段在用户所有角色中均未授予 edit 时才进入此集合。
+     */
+    private Set<String> viewOnlyFields = new HashSet<>();
 
     public Long getUserId() {
         return userId;
@@ -76,6 +83,19 @@ public class CurrentUser {
 
     public void setResourceScopes(Map<String, DataScope> resourceScopes) {
         this.resourceScopes = resourceScopes == null ? Collections.emptyMap() : resourceScopes;
+    }
+
+    public Set<String> getViewOnlyFields() {
+        return viewOnlyFields;
+    }
+
+    public void setViewOnlyFields(Set<String> viewOnlyFields) {
+        this.viewOnlyFields = viewOnlyFields == null ? new HashSet<>() : viewOnlyFields;
+    }
+
+    /** 某字段对当前用户是否可编辑；未配置（不在 viewOnly 集合）默认可编辑。 */
+    public boolean isFieldEditable(String resource, String field) {
+        return !viewOnlyFields.contains(resource + "." + field);
     }
 
     /** 某资源的有效数据范围；未配置则视为 ALL（数据范围是 opt-in 收紧规则，缺省不限制）。 */

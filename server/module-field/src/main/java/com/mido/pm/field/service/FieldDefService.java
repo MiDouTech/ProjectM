@@ -30,10 +30,13 @@ public class FieldDefService {
 
     private final PmFieldDefMapper defMapper;
     private final ObjectMapper objectMapper;
+    private final DataSourceService dataSourceService;
 
-    public FieldDefService(PmFieldDefMapper defMapper, ObjectMapper objectMapper) {
+    public FieldDefService(PmFieldDefMapper defMapper, ObjectMapper objectMapper,
+                           DataSourceService dataSourceService) {
         this.defMapper = defMapper;
         this.objectMapper = objectMapper;
+        this.dataSourceService = dataSourceService;
     }
 
     /** 按作用域列出字段定义（含停用，前端配置页用）；按 sortNo、id 升序。 */
@@ -53,7 +56,7 @@ public class FieldDefService {
     public Long create(FieldDefCreateDTO dto) {
         FieldScope scope = requireScope(dto.scope());
         FieldType type = requireType(dto.type());
-        String optionsJson = normalizeOptions(type, dto.options());
+        String optionsJson = normalizeOptions(type, dto.options(), dto.dataSourceId());
         assertKeyUnique(scope, dto.fieldKey(), null);
 
         PmFieldDef def = new PmFieldDef();
@@ -62,6 +65,7 @@ public class FieldDefService {
         def.setName(dto.name());
         def.setType(type.getCode());
         def.setOptions(optionsJson);
+        def.setDataSourceId(dto.dataSourceId());
         def.setRequired(Boolean.TRUE.equals(dto.required()) ? 1 : 0);
         def.setSortNo(dto.sortNo() == null ? 0 : dto.sortNo());
         def.setEnabled(1);
@@ -75,7 +79,8 @@ public class FieldDefService {
         FieldType type = requireType(dto.type());
         def.setName(dto.name());
         def.setType(type.getCode());
-        def.setOptions(normalizeOptions(type, dto.options()));
+        def.setOptions(normalizeOptions(type, dto.options(), dto.dataSourceId()));
+        def.setDataSourceId(dto.dataSourceId());
         if (dto.required() != null) {
             def.setRequired(dto.required() ? 1 : 0);
         }
@@ -115,13 +120,19 @@ public class FieldDefService {
         }
     }
 
-    /** 选项规范化：非选项型清空 options；选项型必须非空且 value 不重复。 */
-    private String normalizeOptions(FieldType type, List<FieldOption> options) {
+    /**
+     * 选项规范化：非选项型清空 options；选项型若引用数据源(dataSourceId 非空)则内联 options 置空，
+     * 否则必须提供内联 options 且 value 不重复。
+     */
+    private String normalizeOptions(FieldType type, List<FieldOption> options, Long dataSourceId) {
         if (!type.isOptionBased()) {
             return null;
         }
+        if (dataSourceId != null) {
+            return null; // 选项来自数据源，不存内联
+        }
         if (options == null || options.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "选项型字段必须提供 options");
+            throw new BizException(ErrorCode.PARAM_ERROR, "选项型字段必须提供 options 或引用数据源");
         }
         Set<String> seen = new HashSet<>();
         for (FieldOption o : options) {
@@ -134,9 +145,17 @@ public class FieldDefService {
 
     private FieldDefVO toVO(PmFieldDef def) {
         return new FieldDefVO(def.getId(), def.getScope(), def.getFieldKey(), def.getName(),
-                def.getType(), readOptions(def.getOptions()),
+                def.getType(), effectiveOptions(def), def.getDataSourceId(),
                 def.getRequired() != null && def.getRequired() == 1, def.getSortNo(),
                 def.getEnabled() != null && def.getEnabled() == 1);
+    }
+
+    /** 字段有效选项：引用数据源时取数据源选项，否则取内联 options。 */
+    private List<FieldOption> effectiveOptions(PmFieldDef def) {
+        if (def.getDataSourceId() != null) {
+            return dataSourceService.resolveOptions(def.getDataSourceId());
+        }
+        return readOptions(def.getOptions());
     }
 
     private FieldScope requireScope(String scope) {

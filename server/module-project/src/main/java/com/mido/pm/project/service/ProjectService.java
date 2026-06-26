@@ -11,6 +11,7 @@ import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.quota.QuotaGuard;
 import com.mido.pm.common.quota.QuotaResources;
+import com.mido.pm.common.security.FieldPermGuard;
 import com.mido.pm.common.security.JobLevelRule;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.project.domain.ProjectStateMachine;
@@ -80,11 +81,16 @@ public class ProjectService {
     private final AuditLogService auditLogService;
     private final ProjectTypeResolver projectTypeResolver;
     private final QuotaGuard quotaGuard;
+    private final FieldPermGuard fieldPermGuard;
+
+    /** 字段级权限资源标识：项目 */
+    public static final String FIELD_RESOURCE = "project";
 
     public ProjectService(PmProjectMapper projectMapper, PmProjectMemberMapper memberMapper,
                           DomainEventPublisher eventPublisher,
                           IdentityProvider identityProvider, AuditLogService auditLogService,
-                          ProjectTypeResolver projectTypeResolver, QuotaGuard quotaGuard) {
+                          ProjectTypeResolver projectTypeResolver, QuotaGuard quotaGuard,
+                          FieldPermGuard fieldPermGuard) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
@@ -92,6 +98,7 @@ public class ProjectService {
         this.auditLogService = auditLogService;
         this.projectTypeResolver = projectTypeResolver;
         this.quotaGuard = quotaGuard;
+        this.fieldPermGuard = fieldPermGuard;
     }
 
     /**
@@ -161,6 +168,21 @@ public class ProjectService {
                 .stream().map(this::toVO).toList();
     }
 
+    /**
+     * 给定项目 id 集合中，当前用户按数据范围 + 成员可见性可见的项目（项目集总览复用）。
+     * 数据范围拦截器自动叠加 dept/leader 条件，实现全局(ALL)/局部(DEPT)视图隔离。
+     */
+    public List<ProjectVO> visibleByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        var wrapper = Wrappers.<PmProject>lambdaQuery()
+                .in(PmProject::getId, ids).orderByDesc(PmProject::getId);
+        List<PmProject> rows = DataScopeContext.scoped(ScopeResource.PROJECT, "dept_id", "leader_id",
+                "id", myVisibleProjectIds(), () -> projectMapper.selectList(wrapper));
+        return rows.stream().map(this::toVO).toList();
+    }
+
     public PageResult<ProjectVO> page(ProjectQueryDTO query) {
         long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), MAX_PAGE_SIZE);
@@ -193,6 +215,11 @@ public class ProjectService {
         addChange(changes, "description", p.getDescription(), dto.description());
         addChange(changes, "startDate", p.getStartDate(), dto.startDate());
         addChange(changes, "endDate", p.getEndDate(), dto.endDate());
+
+        // 字段级权限：仅对实际变更的字段校验可编辑，命中只读字段即拒（403）
+        for (Map<String, Object> change : changes) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, (String) change.get("field"));
+        }
 
         p.setName(dto.name());
         p.setSubCategory(dto.subCategory());

@@ -70,7 +70,11 @@
         <el-form-item label="成员">
           <UserSelect v-model="memberForm.userId" placeholder="选择成员" />
         </el-form-item>
-        <el-form-item label="角色"><el-input v-model="memberForm.projectRole" placeholder="如 开发/测试" /></el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="memberForm.projectRole" placeholder="选择项目角色" filterable class="full">
+            <el-option v-for="r in projectRoles" :key="r.id" :label="r.name" :value="r.code" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="memberDialog = false">取消</el-button>
@@ -87,7 +91,8 @@ import { Edit, Plus } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
-import { projectApi, O_SUB_CATEGORIES } from '@/api/project'
+import { projectApi, projectRoleApi, O_SUB_CATEGORIES } from '@/api/project'
+import { onMounted } from 'vue'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -104,6 +109,15 @@ const rules = { name: [{ required: true, message: '请输入项目名称', trigg
 
 const memberDialog = ref(false)
 const memberForm = reactive({ userId: null, projectRole: '' })
+const projectRoles = ref([])
+
+onMounted(async () => {
+  try {
+    projectRoles.value = await projectRoleApi.list(true)
+  } catch {
+    projectRoles.value = []
+  }
+})
 
 const money = (v) => (v == null ? '—' : `¥${Number(v).toLocaleString()}`)
 

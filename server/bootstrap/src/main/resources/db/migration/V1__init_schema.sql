@@ -254,24 +254,9 @@ CREATE TABLE pm_view (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='视图配置';
 
 -- ========== 自定义字段 EAV ==========
-CREATE TABLE pm_field_def (
-  id BIGINT PRIMARY KEY, tenant_id BIGINT, scope VARCHAR(16), name VARCHAR(64), type VARCHAR(32),
-  create_by   BIGINT,
-  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_by   BIGINT,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  is_deleted  TINYINT  DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='自定义字段定义';
-
-CREATE TABLE pm_field_value (
-  id BIGINT PRIMARY KEY, tenant_id BIGINT, field_id BIGINT, entity_type VARCHAR(16), entity_id BIGINT, value TEXT,
-  create_by   BIGINT,
-  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_by   BIGINT,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  is_deleted  TINYINT  DEFAULT 0,
-  KEY idx_entity(entity_type,entity_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='自定义字段值';
+-- pm_field_def / pm_field_value 由 V47__custom_field.sql 创建（富版：field_key/options/required/...）。
+-- 此处不再建表：原 V1 简版与 V47 撞名，会导致空库从零全量迁移在 V47 报 "table already exists"。
+-- 现有库 V1 早已 applied 不会重跑，仅 checksum 变化（如启用严格校验需一次 flyway repair）。
 
 -- ========== 协作域 ==========
 CREATE TABLE pm_comment (

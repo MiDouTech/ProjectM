@@ -68,3 +68,73 @@ export const TASK_PRIORITIES = [
   { value: 2, label: '中' },
   { value: 3, label: '低' },
 ]
+
+/** 工作项关联（阶段4）：任务间 related/derived 关联，支撑追溯链。 */
+export const relationApi = {
+  list: (taskId) => request.get(`/tasks/${taskId}/relations`),
+  add: (taskId, data) => request.post(`/tasks/${taskId}/relations`, data),
+  remove: (taskId, relationId) => request.delete(`/tasks/${taskId}/relations/${relationId}`),
+}
+
+/** 关联定义（阶段4，管理员配置类型↔类型 的关联语义） */
+export const relationDefApi = {
+  list: () => request.get('/relation-defs'),
+  create: (data) => request.post('/relation-defs', data),
+  update: (id, data) => request.put(`/relation-defs/${id}`, data),
+  remove: (id) => request.delete(`/relation-defs/${id}`),
+}
+
+/** 关联类型字典（与后端 RelationKind 一致） */
+export const RELATION_KINDS = [
+  { value: 'related', label: '相关' },
+  { value: 'derived', label: '派生' },
+]
+
+/** 工作项类型 + 工作流（阶段2）。流转矩阵驱动状态流转引擎；字段绑定供表单布局。 */
+export const workItemTypeApi = {
+  list: (onlyActive = false) => request.get('/work-item-types', { params: { onlyActive } }),
+  create: (data) => request.post('/work-item-types', data),
+  update: (id, data) => request.put(`/work-item-types/${id}`, data),
+  remove: (id) => request.delete(`/work-item-types/${id}`),
+  getFields: (id) => request.get(`/work-item-types/${id}/fields`),
+  saveFields: (id, fields) => request.put(`/work-item-types/${id}/fields`, fields),
+  getTransitions: (id) => request.get(`/work-item-types/${id}/transitions`),
+  saveTransitions: (id, transitions) => request.put(`/work-item-types/${id}/transitions`, transitions),
+}
+
+/** 工作项类型可绑定的系统字段键（与后端 TaskService 字段键一致；自定义字段另由 field-defs 提供） */
+export const SYSTEM_TASK_FIELDS = [
+  { value: 'title', label: '标题' },
+  { value: 'status', label: '状态' },
+  { value: 'priority', label: '优先级' },
+  { value: 'assignee', label: '负责人' },
+  { value: 'stage', label: '阶段' },
+  { value: 'startDate', label: '开始日期' },
+  { value: 'dueDate', label: '截止日期' },
+  { value: 'isMilestone', label: '里程碑' },
+  { value: 'description', label: '描述' },
+]
+
+/** 状态库（租户自配任务状态字典，阶段1-b；双轨，暂未接管 task 流转） */
+export const statusApi = {
+  list: (onlyActive = false) => request.get('/statuses', { params: { onlyActive } }),
+  create: (data) => request.post('/statuses', data),
+  update: (id, data) => request.put(`/statuses/${id}`, data),
+  remove: (id) => request.delete(`/statuses/${id}`),
+}
+
+/** 状态元类别（与后端 MetaCategory 一致；统计口径基准） */
+export const META_CATEGORIES = [
+  { value: '未开始', label: '未开始' },
+  { value: '进行中', label: '进行中' },
+  { value: '已完成', label: '已完成' },
+]
+
+/** 优先级模式（租户自配，阶段1-c；双轨，暂未接管 task 优先级） */
+export const priorityModeApi = {
+  list: () => request.get('/priority-modes'),
+  get: (id) => request.get(`/priority-modes/${id}`),
+  create: (data) => request.post('/priority-modes', data),
+  update: (id, data) => request.put(`/priority-modes/${id}`, data),
+  remove: (id) => request.delete(`/priority-modes/${id}`),
+}

@@ -31,7 +31,10 @@ public class AuditLog implements Serializable {
     /** 审计动作码（取自 AuditActions，非领域事件名） */
     private String action;
 
-    /** 被审计实体类型：project / task */
+    /** 功能模块（取自 AuditActions.MODULE_*，便于管理后台分组过滤） */
+    private String module;
+
+    /** 被审计实体类型：project / task / role / user / dept ... */
     private String target;
 
     /** 被审计实体主键 */
@@ -39,6 +42,12 @@ public class AuditLog implements Serializable {
 
     /** 变更明细（JSON 字符串） */
     private String detail;
+
+    /** 操作来源 IP（best-effort） */
+    private String ip;
+
+    /** 操作来源 User-Agent（best-effort） */
+    private String userAgent;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
@@ -75,6 +84,14 @@ public class AuditLog implements Serializable {
         this.action = action;
     }
 
+    public String getModule() {
+        return module;
+    }
+
+    public void setModule(String module) {
+        this.module = module;
+    }
+
     public String getTarget() {
         return target;
     }
@@ -97,6 +114,22 @@ public class AuditLog implements Serializable {
 
     public void setDetail(String detail) {
         this.detail = detail;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
     }
 
     public LocalDateTime getCreateTime() {
