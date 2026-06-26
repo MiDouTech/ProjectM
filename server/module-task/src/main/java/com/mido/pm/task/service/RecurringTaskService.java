@@ -38,12 +38,14 @@ public class RecurringTaskService {
     private final PmTaskMapper taskMapper;
     private final DomainEventPublisher eventPublisher;
     private final AuditLogService auditLogService;
+    private final WorkItemMetaResolver metaResolver;
 
     public RecurringTaskService(PmTaskMapper taskMapper, DomainEventPublisher eventPublisher,
-                                AuditLogService auditLogService) {
+                                AuditLogService auditLogService, WorkItemMetaResolver metaResolver) {
         this.taskMapper = taskMapper;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
+        this.metaResolver = metaResolver;
     }
 
     /**
@@ -115,6 +117,10 @@ public class RecurringTaskService {
         inst.setDueDate(due);
         inst.setIsMilestone(tpl.getIsMilestone());
         inst.setRecurRule(null); // 实例自身不再循环
+        // 阶段3 双写：类型/优先级档位沿用模板，状态为初始态(未开始)
+        inst.setTypeId(tpl.getTypeId());
+        inst.setStatusId(metaResolver.statusIdByName(TaskStatus.NOT_STARTED.getCode()));
+        inst.setPriorityLevelId(tpl.getPriorityLevelId());
         taskMapper.insert(inst);
 
         eventPublisher.publish(TaskEvents.CREATED, payload(

@@ -33,6 +33,8 @@ class RecurringTaskServiceTest {
     private DomainEventPublisher eventPublisher;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private WorkItemMetaResolver metaResolver;
     @InjectMocks
     private RecurringTaskService service;
 
