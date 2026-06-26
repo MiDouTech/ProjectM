@@ -41,6 +41,16 @@ class WorkItemMetaResolverTest {
     }
 
     @Test
+    void doneStatusIdsReturnsMetaDoneStatuses() {
+        PmStatus done1 = new PmStatus();
+        done1.setId(3L);
+        PmStatus done2 = new PmStatus();
+        done2.setId(4L);
+        when(statusMapper.selectList(any())).thenReturn(List.of(done1, done2));
+        assertEquals(List.of(3L, 4L), resolver().doneStatusIds());
+    }
+
+    @Test
     void statusIdByNameResolves() {
         PmStatus s = new PmStatus();
         s.setId(2L);

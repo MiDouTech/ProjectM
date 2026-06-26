@@ -1,6 +1,7 @@
 package com.mido.pm.task.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.task.domain.MetaCategory;
 import com.mido.pm.task.entity.PmPriorityLevel;
 import com.mido.pm.task.entity.PmPriorityMode;
 import com.mido.pm.task.entity.PmStatus;
@@ -42,6 +43,13 @@ public class WorkItemMetaResolver {
         List<PmWorkItemType> types = typeMapper.selectList(Wrappers.<PmWorkItemType>lambdaQuery()
                 .eq(PmWorkItemType::getCode, DEFAULT_TASK_TYPE_CODE).orderByAsc(PmWorkItemType::getId));
         return types.isEmpty() ? null : types.get(0).getId();
+    }
+
+    /** 当前租户「已完成」元类别的全部状态 id（供报表/汇总按元类别判定完成；未种子返回空）。 */
+    public List<Long> doneStatusIds() {
+        return statusMapper.selectList(Wrappers.<PmStatus>lambdaQuery()
+                        .eq(PmStatus::getMetaCategory, MetaCategory.DONE))
+                .stream().map(PmStatus::getId).toList();
     }
 
     /** 状态名 → 状态库 id；未匹配返回 null。 */

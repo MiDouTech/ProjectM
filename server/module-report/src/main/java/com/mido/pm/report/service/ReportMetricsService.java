@@ -11,6 +11,7 @@ import com.mido.pm.report.dto.MetricsOverviewVO;
 import com.mido.pm.report.dto.MetricsOverviewVO.CategoryCount;
 import com.mido.pm.report.dto.ProjectHealthVO;
 import com.mido.pm.report.dto.WorkloadItemVO;
+import com.mido.pm.report.domain.StatusMetaPort;
 import com.mido.pm.report.mapper.ReportMapper;
 import com.mido.pm.project.service.ProjectService;
 import org.springframework.stereotype.Service;
@@ -30,15 +31,24 @@ public class ReportMetricsService {
 
     private final ReportMapper reportMapper;
     private final ProjectService projectService;
+    private final StatusMetaPort statusMetaPort;
 
     public ReportMetricsService(ReportMapper reportMapper,
-                                ProjectService projectService) {
+                                ProjectService projectService, StatusMetaPort statusMetaPort) {
         this.reportMapper = reportMapper;
         this.projectService = projectService;
+        this.statusMetaPort = statusMetaPort;
+    }
+
+    /** 当前租户「已完成」元类别状态 id 的 CSV（空=回落字符串终态）。 */
+    private String doneCsv() {
+        return statusMetaPort.doneStatusIds().stream().map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
     }
 
     public MetricsOverviewVO overview() {
-        Map<String, Object> t = scopedTask(reportMapper::taskCounts);
+        String done = doneCsv();
+        Map<String, Object> t = scopedTask(() -> reportMapper.taskCounts(done));
         long total = lng(t, "total");
         long completed = lng(t, "completed");
         long overdue = lng(t, "overdue");
@@ -63,13 +73,14 @@ public class ReportMetricsService {
 
     /** 人员负荷：按负责人聚合在办/逾期任务数（数据范围内），负荷降序。供报表「人员负荷」卡。 */
     public List<WorkloadItemVO> workload() {
-        return scopedTask(reportMapper::workloadByAssignee).stream()
+        String done = doneCsv();
+        return scopedTask(() -> reportMapper.workloadByAssignee(done)).stream()
                 .map(m -> new WorkloadItemVO(lngObj(m, "assigneeId"), lng(m, "inProgress"), lng(m, "overdue")))
                 .toList();
     }
 
     public ProjectHealthVO projectHealth(Long projectId) {
-        Map<String, Object> t = scopedTask(() -> reportMapper.taskCountsByProject(projectId));
+        Map<String, Object> t = scopedTask(() -> reportMapper.taskCountsByProject(projectId, doneCsv()));
         long total = lng(t, "total");
         long completed = lng(t, "completed");
         long overdue = lng(t, "overdue");
