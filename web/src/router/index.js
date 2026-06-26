@@ -84,6 +84,7 @@ const routes = [
           { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
           { path: 'project-roles', component: () => import('@/views/admin/ProjectRoleManage.vue') },
           { path: 'workspace-nav', component: () => import('@/views/admin/WorkspaceNavManage.vue') },
+          { path: 'workspace-page', component: () => import('@/views/admin/WorkspacePageManage.vue') },
           { path: 'project-templates', component: () => import('@/views/admin/ProjectTemplateManage.vue') },
           { path: 'npss-settings', component: () => import('@/views/admin/NpssSettingsManage.vue') },
           { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },

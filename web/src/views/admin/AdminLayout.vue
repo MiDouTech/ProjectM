@@ -26,6 +26,9 @@
         <el-menu-item index="/admin/workspace-nav">
           <el-icon><Operation /></el-icon><span>导航配置</span>
         </el-menu-item>
+        <el-menu-item index="/admin/workspace-page">
+          <el-icon><Memo /></el-icon><span>页面配置</span>
+        </el-menu-item>
         <el-menu-item index="/admin/npss-settings">
           <el-icon><Histogram /></el-icon><span>NPSS 评价设置</span>
         </el-menu-item>
