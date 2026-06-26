@@ -37,6 +37,7 @@ class NpssReviewServiceTest {
     @Mock private PmNpssScoreMapper scoreMapper;
     @Mock private ProjectService projectService;
     @Mock private StakeholderService stakeholderService;
+    @Mock private NpssSubjectService npssSubjectService;
     @Mock private DomainEventPublisher eventPublisher;
     @InjectMocks private NpssReviewService service;
 
@@ -109,5 +110,48 @@ class NpssReviewServiceTest {
 
         verify(scoreMapper).updateById(any(PmNpssScore.class));
         verify(eventPublisher).publish(eq("npss.scored"), any());
+    }
+
+    @Test
+    void startReviewSubjectModeBuildsTodosPerMember() {
+        when(reviewMapper.selectList(any())).thenReturn(java.util.List.of()); // 无进行中轮次
+        when(stakeholderService.list(100L)).thenReturn(java.util.List.of(
+                new StakeholderVO(1L, 100L, 8L, null, "sponsor", "internal", 3, 3, null),
+                new StakeholderVO(2L, 100L, 9L, null, "business", "internal", 2, 2, null)));
+        // 单主体含两成员 → 建 2 条评分待办，收件人去重为 [8,9]
+        when(npssSubjectService.subjectsForReview(100L)).thenReturn(java.util.List.of(
+                new NpssSubjectService.MaterializedSubject(10L, new BigDecimal("100"), true,
+                        java.util.List.of(1L, 2L))));
+
+        service.startReview(100L);
+
+        verify(scoreMapper, org.mockito.Mockito.times(2)).insert(any(PmNpssScore.class));
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(eventPublisher).publish(eq("npss.review.started"), captor.capture());
+        assertEquals(List.of(8L, 9L), captor.getValue().get("recipientUserIds"));
+        assertEquals(2, captor.getValue().get("stakeholderCount"));
+    }
+
+    @Test
+    void summarizeSubjectModeAveragesThenWeights() {
+        // 主体A 权重30 成员[9,10]→平均9.5；主体B 权重70 成员[8] → 84.50 → mixed
+        when(scoreMapper.selectList(any())).thenReturn(java.util.List.of(
+                subjectScore(10L, "30", 9), subjectScore(10L, "30", 10), subjectScore(20L, "70", 8)));
+
+        PmNpssReview review = pendingReview();
+        service.summarize(review);
+
+        assertEquals(0, new BigDecimal("84.50").compareTo(review.getWeightedScore()));
+        org.junit.jupiter.api.Assertions.assertEquals("mixed", review.getResultLevel());
+        verify(eventPublisher).publish(eq("npss.review.completed"), any());
+    }
+
+    private PmNpssScore subjectScore(Long subjectId, String weight, int score) {
+        PmNpssScore s = new PmNpssScore();
+        s.setReviewId(1L);
+        s.setSubjectId(subjectId);
+        s.setWeight(new BigDecimal(weight));
+        s.setScore(score);
+        return s;
     }
 }
