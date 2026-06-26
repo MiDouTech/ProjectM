@@ -71,6 +71,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             current.setSubDeptIds(principal.getSubDeptIds());
             current.setCustomDeptIds(principal.getCustomDeptIds());
             current.setResourceScopes(principal.getResourceScopes());
+            current.setViewOnlyFields(principal.getViewOnlyFields());
             UserContext.set(current);
             ApiKeyContext.set(new ApiKeyContext.Snapshot(key.getId(), key.getName(), parseScopes(key.getScopes())));
             apiKeyService.touch(key.getId());

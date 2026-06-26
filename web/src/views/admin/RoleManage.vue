@@ -8,11 +8,12 @@
     <el-table v-loading="loading" :data="rows" stripe>
       <el-table-column prop="name" label="角色名" />
       <el-table-column prop="code" label="角色编码" />
-      <el-table-column label="操作" width="320">
+      <el-table-column label="操作" width="400">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openPerms(row)">功能权限</el-button>
           <el-button link type="primary" @click="openScopes(row)">数据范围</el-button>
+          <el-button link type="primary" @click="openFieldPerms(row)">字段权限</el-button>
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -60,6 +61,28 @@
         <el-button type="primary" :loading="saving" @click="saveScopes">保存</el-button>
       </template>
     </el-drawer>
+
+    <!-- 字段权限：按资源/字段配置「仅查看 / 可编辑」（默认未配置=可编辑） -->
+    <el-drawer v-model="fieldPermsDrawer" title="字段权限（仅查看 / 可编辑）" size="var(--mido-drawer-width)">
+      <p class="mido-text-secondary">仅需收紧的字段才配置；未列出的字段默认可编辑。多角色合并时取最宽。</p>
+      <div v-for="(item, idx) in fieldPerms" :key="idx" class="ds-row">
+        <el-select v-model="item.resource" placeholder="资源" class="ds-row__scope" @change="item.field = ''">
+          <el-option v-for="r in FIELD_PERM_RESOURCES" :key="r.value" :label="r.label" :value="r.value" />
+        </el-select>
+        <el-select v-model="item.field" filterable placeholder="字段" class="ds-row__resource">
+          <el-option v-for="f in fieldsOf(item.resource)" :key="f.value" :label="f.label" :value="f.value" />
+        </el-select>
+        <el-select v-model="item.access" placeholder="权限" class="ds-row__scope">
+          <el-option v-for="a in FIELD_ACCESS" :key="a.value" :label="a.label" :value="a.value" />
+        </el-select>
+        <el-button link type="danger" @click="fieldPerms.splice(idx, 1)">删除</el-button>
+      </div>
+      <el-button :icon="Plus" @click="fieldPerms.push({ resource: 'task', field: '', access: 'view' })">添加字段</el-button>
+      <template #footer>
+        <el-button @click="fieldPermsDrawer = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveFieldPerms">保存</el-button>
+      </template>
+    </el-drawer>
   </el-card>
 </template>
 
@@ -67,7 +90,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { roleApi, DATA_SCOPES, DATA_SCOPE_RESOURCES } from '@/api/org'
+import { roleApi, DATA_SCOPES, DATA_SCOPE_RESOURCES, FIELD_ACCESS, FIELD_PERM_RESOURCES } from '@/api/org'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -86,7 +109,13 @@ const permsDrawer = ref(false)
 const permCodes = ref([])
 const scopesDrawer = ref(false)
 const scopes = ref([])
+const fieldPermsDrawer = ref(false)
+const fieldPerms = ref([])
 const currentRoleId = ref(null)
+
+function fieldsOf(resource) {
+  return FIELD_PERM_RESOURCES.find((r) => r.value === resource)?.fields || []
+}
 
 async function load() {
   loading.value = true
@@ -154,6 +183,23 @@ async function saveScopes() {
     await roleApi.saveDataScopes(currentRoleId.value, scopes.value)
     ElMessage.success('已保存数据范围')
     scopesDrawer.value = false
+  } finally {
+    saving.value = false
+  }
+}
+
+async function openFieldPerms(row) {
+  currentRoleId.value = row.id
+  fieldPerms.value = await roleApi.getFieldPerms(row.id)
+  fieldPermsDrawer.value = true
+}
+async function saveFieldPerms() {
+  saving.value = true
+  try {
+    const valid = fieldPerms.value.filter((f) => f.resource && f.field && f.access)
+    await roleApi.saveFieldPerms(currentRoleId.value, valid)
+    ElMessage.success('已保存字段权限')
+    fieldPermsDrawer.value = false
   } finally {
     saving.value = false
   }

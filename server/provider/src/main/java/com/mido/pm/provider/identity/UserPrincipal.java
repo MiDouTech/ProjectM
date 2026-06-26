@@ -4,8 +4,10 @@ import com.mido.pm.common.security.DataScope;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 身份主体：认证与鉴权所需的用户快照，由 {@link IdentityProvider} 装配。
@@ -33,6 +35,8 @@ public class UserPrincipal {
     private List<Long> customDeptIds = new ArrayList<>();
     /** 资源 → 有效数据范围（已合并多角色取最宽） */
     private Map<String, DataScope> resourceScopes = Collections.emptyMap();
+    /** 仅查看字段键集合（"resource.field"），已合并多角色取最宽 */
+    private Set<String> viewOnlyFields = new HashSet<>();
 
     public Long getUserId() {
         return userId;
@@ -136,5 +140,13 @@ public class UserPrincipal {
 
     public void setResourceScopes(Map<String, DataScope> resourceScopes) {
         this.resourceScopes = resourceScopes == null ? Collections.emptyMap() : resourceScopes;
+    }
+
+    public Set<String> getViewOnlyFields() {
+        return viewOnlyFields;
+    }
+
+    public void setViewOnlyFields(Set<String> viewOnlyFields) {
+        this.viewOnlyFields = viewOnlyFields == null ? new HashSet<>() : viewOnlyFields;
     }
 }

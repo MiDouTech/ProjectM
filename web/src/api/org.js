@@ -40,7 +40,58 @@ export const roleApi = {
   savePerms: (id, permCodes) => request.put(`/roles/${id}/perms`, permCodes),
   getDataScopes: (id) => request.get(`/roles/${id}/data-scopes`),
   saveDataScopes: (id, settings) => request.put(`/roles/${id}/data-scopes`, settings),
+  getFieldPerms: (id) => request.get(`/roles/${id}/field-perms`),
+  saveFieldPerms: (id, settings) => request.put(`/roles/${id}/field-perms`, settings),
 }
+
+/**
+ * 字段级权限（当前用户视角）：返回某资源下当前用户的只读字段键集合，供表单只读渲染。
+ * 安全边界在后端（写入拦截），本接口仅 UX。
+ */
+export const fieldPermApi = {
+  viewOnly: (resource) => request.get('/field-perms/view-only', { params: { resource } }),
+}
+
+/** 字段权限访问级别（对齐截图「仅查看/可编辑」） */
+export const FIELD_ACCESS = [
+  { value: 'edit', label: '可编辑' },
+  { value: 'view', label: '仅查看' },
+]
+
+/**
+ * 可配置字段权限的资源与字段清单（与后端字段键一致）。
+ * 未在此登记的字段默认可编辑；新增受控字段时同步维护本表与后端 enforcement。
+ */
+export const FIELD_PERM_RESOURCES = [
+  {
+    value: 'task',
+    label: '任务',
+    fields: [
+      { value: 'title', label: '标题' },
+      { value: 'priority', label: '优先级' },
+      { value: 'status', label: '状态' },
+      { value: 'stage', label: '阶段' },
+      { value: 'assignee', label: '负责人' },
+      { value: 'startDate', label: '开始日期' },
+      { value: 'dueDate', label: '截止日期' },
+      { value: 'isMilestone', label: '里程碑' },
+      { value: 'description', label: '描述' },
+    ],
+  },
+  {
+    value: 'project',
+    label: '项目',
+    fields: [
+      { value: 'name', label: '名称' },
+      { value: 'subCategory', label: '子类别' },
+      { value: 'leaderId', label: '负责人' },
+      { value: 'budget', label: '预算' },
+      { value: 'description', label: '描述' },
+      { value: 'startDate', label: '开始日期' },
+      { value: 'endDate', label: '结束日期' },
+    ],
+  },
+]
 
 /**
  * 企业微信集成配置（租户自助）。secret 出参脱敏（仅 *Set 布尔位），保存时留空表示不修改原值。

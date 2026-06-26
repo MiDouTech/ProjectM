@@ -43,6 +43,7 @@ class TaskServiceTest {
     @Mock private AuditLogService auditLogService;
     @Mock private com.mido.pm.project.service.ProjectService projectService;
     @Mock private RecurringTaskService recurringTaskService;
+    @Mock private com.mido.pm.common.security.FieldPermGuard fieldPermGuard;
     @InjectMocks private TaskService service;
 
     private PmTask task(String status) {

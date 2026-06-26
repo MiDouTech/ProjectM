@@ -11,6 +11,7 @@ import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.quota.QuotaGuard;
 import com.mido.pm.common.quota.QuotaResources;
+import com.mido.pm.common.security.FieldPermGuard;
 import com.mido.pm.common.security.JobLevelRule;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.project.domain.ProjectStateMachine;
@@ -80,11 +81,16 @@ public class ProjectService {
     private final AuditLogService auditLogService;
     private final ProjectTypeResolver projectTypeResolver;
     private final QuotaGuard quotaGuard;
+    private final FieldPermGuard fieldPermGuard;
+
+    /** 字段级权限资源标识：项目 */
+    public static final String FIELD_RESOURCE = "project";
 
     public ProjectService(PmProjectMapper projectMapper, PmProjectMemberMapper memberMapper,
                           DomainEventPublisher eventPublisher,
                           IdentityProvider identityProvider, AuditLogService auditLogService,
-                          ProjectTypeResolver projectTypeResolver, QuotaGuard quotaGuard) {
+                          ProjectTypeResolver projectTypeResolver, QuotaGuard quotaGuard,
+                          FieldPermGuard fieldPermGuard) {
         this.projectMapper = projectMapper;
         this.memberMapper = memberMapper;
         this.eventPublisher = eventPublisher;
@@ -92,6 +98,7 @@ public class ProjectService {
         this.auditLogService = auditLogService;
         this.projectTypeResolver = projectTypeResolver;
         this.quotaGuard = quotaGuard;
+        this.fieldPermGuard = fieldPermGuard;
     }
 
     /**
@@ -193,6 +200,11 @@ public class ProjectService {
         addChange(changes, "description", p.getDescription(), dto.description());
         addChange(changes, "startDate", p.getStartDate(), dto.startDate());
         addChange(changes, "endDate", p.getEndDate(), dto.endDate());
+
+        // 字段级权限：仅对实际变更的字段校验可编辑，命中只读字段即拒（403）
+        for (Map<String, Object> change : changes) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, (String) change.get("field"));
+        }
 
         p.setName(dto.name());
         p.setSubCategory(dto.subCategory());

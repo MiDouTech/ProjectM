@@ -9,6 +9,7 @@ import com.mido.pm.common.audit.AuditLogService;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.security.FieldPermGuard;
 import com.mido.pm.task.domain.TaskRecurrence;
 import com.mido.pm.task.domain.TaskStatus;
 import com.mido.pm.task.domain.TaskWorkflow;
@@ -51,16 +52,22 @@ public class TaskService {
     private final AuditLogService auditLogService;
     private final ProjectService projectService;
     private final RecurringTaskService recurringTaskService;
+    private final FieldPermGuard fieldPermGuard;
+
+    /** 字段级权限资源标识：任务 */
+    public static final String FIELD_RESOURCE = "task";
 
     public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
                        DomainEventPublisher eventPublisher, AuditLogService auditLogService,
-                       ProjectService projectService, RecurringTaskService recurringTaskService) {
+                       ProjectService projectService, RecurringTaskService recurringTaskService,
+                       FieldPermGuard fieldPermGuard) {
         this.projectService = projectService;
         this.taskMapper = taskMapper;
         this.dependencyMapper = dependencyMapper;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
         this.recurringTaskService = recurringTaskService;
+        this.fieldPermGuard = fieldPermGuard;
     }
 
     /**
@@ -196,6 +203,11 @@ public class TaskService {
         }
         addChange(changes, "description", task.getDescription(), dto.description());
 
+        // 字段级权限：仅对「实际发生变更」的字段校验可编辑，命中只读字段即拒（403）
+        for (Map<String, Object> change : changes) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, (String) change.get("field"));
+        }
+
         task.setTitle(dto.title());
         task.setPriority(dto.priority());
         task.setStage(dto.stage());
@@ -262,6 +274,9 @@ public class TaskService {
     public void assign(Long id, Long assigneeId) {
         PmTask task = requireExists(id);
         Long oldAssignee = task.getAssigneeId();
+        if (!Objects.equals(oldAssignee, assigneeId)) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, "assignee");
+        }
         task.setAssigneeId(assigneeId);
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.ASSIGNED,
@@ -278,6 +293,10 @@ public class TaskService {
         TaskStatus to = TaskStatus.fromCode(targetStatus);
         if (to == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法目标状态: " + targetStatus);
+        }
+        // 字段级权限：仅当状态确有变化时校验「status」可编辑
+        if (!Objects.equals(task.getStatus(), to.getCode())) {
+            fieldPermGuard.assertEditable(FIELD_RESOURCE, "status");
         }
         TaskWorkflow.assertTransit(from, to);
         task.setStatus(to.getCode());

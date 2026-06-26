@@ -7,13 +7,17 @@ import com.mido.pm.common.audit.Audited;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.security.DataScope;
+import com.mido.pm.common.security.FieldAccess;
 import com.mido.pm.org.dto.DataScopeSettingDTO;
+import com.mido.pm.org.dto.FieldPermSettingDTO;
 import com.mido.pm.org.dto.RoleCreateDTO;
 import com.mido.pm.org.dto.RoleUpdateDTO;
 import com.mido.pm.org.dto.RoleVO;
+import com.mido.pm.org.entity.SysFieldPerm;
 import com.mido.pm.org.entity.SysRole;
 import com.mido.pm.org.entity.SysRoleDataScope;
 import com.mido.pm.org.entity.SysRolePerm;
+import com.mido.pm.org.mapper.SysFieldPermMapper;
 import com.mido.pm.org.mapper.SysRoleDataScopeMapper;
 import com.mido.pm.org.mapper.SysRoleMapper;
 import com.mido.pm.org.mapper.SysRolePermMapper;
@@ -32,13 +36,16 @@ public class SysRoleService {
     private final SysRoleMapper roleMapper;
     private final SysRolePermMapper rolePermMapper;
     private final SysRoleDataScopeMapper roleDataScopeMapper;
+    private final SysFieldPermMapper fieldPermMapper;
     private final AuditLogService auditLogService;
 
     public SysRoleService(SysRoleMapper roleMapper, SysRolePermMapper rolePermMapper,
-                          SysRoleDataScopeMapper roleDataScopeMapper, AuditLogService auditLogService) {
+                          SysRoleDataScopeMapper roleDataScopeMapper, SysFieldPermMapper fieldPermMapper,
+                          AuditLogService auditLogService) {
         this.roleMapper = roleMapper;
         this.rolePermMapper = rolePermMapper;
         this.roleDataScopeMapper = roleDataScopeMapper;
+        this.fieldPermMapper = fieldPermMapper;
         this.auditLogService = auditLogService;
     }
 
@@ -144,6 +151,44 @@ public class SysRoleService {
         // 数据可见范围变更同样敏感：同事务记录 before/after
         auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, roleId,
                 AuditActions.DATA_SCOPE_CHANGED,
+                Map.of("from", before, "to", settings == null ? List.of() : settings));
+    }
+
+    // ===== 字段级权限 =====
+
+    public List<FieldPermSettingDTO> getFieldPerms(Long roleId) {
+        requireExists(roleId);
+        return fieldPermMapper.selectList(
+                        Wrappers.<SysFieldPerm>lambdaQuery().eq(SysFieldPerm::getRoleId, roleId))
+                .stream().map(f -> new FieldPermSettingDTO(f.getResource(), f.getField(), f.getAccess()))
+                .toList();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void saveFieldPerms(Long roleId, List<FieldPermSettingDTO> settings) {
+        requireExists(roleId);
+        if (settings != null) {
+            for (FieldPermSettingDTO s : settings) {
+                if (!FieldAccess.isValid(s.access())) {
+                    throw new BizException(ErrorCode.PARAM_ERROR, "非法字段权限级别: " + s.access());
+                }
+            }
+        }
+        List<FieldPermSettingDTO> before = getFieldPerms(roleId);
+        fieldPermMapper.delete(Wrappers.<SysFieldPerm>lambdaQuery().eq(SysFieldPerm::getRoleId, roleId));
+        if (settings != null) {
+            for (FieldPermSettingDTO s : settings) {
+                SysFieldPerm fp = new SysFieldPerm();
+                fp.setRoleId(roleId);
+                fp.setResource(s.resource());
+                fp.setField(s.field());
+                fp.setAccess(s.access());
+                fieldPermMapper.insert(fp);
+            }
+        }
+        // 字段权限属账号权限范畴：同事务记录 before/after
+        auditLogService.record(AuditActions.MODULE_PERMISSION, AuditActions.TARGET_ROLE, roleId,
+                AuditActions.FIELD_PERM_CHANGED,
                 Map.of("from", before, "to", settings == null ? List.of() : settings));
     }
 

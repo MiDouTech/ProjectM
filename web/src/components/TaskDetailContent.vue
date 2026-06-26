@@ -19,7 +19,8 @@
       <!-- 状态流转（合法下一态按钮，看板外的另一入口） -->
       <div v-if="nextStatuses.length" class="td__trans">
         <span class="mido-text-secondary">流转：</span>
-        <el-button v-for="s in nextStatuses" :key="s" size="small" plain type="primary" @click="transition(s)">
+        <el-button v-for="s in nextStatuses" :key="s" size="small" plain type="primary"
+          :disabled="isViewOnly('status')" @click="transition(s)">
           → {{ s }}
         </el-button>
       </div>
@@ -32,10 +33,12 @@
             <el-form ref="formRef" :model="form" :rules="rules" :label-width="80" class="td__form">
               <el-form-item label="标题" prop="title"><el-input v-model="form.title" /></el-form-item>
               <el-form-item label="负责人">
-                <UserSelect v-model="form.assigneeId" placeholder="选择负责人" @change="onAssign" />
+                <UserSelect v-model="form.assigneeId" placeholder="选择负责人"
+                  :disabled="isViewOnly('assignee')" @change="onAssign" />
               </el-form-item>
               <el-form-item label="优先级">
-                <el-select v-model="form.priority" clearable placeholder="选择优先级" class="full">
+                <el-select v-model="form.priority" clearable placeholder="选择优先级" class="full"
+                  :disabled="isViewOnly('priority')">
                   <el-option v-for="p in TASK_PRIORITIES" :key="p.value" :label="p.label" :value="p.value" />
                 </el-select>
               </el-form-item>
@@ -145,7 +148,7 @@ import WorkHourPanel from '@/components/WorkHourPanel.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 import { taskApi, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
-import { fetchMembers } from '@/api/org'
+import { fetchMembers, fieldPermApi } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'
 
 const props = defineProps({
@@ -179,6 +182,10 @@ const userName = (id) => nameOf(resolvedUsers.value, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
 const nextStatuses = computed(() => TASK_TRANSITIONS[task.value.status] || [])
 
+// 字段级权限：当前用户在 task 资源下的只读字段（仅 UX，写入拦截在后端）
+const viewOnlyFields = ref(new Set())
+const isViewOnly = (field) => viewOnlyFields.value.has(field)
+
 watch(() => props.taskId, (id) => { if (id) { tab.value = 'info'; sideTab.value = 'comment'; reload() } }, { immediate: true })
 
 onMounted(async () => {
@@ -188,6 +195,11 @@ onMounted(async () => {
     } catch {
       localUsers.value = []
     }
+  }
+  try {
+    viewOnlyFields.value = new Set(await fieldPermApi.viewOnly('task'))
+  } catch {
+    viewOnlyFields.value = new Set()
   }
 })
 

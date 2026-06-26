@@ -2,6 +2,7 @@ package com.mido.pm.org.controller;
 
 import com.mido.pm.common.api.R;
 import com.mido.pm.org.dto.DataScopeSettingDTO;
+import com.mido.pm.org.dto.FieldPermSettingDTO;
 import com.mido.pm.org.dto.RoleCreateDTO;
 import com.mido.pm.org.dto.RoleUpdateDTO;
 import com.mido.pm.org.dto.RoleVO;
@@ -77,6 +78,18 @@ public class RoleController {
     @PutMapping("/{id}/data-scopes")
     public R<Void> saveDataScopes(@PathVariable Long id, @RequestBody List<DataScopeSettingDTO> settings) {
         roleService.saveDataScopes(id, settings);
+        return R.ok();
+    }
+
+    @GetMapping("/{id}/field-perms")
+    public R<List<FieldPermSettingDTO>> getFieldPerms(@PathVariable Long id) {
+        return R.ok(roleService.getFieldPerms(id));
+    }
+
+    @PreAuthorize("hasAuthority('org:role:create')")
+    @PutMapping("/{id}/field-perms")
+    public R<Void> saveFieldPerms(@PathVariable Long id, @RequestBody List<FieldPermSettingDTO> settings) {
+        roleService.saveFieldPerms(id, settings);
         return R.ok();
     }
 }

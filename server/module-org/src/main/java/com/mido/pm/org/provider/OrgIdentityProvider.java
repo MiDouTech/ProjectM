@@ -2,12 +2,15 @@ package com.mido.pm.org.provider;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.common.security.DataScopeResolver;
+import com.mido.pm.common.security.FieldAccess;
 import com.mido.pm.org.entity.SysDept;
+import com.mido.pm.org.entity.SysFieldPerm;
 import com.mido.pm.org.entity.SysRoleDataScope;
 import com.mido.pm.org.entity.SysRolePerm;
 import com.mido.pm.org.entity.SysUser;
 import com.mido.pm.org.entity.SysUserRole;
 import com.mido.pm.org.mapper.SysDeptMapper;
+import com.mido.pm.org.mapper.SysFieldPermMapper;
 import com.mido.pm.org.mapper.SysRoleDataScopeMapper;
 import com.mido.pm.org.mapper.SysRolePermMapper;
 import com.mido.pm.org.mapper.SysUserMapper;
@@ -19,8 +22,12 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * IdentityProvider 的本地实现（读 sys_*）。
@@ -34,15 +41,17 @@ public class OrgIdentityProvider implements IdentityProvider {
     private final SysUserRoleMapper userRoleMapper;
     private final SysRolePermMapper rolePermMapper;
     private final SysRoleDataScopeMapper roleDataScopeMapper;
+    private final SysFieldPermMapper fieldPermMapper;
     private final SysDeptMapper deptMapper;
 
     public OrgIdentityProvider(SysUserMapper userMapper, SysUserRoleMapper userRoleMapper,
                                SysRolePermMapper rolePermMapper, SysRoleDataScopeMapper roleDataScopeMapper,
-                               SysDeptMapper deptMapper) {
+                               SysFieldPermMapper fieldPermMapper, SysDeptMapper deptMapper) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.rolePermMapper = rolePermMapper;
         this.roleDataScopeMapper = roleDataScopeMapper;
+        this.fieldPermMapper = fieldPermMapper;
         this.deptMapper = deptMapper;
     }
 
@@ -91,10 +100,34 @@ public class OrgIdentityProvider implements IdentityProvider {
                             Wrappers.<SysRoleDataScope>lambdaQuery().in(SysRoleDataScope::getRoleId, roleIds))
                     .stream().map(s -> new DataScopeResolver.RoleScope(s.getResource(), s.getScope())).toList();
             p.setResourceScopes(DataScopeResolver.mergeBroadest(rawScopes));
+
+            p.setViewOnlyFields(computeViewOnlyFields(roleIds));
         }
 
         p.setSubDeptIds(subDeptIds(user.getDeptId()));
         return p;
+    }
+
+    /**
+     * 多角色合并取最宽：仅当字段在所有相关角色中均未授予 edit（即配置全为 view）时，
+     * 才记为只读，键形如 "resource.field"。任一角色给 edit 即可编辑（并集语义）。
+     */
+    private Set<String> computeViewOnlyFields(List<Long> roleIds) {
+        List<SysFieldPerm> perms = fieldPermMapper.selectList(
+                Wrappers.<SysFieldPerm>lambdaQuery().in(SysFieldPerm::getRoleId, roleIds));
+        Map<String, Boolean> hasEdit = new HashMap<>();
+        for (SysFieldPerm fp : perms) {
+            String key = fp.getResource() + "." + fp.getField();
+            boolean edit = FieldAccess.EDIT.equals(fp.getAccess());
+            hasEdit.merge(key, edit, Boolean::logicalOr);
+        }
+        Set<String> viewOnly = new HashSet<>();
+        hasEdit.forEach((key, edit) -> {
+            if (!edit) {
+                viewOnly.add(key);
+            }
+        });
+        return viewOnly;
     }
 
     /** 计算某部门的全部下属部门 ID（不含自身）。 */
