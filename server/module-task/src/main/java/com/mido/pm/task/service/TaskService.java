@@ -12,7 +12,6 @@ import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.security.FieldPermGuard;
 import com.mido.pm.task.domain.TaskRecurrence;
 import com.mido.pm.task.domain.TaskStatus;
-import com.mido.pm.task.domain.TaskWorkflow;
 import com.mido.pm.task.dto.KanbanColumnVO;
 import com.mido.pm.task.dto.TaskCreateDTO;
 import com.mido.pm.task.dto.TaskQueryDTO;
@@ -53,6 +52,7 @@ public class TaskService {
     private final ProjectService projectService;
     private final RecurringTaskService recurringTaskService;
     private final FieldPermGuard fieldPermGuard;
+    private final WorkflowEngine workflowEngine;
 
     /** 字段级权限资源标识：任务 */
     public static final String FIELD_RESOURCE = "task";
@@ -60,7 +60,7 @@ public class TaskService {
     public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
                        DomainEventPublisher eventPublisher, AuditLogService auditLogService,
                        ProjectService projectService, RecurringTaskService recurringTaskService,
-                       FieldPermGuard fieldPermGuard) {
+                       FieldPermGuard fieldPermGuard, WorkflowEngine workflowEngine) {
         this.projectService = projectService;
         this.taskMapper = taskMapper;
         this.dependencyMapper = dependencyMapper;
@@ -68,6 +68,7 @@ public class TaskService {
         this.auditLogService = auditLogService;
         this.recurringTaskService = recurringTaskService;
         this.fieldPermGuard = fieldPermGuard;
+        this.workflowEngine = workflowEngine;
     }
 
     /**
@@ -298,7 +299,8 @@ public class TaskService {
         if (!Objects.equals(task.getStatus(), to.getCode())) {
             fieldPermGuard.assertEditable(FIELD_RESOURCE, "status");
         }
-        TaskWorkflow.assertTransit(from, to);
+        // 工作流引擎校验（默认任务类型矩阵；未配置租户回落 TaskWorkflow）
+        workflowEngine.assertTaskTransit(task.getStatus(), to.getCode());
         task.setStatus(to.getCode());
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.STATUS_CHANGED, payload(

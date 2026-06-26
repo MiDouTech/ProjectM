@@ -35,6 +35,9 @@
         <el-menu-item index="/admin/data-sources">
           <el-icon><Collection /></el-icon><span>数据源</span>
         </el-menu-item>
+        <el-menu-item index="/admin/work-item-types">
+          <el-icon><Files /></el-icon><span>工作项类型</span>
+        </el-menu-item>
         <el-menu-item index="/admin/statuses">
           <el-icon><Flag /></el-icon><span>状态库</span>
         </el-menu-item>
@@ -56,7 +59,7 @@
 </template>
 
 <script setup>
-import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch, Memo, Histogram, Tickets, Collection, Flag, Sort } from '@element-plus/icons-vue'
+import { User, Avatar, OfficeBuilding, Connection, Stamp, CollectionTag, Key, Switch, Memo, Histogram, Tickets, Collection, Flag, Sort, Files } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()

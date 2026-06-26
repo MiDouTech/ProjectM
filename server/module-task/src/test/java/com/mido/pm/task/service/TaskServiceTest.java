@@ -10,8 +10,11 @@ import com.mido.pm.task.entity.PmTask;
 import com.mido.pm.task.entity.PmTaskDependency;
 import com.mido.pm.task.mapper.PmTaskDependencyMapper;
 import com.mido.pm.task.mapper.PmTaskMapper;
+import com.mido.pm.task.domain.TaskStatus;
+import com.mido.pm.task.domain.TaskWorkflow;
 import java.time.LocalDate;
 import com.mido.pm.common.audit.AuditActions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +33,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * 任务服务编排单测（mock mapper/事件，无 DB）：建任务发事件、指派、状态流转合法/非法、看板分组。
@@ -44,7 +49,18 @@ class TaskServiceTest {
     @Mock private com.mido.pm.project.service.ProjectService projectService;
     @Mock private RecurringTaskService recurringTaskService;
     @Mock private com.mido.pm.common.security.FieldPermGuard fieldPermGuard;
+    @Mock private WorkflowEngine workflowEngine;
     @InjectMocks private TaskService service;
+
+    @BeforeEach
+    void setUp() {
+        // 引擎委托回 TaskWorkflow，保持单测对"默认流转"的合法/非法断言不变
+        lenient().doAnswer(inv -> {
+            TaskWorkflow.assertTransit(TaskStatus.fromCode(inv.getArgument(0)),
+                    TaskStatus.fromCode(inv.getArgument(1)));
+            return null;
+        }).when(workflowEngine).assertTaskTransit(any(), any());
+    }
 
     private PmTask task(String status) {
         PmTask t = new PmTask();
