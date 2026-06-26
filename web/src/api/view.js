@@ -1,5 +1,12 @@
 import request from './request'
 
+/** 可配置工作区导航（ADR-0003）：一级模块顶部导航树 + 编排（管理后台）。 */
+export const workspaceNavApi = {
+  nav: (module) => request.get(`/workspace/nav/${module}`),
+  catalog: (module) => request.get(`/workspace/catalog/${module}`),
+  saveNav: (module, items) => request.put(`/workspace/nav/${module}`, items),
+}
+
 /** 列表表头偏好（每用户每列表，跨设备）。config: { columns:[key...], frozen:[key...] }。 */
 export const tablePrefApi = {
   get: (listKey) => request.get(`/table-prefs/${listKey}`),

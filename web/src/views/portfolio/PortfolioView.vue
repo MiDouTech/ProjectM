@@ -1,6 +1,6 @@
 <template>
   <div class="pf-page">
-    <ProjectSubNav active="portfolios" />
+    <WorkspaceShell module="project" />
     <div class="pf">
     <!-- 左：项目集列表 -->
     <el-card shadow="never" class="pf__side">
@@ -96,7 +96,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'
-import ProjectSubNav from '@/views/project/ProjectSubNav.vue'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import { portfolioApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'
