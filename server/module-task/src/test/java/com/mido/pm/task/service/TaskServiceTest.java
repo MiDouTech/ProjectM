@@ -50,6 +50,7 @@ class TaskServiceTest {
     @Mock private RecurringTaskService recurringTaskService;
     @Mock private com.mido.pm.common.security.FieldPermGuard fieldPermGuard;
     @Mock private WorkflowEngine workflowEngine;
+    @Mock private WorkItemMetaResolver metaResolver;
     @InjectMocks private TaskService service;
 
     @BeforeEach

@@ -53,6 +53,7 @@ public class TaskService {
     private final RecurringTaskService recurringTaskService;
     private final FieldPermGuard fieldPermGuard;
     private final WorkflowEngine workflowEngine;
+    private final WorkItemMetaResolver metaResolver;
 
     /** 字段级权限资源标识：任务 */
     public static final String FIELD_RESOURCE = "task";
@@ -60,7 +61,8 @@ public class TaskService {
     public TaskService(PmTaskMapper taskMapper, PmTaskDependencyMapper dependencyMapper,
                        DomainEventPublisher eventPublisher, AuditLogService auditLogService,
                        ProjectService projectService, RecurringTaskService recurringTaskService,
-                       FieldPermGuard fieldPermGuard, WorkflowEngine workflowEngine) {
+                       FieldPermGuard fieldPermGuard, WorkflowEngine workflowEngine,
+                       WorkItemMetaResolver metaResolver) {
         this.projectService = projectService;
         this.taskMapper = taskMapper;
         this.dependencyMapper = dependencyMapper;
@@ -69,6 +71,7 @@ public class TaskService {
         this.recurringTaskService = recurringTaskService;
         this.fieldPermGuard = fieldPermGuard;
         this.workflowEngine = workflowEngine;
+        this.metaResolver = metaResolver;
     }
 
     /**
@@ -126,6 +129,10 @@ public class TaskService {
         // 校验并存循环规则（非法即抛 PARAM_ERROR；空白存 null）
         TaskRecurrence recurrence = TaskRecurrence.parse(dto.recurRule());
         task.setRecurRule(recurrence == null ? null : dto.recurRule());
+        // 阶段3 双写：解析工作项类型/状态/优先级档位 id（best-effort，未种子则为 null）
+        task.setTypeId(metaResolver.defaultTaskTypeId());
+        task.setStatusId(metaResolver.statusIdByName(task.getStatus()));
+        task.setPriorityLevelId(metaResolver.priorityLevelId(task.getPriority()));
         taskMapper.insert(task);
 
         eventPublisher.publish(TaskEvents.CREATED, payload(
@@ -211,6 +218,7 @@ public class TaskService {
 
         task.setTitle(dto.title());
         task.setPriority(dto.priority());
+        task.setPriorityLevelId(metaResolver.priorityLevelId(dto.priority())); // 阶段3 双写
         task.setStage(dto.stage());
         task.setStartDate(dto.startDate());
         task.setDueDate(dto.dueDate());
@@ -302,6 +310,7 @@ public class TaskService {
         // 工作流引擎校验（默认任务类型矩阵；未配置租户回落 TaskWorkflow）
         workflowEngine.assertTaskTransit(task.getStatus(), to.getCode());
         task.setStatus(to.getCode());
+        task.setStatusId(metaResolver.statusIdByName(to.getCode())); // 阶段3 双写
         taskMapper.updateById(task);
         eventPublisher.publish(TaskEvents.STATUS_CHANGED, payload(
                 "taskId", id, "projectId", task.getProjectId(),
