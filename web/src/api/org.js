@@ -15,10 +15,15 @@ export const authApi = {
 export const userApi = {
   query: (data) => request.post('/users/query', data),
   get: (id) => request.get(`/users/${id}`),
+  me: () => request.get('/users/me'),
   create: (data) => request.post('/users', data),
   update: (id, data) => request.put(`/users/${id}`, data),
   remove: (id) => request.delete(`/users/${id}`),
   assignRoles: (id, roleIds) => request.put(`/users/${id}/roles`, { roleIds }),
+  // 自助修改密码：{ oldPassword, newPassword }
+  changeMyPassword: (data) => request.put('/users/me/password', data),
+  // 管理员重置指定用户密码
+  resetPassword: (id, newPassword) => request.put(`/users/${id}/password`, { newPassword }),
   // 企微通讯录全量同步（部门/成员 → sys_dept/sys_user + sys_identity_map）
   syncWecomContacts: () => request.post('/wecom/contacts/sync'),
 }

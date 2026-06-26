@@ -25,7 +25,8 @@
           <el-avatar class="mido-topbar__avatar" :src="myAvatarUrl">{{ myInitial }}</el-avatar>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              <el-dropdown-item command="password">修改密码</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -58,12 +59,32 @@
         <router-view />
       </main>
     </div>
+
+    <!-- 修改密码（首登默认密码须改；自助校验原密码） -->
+    <el-dialog v-model="pwdDialogVisible" title="修改密码" width="420px" append-to-body>
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="90px">
+        <el-form-item label="原密码" prop="oldPassword">
+          <el-input v-model="pwdForm.oldPassword" type="password" show-password autocomplete="off" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="pwdForm.newPassword" type="password" show-password autocomplete="off" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="pwdForm.confirmPassword" type="password" show-password autocomplete="off" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pwdSubmitting" @click="submitPassword">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
@@ -129,10 +150,9 @@ function goNotifications() {
 const myAvatarUrl = ref('')
 const myInitial = ref('M')
 async function loadMe() {
-  const uid = useUserStore().userId
-  if (!uid) return
+  if (!useUserStore().isLogin) return
   try {
-    const me = await userApi.get(uid)
+    const me = await userApi.me()
     myInitial.value = (me.name || me.username || 'M').charAt(0)
     myAvatarUrl.value = me.avatar ? await attachmentApi.downloadUrl(me.avatar) : ''
   } catch {
@@ -189,8 +209,56 @@ onUnmounted(() => {
   stopPoll()
 })
 
+// ===== 修改密码 =====
+const pwdDialogVisible = ref(false)
+const pwdSubmitting = ref(false)
+const pwdFormRef = ref()
+const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+const pwdRules = {
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 8, max: 64, message: '新密码长度需为 8-64 位', trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_r, v, cb) =>
+        v === pwdForm.newPassword ? cb() : cb(new Error('两次输入的新密码不一致')),
+      trigger: 'blur',
+    },
+  ],
+}
+
+function openPasswordDialog() {
+  pwdForm.oldPassword = ''
+  pwdForm.newPassword = ''
+  pwdForm.confirmPassword = ''
+  pwdDialogVisible.value = true
+  pwdFormRef.value?.clearValidate?.()
+}
+
+async function submitPassword() {
+  await pwdFormRef.value.validate()
+  pwdSubmitting.value = true
+  try {
+    await userApi.changeMyPassword({
+      oldPassword: pwdForm.oldPassword,
+      newPassword: pwdForm.newPassword,
+    })
+    ElMessage.success('密码已修改，请重新登录')
+    pwdDialogVisible.value = false
+    useUserStore().clearToken()
+    router.push('/login')
+  } finally {
+    pwdSubmitting.value = false
+  }
+}
+
 function onUserCommand(command) {
-  if (command === 'logout') {
+  if (command === 'password') {
+    openPasswordDialog()
+  } else if (command === 'logout') {
     useUserStore().clearToken()
     router.push('/login')
   }
