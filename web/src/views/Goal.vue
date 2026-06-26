@@ -1,7 +1,7 @@
 <template>
   <div class="mido-page">
+    <WorkspaceShell module="goal" />
     <div class="goal__bar">
-      <h1 class="mido-h1">目标</h1>
       <div class="goal__bar-actions">
         <el-radio-group v-model="tab">
           <el-radio-button value="list">列表</el-radio-button>
@@ -220,6 +220,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, EditPen } from '@element-plus/icons-vue'
 import GoalAlignTree from '@/components/GoalAlignTree.vue'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import G2Chart from '@/components/G2Chart.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'
