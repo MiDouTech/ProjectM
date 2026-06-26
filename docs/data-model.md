@@ -69,6 +69,10 @@ CREATE TABLE pm_task (
   parent_id BIGINT DEFAULT 0, title VARCHAR(256) NOT NULL, description TEXT,
   assignee_id BIGINT, dept_id BIGINT,  -- dept_id V9 追加：=所属项目部门，数据范围按部门过滤
   status VARCHAR(32), priority TINYINT, stage VARCHAR(32),
+  -- V60 阶段3 通用工作项化：升级为可配置元数据引用（详见 ADR-0001/0002）。
+  -- status_id→pm_status 为权威读源，status 串降为派生冗余；type_id→pm_work_item_type；
+  -- priority_level_id→pm_priority_level。旧 status/priority 列双轨期保留，未做物理删除。
+  type_id BIGINT, status_id BIGINT, priority_level_id BIGINT,
   start_date DATE, due_date DATE, is_milestone TINYINT DEFAULT 0, recur_rule JSON,
   est_hours DECIMAL(8,2), actual_hours DECIMAL(8,2),
   custom_fields JSON, ai_source VARCHAR(32) DEFAULT 'human',
@@ -213,7 +217,8 @@ CREATE TABLE sys_api_key (id BIGINT PRIMARY KEY, tenant_id BIGINT NOT NULL, user
 
 -- ========== 平台基础 ==========
 CREATE TABLE sys_domain_event (id BIGINT PRIMARY KEY, tenant_id BIGINT, event_type VARCHAR(64), payload JSON, status VARCHAR(16) DEFAULT 'pending', create_time DATETIME, KEY idx_status(status));
-CREATE TABLE sys_audit_log (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, action VARCHAR(64), target VARCHAR(64), detail JSON, create_time DATETIME);
+-- sys_audit_log：租户级操作日志（活动流）。target_id(V5) 指向实体；module/ip/user_agent(V51) 供合规过滤与溯源。
+CREATE TABLE sys_audit_log (id BIGINT PRIMARY KEY, tenant_id BIGINT, user_id BIGINT, module VARCHAR(64), action VARCHAR(64), target VARCHAR(64), target_id BIGINT, detail JSON, ip VARCHAR(64), user_agent VARCHAR(256), create_time DATETIME, KEY idx_target(target,target_id));
 CREATE TABLE ai_suggestion (id BIGINT PRIMARY KEY, tenant_id BIGINT, type VARCHAR(32), ref_type VARCHAR(16), ref_id BIGINT, content JSON, status VARCHAR(16) DEFAULT 'pending', create_time DATETIME);
 
 -- ========== 平台域（SaaS 运营总后台，跨租户全局，【不带 tenant_id】，不参与多租户隔离）==========
@@ -380,6 +385,51 @@ CREATE TABLE pm_briefing_assignment (
   KEY idx_template(template_id), KEY idx_target(target_type, target_id));
 ```
 > 模板 is_builtin=1 为内置(不可改/停用)；自定义模板可增删改与指派。
+
+## 可配置工作项与元数据域（阶段1-5，V51-V63；详见 docs/adr/0001、0002）
+> 把硬编码的状态/优先级/项目类型/工作流/视图升级为租户可配置元数据，并补三级权限与项目集。
+> 内置种子(builtin=1)不可删；新租户由 TenantProvisioner 在开通时按本表结构播种默认数据。
+```sql
+-- ===== 三级权限补全（V52/V53）=====
+-- sys_field_perm：角色×字段级权限（任务属性第三级）。access: view 仅查看 / edit 可编辑；未配置=可编辑(取最宽)。
+CREATE TABLE sys_field_perm (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, resource VARCHAR(16), field_key VARCHAR(64), access VARCHAR(8), KEY idx_field_perm_role(tenant_id, role_id, resource));
+-- sys_role_custom_dept：角色 custom 数据范围的部门集（scope=custom 时生效）。
+CREATE TABLE sys_role_custom_dept (id BIGINT PRIMARY KEY, tenant_id BIGINT, role_id BIGINT, dept_id BIGINT, KEY idx_role(tenant_id, role_id));
+
+-- ===== 项目角色 / 项目集（V54/V55）=====
+-- pm_project_role：租户自配项目角色（取代成员 project_role 自由文本，第二级权限维度）。
+CREATE TABLE pm_project_role (id BIGINT PRIMARY KEY, tenant_id BIGINT, code VARCHAR(32), name VARCHAR(32), builtin TINYINT DEFAULT 0, sort INT DEFAULT 0, status VARCHAR(16) DEFAULT 'active', KEY idx_tenant(tenant_id));
+CREATE TABLE pm_portfolio (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(128), description TEXT, owner_id BIGINT, status VARCHAR(16) DEFAULT 'active');
+CREATE TABLE pm_portfolio_project (id BIGINT PRIMARY KEY, tenant_id BIGINT, portfolio_id BIGINT, project_id BIGINT, KEY idx_portfolio(tenant_id, portfolio_id));
+
+-- ===== 数据源/选项集库（V56）=====（pm_field_def 同时 V56 追加 data_source_id：选项可引用复用选项集）
+CREATE TABLE pm_data_source (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(64), group_name VARCHAR(32), remark VARCHAR(255), status VARCHAR(16) DEFAULT 'active');
+CREATE TABLE pm_data_source_option (id BIGINT PRIMARY KEY, tenant_id BIGINT, data_source_id BIGINT, value VARCHAR(64), label VARCHAR(64), sort_no INT DEFAULT 0, KEY idx_ds(tenant_id, data_source_id));
+
+-- ===== 状态库（V57）=====（meta_category 归约：未开始/进行中/已完成；读方按 status_id 与元类别判定，取代 TaskStatus 枚举）
+CREATE TABLE pm_status (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(32), color VARCHAR(16), meta_category VARCHAR(16), group_name VARCHAR(32), sort INT DEFAULT 0, builtin TINYINT DEFAULT 0, status VARCHAR(16) DEFAULT 'active', KEY idx_tenant(tenant_id));
+
+-- ===== 优先级模式/档位（V58）=====（取代前端写死 TASK_PRIORITIES；level_value 1高/2中/3低）
+CREATE TABLE pm_priority_mode (id BIGINT PRIMARY KEY, tenant_id BIGINT, name VARCHAR(32), remark VARCHAR(128), builtin TINYINT DEFAULT 0, status VARCHAR(16) DEFAULT 'active');
+CREATE TABLE pm_priority_level (id BIGINT PRIMARY KEY, tenant_id BIGINT, mode_id BIGINT, name VARCHAR(32), color VARCHAR(16), level_value INT, sort INT DEFAULT 0, KEY idx_mode(tenant_id, mode_id));
+
+-- ===== 工作项类型 + 工作流引擎（V59）=====（核心新轴=字段集+工作流+模板；pm_task.type_id 引用）
+CREATE TABLE pm_work_item_type (id BIGINT PRIMARY KEY, tenant_id BIGINT, code VARCHAR(32), name VARCHAR(32), group_name VARCHAR(32), builtin TINYINT DEFAULT 0, sort INT DEFAULT 0, status VARCHAR(16) DEFAULT 'active', KEY idx_code(tenant_id, code));
+CREATE TABLE pm_work_item_type_field (id BIGINT PRIMARY KEY, tenant_id BIGINT, type_id BIGINT, field_key VARCHAR(64), required TINYINT DEFAULT 0, sort INT DEFAULT 0, KEY idx_type(tenant_id, type_id));
+-- pm_work_item_transition：按「类型×from_status×to_status」的流转矩阵，取代硬编码 TaskWorkflow。
+-- 注：刻意区别于旧 pm_workflow_transition（旧 pm_workflow 串式占位，P1 可配工作流），避免清库全量迁移撞名。
+CREATE TABLE pm_work_item_transition (id BIGINT PRIMARY KEY, tenant_id BIGINT, type_id BIGINT, from_status_id BIGINT, to_status_id BIGINT, KEY idx_wit(tenant_id, type_id));
+
+-- ===== 工作项关联（V61）=====（relation_kind: related 相关 / derived 派生；支撑需求-任务-缺陷追溯）
+CREATE TABLE pm_relation_def (id BIGINT PRIMARY KEY, tenant_id BIGINT, source_type_id BIGINT, target_type_id BIGINT, relation_kind VARCHAR(16), name VARCHAR(32));
+CREATE TABLE pm_relation (id BIGINT PRIMARY KEY, tenant_id BIGINT, source_task_id BIGINT, target_task_id BIGINT, relation_kind VARCHAR(16), KEY idx_src(tenant_id, source_task_id), KEY idx_tgt(tenant_id, target_task_id));
+
+-- ===== 组件化视图（V62）=====（项目顶栏由已安装组件动态生成；multi_instance=1 可多实例如多看板）
+CREATE TABLE pm_component (id BIGINT PRIMARY KEY, tenant_id BIGINT, code VARCHAR(32), name VARCHAR(32), icon VARCHAR(32), multi_instance TINYINT DEFAULT 0, builtin TINYINT DEFAULT 0, sort INT DEFAULT 0, KEY idx_tenant(tenant_id));
+CREATE TABLE pm_project_component (id BIGINT PRIMARY KEY, tenant_id BIGINT, project_id BIGINT, component_code VARCHAR(32), name VARCHAR(32), sort INT DEFAULT 0, enabled TINYINT DEFAULT 1, KEY idx_project(tenant_id, project_id));
+```
+> 旧 `pm_workflow` / `pm_workflow_status` / `pm_workflow_transition`（串式）为 P1 可配工作流占位，
+> 当前未接线；其职能由上方工作项类型工作流（`pm_work_item_transition`）实现，未来再决定是否正式废弃。
 
 ## 状态字典（枚举，集中维护，禁散落魔法值）
 - 项目状态：`草稿 / 审批中 / 已注册 / 进行中 / 结果验收 / 已结案 / 价值验收中 / 已评价`
