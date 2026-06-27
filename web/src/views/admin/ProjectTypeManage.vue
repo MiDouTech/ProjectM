@@ -54,10 +54,7 @@
         <el-form-item label="标签颜色">
           <el-select v-model="form.color" placeholder="选择颜色">
             <el-option v-for="c in PROJECT_TYPE_COLORS" :key="c.value" :label="c.label" :value="c.value">
-              <span class="color-opt">
-                <span class="color-dot" :style="{ background: `var(--el-color-${c.value})` }" />
-                {{ c.label }}
-              </span>
+              <ColorDot :color="c.value" />{{ c.label }}
             </el-option>
           </el-select>
         </el-form-item>
@@ -106,6 +103,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { projectTypeApi, approvalFlowApi, PROJECT_TYPE_COLORS } from '@/api/project'
+import ColorDot from '@/components/ColorDot.vue'
 
 // 内置种子类型标识（仅用于「内置」徽章展示；这些类型同样可改名/改色/停用）
 const BUILTIN_TYPE_CODES = new Set(['S', 'I', 'O', 'O_NORMAL', 'O_RECTIFY', 'O_SPECIAL'])
@@ -213,17 +211,6 @@ onMounted(load)
 }
 .code {
   margin-left: var(--mido-space-2);
-}
-.color-opt {
-  display: flex;
-  align-items: center;
-  gap: var(--mido-space-2);
-}
-.color-dot {
-  width: var(--mido-space-3);
-  height: var(--mido-space-3);
-  border-radius: 50%;
-  flex: none;
 }
 .flow-opt {
   display: flex;

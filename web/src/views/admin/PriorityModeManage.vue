@@ -38,10 +38,7 @@
               <el-input v-model="l.name" placeholder="名称" class="level__name" />
               <el-select v-model="l.color" placeholder="色" class="level__color">
                 <el-option v-for="c in COLOR_OPTIONS" :key="c.value" :label="c.label" :value="c.value">
-                  <span class="color-opt">
-                    <span class="color-dot" :style="{ background: `var(--el-color-${c.value})` }" />
-                    {{ c.label }}
-                  </span>
+                  <ColorDot :color="c.value" />{{ c.label }}
                 </el-option>
               </el-select>
               <el-input-number v-model="l.levelValue" :min="1" :controls="false" class="level__val" placeholder="值" />
@@ -63,6 +60,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
+import ColorDot from '@/components/ColorDot.vue'
 import { priorityModeApi } from '@/api/task'
 
 // 档位色：色块 + 中文，不暴露 token 名
@@ -157,16 +155,5 @@ onMounted(load)
 }
 .level__val {
   width: 90px;
-}
-.color-opt {
-  display: flex;
-  align-items: center;
-  gap: var(--mido-space-2);
-}
-.color-dot {
-  width: var(--mido-space-3);
-  height: var(--mido-space-3);
-  border-radius: 50%;
-  flex: none;
 }
 </style>

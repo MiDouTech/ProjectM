@@ -54,10 +54,10 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import WorkbenchCard from './workbench/WorkbenchCard.vue'
 import { workbenchApi } from '@/api/workbench'
-import { userApi } from '@/api/org'
+import { useMe } from '@/composables/useMe'
 
 // 顶部问候条：时段问候 + 当前用户名 + 日期，给工作台身份感、不浪费顶部空间
-const myName = ref('')
+const { name: myName } = useMe()
 const now = new Date()
 const greeting = (() => {
   const h = now.getHours()
@@ -69,7 +69,6 @@ const greeting = (() => {
 })()
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const todayText = `${now.getMonth() + 1}月${now.getDate()}日 ${WEEKDAYS[now.getDay()]}`
-userApi.me().then((me) => { myName.value = me.name || me.username || '' }).catch(() => {})
 
 // 卡片目录（design-system §7-C）。basic=基础卡片：始终存在、不可移除。
 const CATALOG = [

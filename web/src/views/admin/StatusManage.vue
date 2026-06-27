@@ -41,10 +41,7 @@
         <el-form-item label="颜色">
           <el-select v-model="form.color" class="full" placeholder="选择状态色">
             <el-option v-for="c in COLOR_OPTIONS" :key="c.value" :label="c.label" :value="c.value">
-              <span class="color-opt">
-                <span class="color-dot" :style="{ background: `var(--el-color-${c.value})` }" />
-                {{ c.label }}
-              </span>
+              <ColorDot :color="c.value" />{{ c.label }}
             </el-option>
           </el-select>
         </el-form-item>
@@ -70,6 +67,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ColorDot from '@/components/ColorDot.vue'
 import { statusApi, META_CATEGORIES } from '@/api/task'
 
 // 状态色：中文含义 + 色块预览，不让用户面对 info/primary 等 token 名
@@ -153,16 +151,5 @@ onMounted(load)
 }
 .full {
   width: 100%;
-}
-.color-opt {
-  display: flex;
-  align-items: center;
-  gap: var(--mido-space-2);
-}
-.color-dot {
-  width: var(--mido-space-3);
-  height: var(--mido-space-3);
-  border-radius: 50%;
-  flex: none;
 }
 </style>

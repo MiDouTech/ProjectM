@@ -43,12 +43,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Setting, Back } from '@element-plus/icons-vue'
 import { adminNavGroups } from '@/router'
 import { useUserStore } from '@/store/user'
-import { userApi } from '@/api/org'
+import { useMe } from '@/composables/useMe'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,8 +79,8 @@ function goApp() {
   router.push('/')
 }
 
-// 顶栏头像首字：取当前用户名首字，失败回落
-const myInitial = ref('管')
+// 顶栏头像首字：取当前用户名首字，失败回落「管」
+const { initial: myInitial } = useMe('管')
 function onUserCommand(command) {
   if (command === 'app') goApp()
   else if (command === 'logout') {
@@ -89,14 +89,8 @@ function onUserCommand(command) {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   userStore.fetchFeatures()
-  try {
-    const me = await userApi.me()
-    myInitial.value = (me.name || me.username || '管').charAt(0)
-  } catch {
-    /* 取不到用户信息保持默认首字 */
-  }
 })
 </script>
 
