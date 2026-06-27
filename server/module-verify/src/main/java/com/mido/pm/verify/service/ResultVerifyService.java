@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.project.ProjectExistenceGate;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.common.verify.ResultVerifyGate;
 import com.mido.pm.verify.dto.ResultVerifySaveDTO;
@@ -30,10 +31,13 @@ public class ResultVerifyService implements ResultVerifyGate {
 
     private final PmResultVerifyMapper mapper;
     private final DomainEventPublisher eventPublisher;
+    private final ProjectExistenceGate projectExistenceGate;
 
-    public ResultVerifyService(PmResultVerifyMapper mapper, DomainEventPublisher eventPublisher) {
+    public ResultVerifyService(PmResultVerifyMapper mapper, DomainEventPublisher eventPublisher,
+                               ProjectExistenceGate projectExistenceGate) {
         this.mapper = mapper;
         this.eventPublisher = eventPublisher;
+        this.projectExistenceGate = projectExistenceGate;
     }
 
     /** 项目最新一条结果验收结论；无则 null。 */
@@ -45,6 +49,8 @@ public class ResultVerifyService implements ResultVerifyGate {
     /** 录入结果验收结论（每次一条，最新为权威）。同事务写 Outbox 事件。 */
     @Transactional(rollbackFor = Exception.class)
     public ResultVerifyVO save(Long projectId, ResultVerifySaveDTO dto) {
+        // 录入前校验项目在当前租户下存在，避免伪造 projectId 产生孤儿结论 + 越权伪造 pass 绕过结案闸门
+        projectExistenceGate.assertExists(projectId);
         PmResultVerify e = new PmResultVerify();
         e.setProjectId(projectId);
         e.setVerdict(dto.verdict());

@@ -2,6 +2,7 @@ package com.mido.pm.verify.service;
 
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.outbox.DomainEventPublisher;
+import com.mido.pm.common.project.ProjectExistenceGate;
 import com.mido.pm.verify.dto.ResultVerifySaveDTO;
 import com.mido.pm.verify.entity.PmResultVerify;
 import com.mido.pm.verify.mapper.PmResultVerifyMapper;
@@ -31,9 +32,20 @@ class ResultVerifyServiceTest {
     private PmResultVerifyMapper mapper;
     @Mock
     private DomainEventPublisher eventPublisher;
+    @Mock
+    private ProjectExistenceGate projectExistenceGate;
 
     private ResultVerifyService service() {
-        return new ResultVerifyService(mapper, eventPublisher);
+        return new ResultVerifyService(mapper, eventPublisher, projectExistenceGate);
+    }
+
+    @Test
+    void save_unknownProject_throwsAndSkipsInsert() {
+        org.mockito.Mockito.doThrow(new BizException(com.mido.pm.common.exception.ErrorCode.NOT_FOUND, "项目不存在"))
+                .when(projectExistenceGate).assertExists(99L);
+        ResultVerifySaveDTO dto = new ResultVerifySaveDTO("pass", true, true, true, null, null);
+        assertThrows(BizException.class, () -> service().save(99L, dto));
+        org.mockito.Mockito.verifyNoInteractions(mapper, eventPublisher);
     }
 
     private PmResultVerify verdict(String v) {

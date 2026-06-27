@@ -64,18 +64,21 @@ public class UserController {
         return R.ok(userService.create(dto));
     }
 
+    @PreAuthorize("hasAuthority('org:user:create')")
     @PutMapping("/{id}")
     public R<Void> update(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO dto) {
         userService.update(id, dto);
         return R.ok();
     }
 
+    @PreAuthorize("hasAuthority('org:user:create')")
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {
         userService.delete(id);
         return R.ok();
     }
 
+    @PreAuthorize("hasAuthority('org:user:create')")
     @PutMapping("/{id}/roles")
     public R<Void> assignRoles(@PathVariable Long id, @RequestBody AssignRolesDTO dto) {
         userService.assignRoles(id, dto.roleIds());
@@ -83,6 +86,7 @@ public class UserController {
     }
 
     /** 管理员重置指定用户密码（与 update/delete 同级保护，操作留审计）。 */
+    @PreAuthorize("hasAuthority('org:user:create')")
     @PutMapping("/{id}/password")
     public R<Void> resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordDTO dto) {
         userService.resetPassword(id, dto.newPassword());

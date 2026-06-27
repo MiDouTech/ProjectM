@@ -6,6 +6,7 @@ import com.mido.pm.project.dto.TemplateSaveDTO;
 import com.mido.pm.project.dto.TemplateVO;
 import com.mido.pm.project.service.ProjectTemplateService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,17 +46,20 @@ public class ProjectTemplateController {
         return R.ok(templateService.detail(id));
     }
 
+    @PreAuthorize("hasAuthority('org:config:manage')")
     @PostMapping
     public R<Long> create(@Valid @RequestBody TemplateSaveDTO dto) {
         return R.ok(templateService.create(dto));
     }
 
+    @PreAuthorize("hasAuthority('org:config:manage')")
     @PutMapping("/{id}")
     public R<Void> update(@PathVariable Long id, @Valid @RequestBody TemplateSaveDTO dto) {
         templateService.update(id, dto);
         return R.ok();
     }
 
+    @PreAuthorize("hasAuthority('org:config:manage')")
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {
         templateService.delete(id);

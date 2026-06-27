@@ -3,6 +3,7 @@ package com.mido.pm.view.controller;
 import com.mido.pm.common.api.R;
 import com.mido.pm.view.domain.PageFieldCatalog.FieldDef;
 import com.mido.pm.view.service.PageConfigService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -39,7 +40,8 @@ public class PageConfigController {
         return R.ok(service.get(target, templateType));
     }
 
-    /** 保存页面配置。 */
+    /** 保存页面配置（租户级配置，限配置管理权限）。 */
+    @PreAuthorize("hasAuthority('org:config:manage')")
     @PutMapping("/{target}/{templateType}")
     public R<Void> save(@PathVariable String target, @PathVariable String templateType,
                         @RequestBody Map<String, Object> config) {

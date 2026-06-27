@@ -5,6 +5,7 @@ import com.mido.pm.view.domain.WorkspaceCatalog.ComponentDef;
 import com.mido.pm.view.dto.NavItemSaveDTO;
 import com.mido.pm.view.dto.NavNodeVO;
 import com.mido.pm.view.service.WorkspaceNavService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -45,7 +46,8 @@ public class WorkspaceNavController {
         return R.ok(service.rawConfig(module));
     }
 
-    /** 整组保存某模块导航编排（管理后台）。 */
+    /** 整组保存某模块导航编排（管理后台，租户级配置，限配置管理权限）。 */
+    @PreAuthorize("hasAuthority('org:config:manage')")
     @PutMapping("/nav/{module}")
     public R<Void> saveNav(@PathVariable String module, @RequestBody List<NavItemSaveDTO> items) {
         service.saveNav(module, items);
