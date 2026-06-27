@@ -9,6 +9,16 @@
           <el-option v-for="s in TENANT_STATUS" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
         <el-button :icon="Refresh" :loading="snapshotLoading" @click="refreshUsage">刷新用量</el-button>
+        <el-dropdown :hide-on-click="false" trigger="click">
+          <el-button :icon="Setting" circle plain title="列设置" />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="c in pref.optionalCols" :key="c.key">
+                <el-checkbox :model-value="pref.visible(c.key)" @change="(v) => pref.toggle(c.key, v)">{{ c.label }}</el-checkbox>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openCreate">开通租户</el-button>
       </div>
     </div>
@@ -23,22 +33,23 @@
       <el-button size="small" type="warning" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
         @click="batchStatus('suspended')">批量停用</el-button>
     </div>
-    <el-table v-loading="loading" :data="rows" stripe @selection-change="onSelectionChange">
+    <el-table v-loading="loading" :data="rows" stripe border
+      @header-dragend="pref.onHeaderResize" @selection-change="onSelectionChange">
       <el-table-column type="selection" width="46" />
-      <el-table-column prop="code" label="编码" width="160" />
-      <el-table-column prop="name" label="名称" min-width="160" />
-      <el-table-column label="状态" width="100">
+      <el-table-column prop="code" label="编码" :width="pref.w('编码', 160)" />
+      <el-table-column prop="name" label="名称" :width="pref.w('名称', 200)" />
+      <el-table-column label="状态" :width="pref.w('状态', 100)">
         <template #default="{ row }">
           <StatusTag :status="row.status" :label="tenantLabel(row.status)" />
         </template>
       </el-table-column>
-      <el-table-column label="套餐" width="140">
+      <el-table-column v-if="pref.visible('plan')" label="套餐" :width="pref.w('套餐', 140)">
         <template #default="{ row }">{{ row.planName || '—' }}</template>
       </el-table-column>
-      <el-table-column label="到期" width="180">
+      <el-table-column v-if="pref.visible('expire')" label="到期" :width="pref.w('到期', 180)">
         <template #default="{ row }">{{ row.expireAt || '不限期' }}</template>
       </el-table-column>
-      <el-table-column label="联系" min-width="160">
+      <el-table-column v-if="pref.visible('contact')" label="联系" :width="pref.w('联系', 200)">
         <template #default="{ row }">
           <span v-if="row.contactName || row.contactPhone">
             {{ row.contactName || '' }} {{ row.contactPhone || '' }}
@@ -258,14 +269,20 @@
 import { h, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
-import { Plus, Refresh, Switch, Download } from '@element-plus/icons-vue'
+import { Plus, Refresh, Switch, Download, Setting } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
 import { useOpsUserStore } from '@/store/opsUser'
+import { useOpsTablePref } from '@/composables/useOpsTablePref'
 
 const ops = useOpsUserStore()
+const pref = useOpsTablePref('tenants', [
+  { key: 'plan', label: '套餐' },
+  { key: 'expire', label: '到期' },
+  { key: 'contact', label: '联系' },
+])
 const loading = ref(false)
 const loadError = ref(false)
 const rows = ref([])
