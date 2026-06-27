@@ -47,31 +47,79 @@
             登 录
           </el-button>
         </el-form>
-
-        <footer class="login__feats">
-          <span class="login__feat">默认账号 superadmin / superadmin123</span>
-        </footer>
       </section>
 
       <p class="login__copyright">© 2026 米多 · 平台运营后台</p>
     </main>
+
+    <!-- 首登/被重置后强制改密：不可关闭，改密成功才放行 -->
+    <el-dialog
+      v-model="pwdVisible"
+      title="请设置新密码"
+      width="420px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        title="为保障账号安全，首次登录或密码被重置后必须修改密码"
+        style="margin-bottom: var(--mido-space-4)"
+      />
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="92px">
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-64 位，含字母和数字" />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" @keyup.enter="submitChangePassword" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" :loading="pwdLoading" @click="submitChangePassword">确定并进入</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Platform, User, Lock } from '@element-plus/icons-vue'
 import { opsAuthApi } from '@/api/ops'
 import { useOpsUserStore } from '@/store/opsUser'
 
+// 密码强度：8-64 位且同时含字母和数字（与后端 PasswordPolicy 一致）
+const PWD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/
+
 const router = useRouter()
 const formRef = ref()
 const loading = ref(false)
-const form = reactive({ username: 'superadmin', password: '' })
+const form = reactive({ username: '', password: '' })
 const rules = {
   username: [{ required: true, message: '请输入运营登录名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+}
+
+// 首登强制改密
+const pwdVisible = ref(false)
+const pwdLoading = ref(false)
+const pwdFormRef = ref()
+const pwdForm = reactive({ newPassword: '', confirmPassword: '' })
+const pwdRules = {
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { pattern: PWD_REGEX, message: '密码需 8-64 位且同时包含字母和数字', trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_r, v, cb) => (v === pwdForm.newPassword ? cb() : cb(new Error('两次输入不一致'))),
+      trigger: 'blur',
+    },
+  ],
 }
 
 async function submit() {
@@ -80,9 +128,27 @@ async function submit() {
   try {
     const data = await opsAuthApi.login({ username: form.username, password: form.password })
     useOpsUserStore().setToken(data.token)
-    router.push('/ops')
+    if (data.mustChangePassword) {
+      // 令牌已就绪，弹出强制改密；改密成功后才进入后台
+      pwdVisible.value = true
+    } else {
+      router.push('/ops')
+    }
   } finally {
     loading.value = false
+  }
+}
+
+async function submitChangePassword() {
+  await pwdFormRef.value.validate()
+  pwdLoading.value = true
+  try {
+    await opsAuthApi.changePassword({ oldPassword: form.password, newPassword: pwdForm.newPassword })
+    ElMessage.success('密码已更新')
+    pwdVisible.value = false
+    router.push('/ops')
+  } finally {
+    pwdLoading.value = false
   }
 }
 </script>

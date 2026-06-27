@@ -10,6 +10,8 @@ import request from './request'
 export const opsAuthApi = {
   login: (data) => request.post('/platform/auth/login', data),
   me: () => request.get('/platform/auth/me'),
+  // 自助改密（含首登强制改密）：{oldPassword, newPassword}
+  changePassword: (data) => request.post('/platform/auth/password', data),
 }
 
 /** 仪表盘 */

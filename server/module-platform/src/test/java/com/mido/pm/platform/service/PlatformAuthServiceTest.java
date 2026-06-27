@@ -15,13 +15,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +40,8 @@ class PlatformAuthServiceTest {
     private SysPlatformRolePermMapper rolePermMapper;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private PlatformAuditService auditService;
 
     @InjectMocks
     private PlatformAuthService authService;
@@ -52,10 +57,12 @@ class PlatformAuthServiceTest {
     }
 
     @Test
-    void loginWrongPasswordRejected() {
+    void loginWrongPasswordRecordsFailure() {
         when(adminMapper.selectOne(any())).thenReturn(admin("active"));
         when(passwordEncoder.matches("bad", "hash")).thenReturn(false);
         assertThrows(BizException.class, () -> authService.login("superadmin", "bad"));
+        // 失败计数被写回
+        verify(adminMapper).updateById(any(SysPlatformAdmin.class));
     }
 
     @Test
@@ -66,13 +73,60 @@ class PlatformAuthServiceTest {
     }
 
     @Test
-    void loginSuccessReturnsIdAndStampsLastLogin() {
+    void loginSuccessReturnsAdminAndClearsLock() {
         when(adminMapper.selectOne(any())).thenReturn(admin("active"));
         when(passwordEncoder.matches("ok", "hash")).thenReturn(true);
 
-        Long id = authService.login("superadmin", "ok");
+        SysPlatformAdmin result = authService.login("superadmin", "ok");
 
-        assertEquals(1L, id);
+        assertEquals(1L, result.getId());
+        // 成功路径清零锁定与失败计数后写回
+        verify(adminMapper).updateById(any(SysPlatformAdmin.class));
+    }
+
+    @Test
+    void lockedAccountRejectedEvenWithCorrectPassword() {
+        SysPlatformAdmin locked = admin("active");
+        locked.setLockedUntil(LocalDateTime.now().plusMinutes(10));
+        when(adminMapper.selectOne(any())).thenReturn(locked);
+
+        assertThrows(BizException.class, () -> authService.login("superadmin", "ok"));
+        // 锁定期内不校验密码、不写库
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    void fifthFailureTriggersLock() {
+        SysPlatformAdmin a = admin("active");
+        a.setFailCount(4); // 第 5 次失败触发锁定
+        when(adminMapper.selectOne(any())).thenReturn(a);
+        when(passwordEncoder.matches("bad", "hash")).thenReturn(false);
+
+        assertThrows(BizException.class, () -> authService.login("superadmin", "bad"));
+
+        assertTrue(a.getLockedUntil() != null && a.getLockedUntil().isAfter(LocalDateTime.now()));
+        verify(adminMapper).updateById(any(SysPlatformAdmin.class));
+    }
+
+    @Test
+    void changeOwnPasswordWrongOldRejected() {
+        when(adminMapper.selectById(1L)).thenReturn(admin("active"));
+        when(passwordEncoder.matches("wrong", "hash")).thenReturn(false);
+        assertThrows(BizException.class, () -> authService.changeOwnPassword(1L, "wrong", "NewPass123"));
+    }
+
+    @Test
+    void changeOwnPasswordSuccessClearsFlag() {
+        SysPlatformAdmin a = admin("active");
+        a.setMustChangePassword(true);
+        when(adminMapper.selectById(1L)).thenReturn(a);
+        when(passwordEncoder.matches("OldPass123", "hash")).thenReturn(true);
+        when(passwordEncoder.encode("NewPass123")).thenReturn("newhash");
+
+        authService.changeOwnPassword(1L, "OldPass123", "NewPass123");
+
+        assertEquals("newhash", a.getPassword());
+        assertFalse(a.getMustChangePassword());
         verify(adminMapper).updateById(any(SysPlatformAdmin.class));
     }
 

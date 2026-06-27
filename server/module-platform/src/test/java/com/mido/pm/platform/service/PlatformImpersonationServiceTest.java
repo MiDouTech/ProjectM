@@ -58,7 +58,7 @@ class PlatformImpersonationServiceTest {
 
     @Test
     void impersonatePrefersTenantAdminUser() {
-        PlatformContext.set(new PlatformPrincipal(100L, "superadmin", "超管", List.of()));
+        PlatformContext.set(new PlatformPrincipal(100L, "superadmin", "超管", List.of(), false));
         when(tenantMapper.selectById(9L)).thenReturn(tenant(5L));
         when(ssoProvider.issueImpersonationToken(eq(5L), eq(9L), eq(100L))).thenReturn("tok");
 
@@ -72,7 +72,7 @@ class PlatformImpersonationServiceTest {
 
     @Test
     void impersonateFallsBackToPrimaryUser() {
-        PlatformContext.set(new PlatformPrincipal(100L, "superadmin", "超管", List.of()));
+        PlatformContext.set(new PlatformPrincipal(100L, "superadmin", "超管", List.of(), false));
         when(tenantMapper.selectById(9L)).thenReturn(tenant(null));
         when(tenantUserLocator.primaryUserId(9L)).thenReturn(8L);
         when(ssoProvider.issueImpersonationToken(eq(8L), eq(9L), eq(100L))).thenReturn("tok");

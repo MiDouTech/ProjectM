@@ -2,6 +2,7 @@ package com.mido.pm.platform.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 
 import java.util.List;
 
@@ -9,6 +10,7 @@ import java.util.List;
 public record AdminCreateDTO(
         @NotBlank(message = "登录名不能为空") String username,
         @NotBlank(message = "姓名不能为空") String name,
-        @NotBlank(message = "密码不能为空") String password,
+        @NotBlank(message = "密码不能为空")
+        @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE) String password,
         @NotEmpty(message = "至少分配一个角色") List<Long> roleIds) {
 }
