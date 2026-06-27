@@ -14,7 +14,52 @@ export const navItems = [
   { path: '/doc', title: '文档', icon: 'Document' },
   { path: '/calendar', title: '日历', icon: 'Calendar' },
   { path: '/briefing', title: '简报', icon: 'Notebook' },
-  { path: '/admin', title: '管理后台', icon: 'Setting' },
+  // 管理后台不在此列：它是独立全屏布局(/admin)，由 MainLayout 左导航底部单独入口新标签打开
+]
+
+// 管理后台分组导航（独立全屏 AdminShell 用）：L1 分组 + L2 子项。
+// 结构稳定、非租户可配，集中维护于此。子项 feature 为空则始终显示。
+export const adminNavGroups = [
+  {
+    code: 'org', name: '组织与权限', children: [
+      { path: '/admin/members', name: '成员' },
+      { path: '/admin/roles', name: '角色' },
+      { path: '/admin/depts', name: '部门' },
+      { path: '/admin/org', name: '企业微信' },
+      { path: '/admin/project-roles', name: '项目角色' },
+    ],
+  },
+  {
+    code: 'project', name: '项目配置', children: [
+      { path: '/admin/project-types', name: '项目类型' },
+      { path: '/admin/project-templates', name: '项目模板' },
+      { path: '/admin/work-item-types', name: '工作项类型' },
+      { path: '/admin/priority-modes', name: '优先级' },
+      { path: '/admin/statuses', name: '状态库' },
+    ],
+  },
+  {
+    code: 'flow', name: '流程与审批', children: [
+      { path: '/admin/approval-flows', name: '审批流' },
+      { path: '/admin/change-policies', name: '变更策略' },
+      { path: '/admin/npss-settings', name: 'NPSS 评价' },
+    ],
+  },
+  {
+    code: 'data', name: '数据与字段', children: [
+      { path: '/admin/fields', name: '自定义字段' },
+      { path: '/admin/data-sources', name: '数据源' },
+      { path: '/admin/relation-defs', name: '关联关系' },
+    ],
+  },
+  {
+    code: 'system', name: '系统', children: [
+      { path: '/admin/workspace-nav', name: '导航配置' },
+      { path: '/admin/workspace-page', name: '页面配置' },
+      { path: '/admin/audit-logs', name: '操作日志' },
+      { path: '/admin/apikeys', name: '开放平台', feature: 'openapi' },
+    ],
+  },
 ]
 
 // 平台运营后台侧导航（独立于租户应用 navItems）
@@ -72,33 +117,34 @@ const routes = [
       { path: 'doc', component: () => import('@/views/Doc.vue') },
       { path: 'calendar', component: () => import('@/views/calendar/CalendarView.vue') },
       { path: 'briefing', component: () => import('@/views/briefing/BriefingView.vue') },
-      {
-        path: 'admin',
-        component: () => import('@/views/admin/AdminLayout.vue'),
-        redirect: '/admin/members',
-        children: [
-          { path: 'members', component: () => import('@/views/admin/MemberManage.vue') },
-          { path: 'roles', component: () => import('@/views/admin/RoleManage.vue') },
-          { path: 'depts', component: () => import('@/views/admin/DeptTree.vue') },
-          { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
-          { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
-          { path: 'project-roles', component: () => import('@/views/admin/ProjectRoleManage.vue') },
-          { path: 'workspace-nav', component: () => import('@/views/admin/WorkspaceNavManage.vue') },
-          { path: 'workspace-page', component: () => import('@/views/admin/WorkspacePageManage.vue') },
-          { path: 'project-templates', component: () => import('@/views/admin/ProjectTemplateManage.vue') },
-          { path: 'npss-settings', component: () => import('@/views/admin/NpssSettingsManage.vue') },
-          { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
-          { path: 'change-policies', component: () => import('@/views/admin/ChangePolicyManage.vue') },
-          { path: 'fields', component: () => import('@/views/admin/FieldDefManage.vue') },
-          { path: 'data-sources', component: () => import('@/views/admin/DataSourceManage.vue') },
-          { path: 'work-item-types', component: () => import('@/views/admin/WorkItemTypeManage.vue') },
-          { path: 'relation-defs', component: () => import('@/views/admin/RelationDefManage.vue') },
-          { path: 'statuses', component: () => import('@/views/admin/StatusManage.vue') },
-          { path: 'priority-modes', component: () => import('@/views/admin/PriorityModeManage.vue') },
-          { path: 'audit-logs', component: () => import('@/views/admin/AuditLogView.vue') },
-          { path: 'apikeys', component: () => import('@/views/admin/ApiKeyManage.vue') },
-        ],
-      },
+    ],
+  },
+  // ===== 管理后台（独立全屏布局，脱离主应用左导航；入口在新标签打开）=====
+  {
+    path: '/admin',
+    component: () => import('@/layouts/AdminShell.vue'),
+    redirect: '/admin/members',
+    children: [
+      { path: 'members', component: () => import('@/views/admin/MemberManage.vue') },
+      { path: 'roles', component: () => import('@/views/admin/RoleManage.vue') },
+      { path: 'depts', component: () => import('@/views/admin/DeptTree.vue') },
+      { path: 'org', component: () => import('@/views/admin/OrgStructure.vue') },
+      { path: 'project-types', component: () => import('@/views/admin/ProjectTypeManage.vue') },
+      { path: 'project-roles', component: () => import('@/views/admin/ProjectRoleManage.vue') },
+      { path: 'workspace-nav', component: () => import('@/views/admin/WorkspaceNavManage.vue') },
+      { path: 'workspace-page', component: () => import('@/views/admin/WorkspacePageManage.vue') },
+      { path: 'project-templates', component: () => import('@/views/admin/ProjectTemplateManage.vue') },
+      { path: 'npss-settings', component: () => import('@/views/admin/NpssSettingsManage.vue') },
+      { path: 'approval-flows', component: () => import('@/views/admin/ApprovalFlowDesigner.vue') },
+      { path: 'change-policies', component: () => import('@/views/admin/ChangePolicyManage.vue') },
+      { path: 'fields', component: () => import('@/views/admin/FieldDefManage.vue') },
+      { path: 'data-sources', component: () => import('@/views/admin/DataSourceManage.vue') },
+      { path: 'work-item-types', component: () => import('@/views/admin/WorkItemTypeManage.vue') },
+      { path: 'relation-defs', component: () => import('@/views/admin/RelationDefManage.vue') },
+      { path: 'statuses', component: () => import('@/views/admin/StatusManage.vue') },
+      { path: 'priority-modes', component: () => import('@/views/admin/PriorityModeManage.vue') },
+      { path: 'audit-logs', component: () => import('@/views/admin/AuditLogView.vue') },
+      { path: 'apikeys', component: () => import('@/views/admin/ApiKeyManage.vue') },
     ],
   },
 ]
