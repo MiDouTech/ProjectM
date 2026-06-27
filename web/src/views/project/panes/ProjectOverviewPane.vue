@@ -115,6 +115,7 @@ import { PROJECT_CATEGORIES } from '@/api/project'
 import { pageConfigApi } from '@/api/view'
 import { fieldDefApi } from '@/api/field'
 import { parseFieldOptions } from '@/utils/pageConfig'
+import { todayStr } from '@/utils/display'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -187,7 +188,7 @@ async function loadHealth() {
       taskApi.kanban(props.projectId).catch(() => []),
       goalApi.byProject(props.projectId).catch(() => []),
     ])
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayStr() // 本地日期；toISOString 会按 UTC 偏移，东八区凌晨误判逾期
     let total = 0, done = 0, overdue = 0, inProgress = 0
     ;(cols || []).forEach((col) => {
       const meta = col.metaCategory
