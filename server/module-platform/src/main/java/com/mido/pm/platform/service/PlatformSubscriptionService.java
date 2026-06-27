@@ -11,6 +11,7 @@ import com.mido.pm.platform.entity.SysTenantSubscription;
 import com.mido.pm.platform.mapper.SysPlanMapper;
 import com.mido.pm.platform.mapper.SysTenantMapper;
 import com.mido.pm.platform.mapper.SysTenantSubscriptionMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,7 +67,12 @@ public class PlatformSubscriptionService {
         sub.setExpireAt(dto.expireAt());
         sub.setStatus(ACTIVE);
         sub.setRemark(dto.remark());
-        subscriptionMapper.insert(sub);
+        try {
+            subscriptionMapper.insert(sub);
+        } catch (DuplicateKeyException e) {
+            // 命中 uk_sub_active_tenant：并发绑定导致已存在一条 active 订阅
+            throw new BizException(ErrorCode.CONFLICT, "该租户已有生效订阅，请刷新后重试");
+        }
 
         // 同步租户：到期时间随订阅，状态恢复为 active，首次绑定记激活时间
         tenant.setExpireAt(dto.expireAt());

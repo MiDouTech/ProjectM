@@ -6,17 +6,20 @@ import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.entity.SysTenantSubscription;
 import com.mido.pm.platform.mapper.SysPlanMapper;
 import com.mido.pm.platform.mapper.SysTenantMapper;
+import com.mido.pm.common.exception.BizException;
 import com.mido.pm.platform.mapper.SysTenantSubscriptionMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,5 +67,22 @@ class PlatformSubscriptionServiceTest {
         assertEquals(expire, captor.getValue().getExpireAt());
         assertNotNull(captor.getValue().getActivatedAt());
         verify(auditService).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void concurrentBindHittingUniqueKeyTranslatedToConflict() {
+        SysTenant tenant = new SysTenant();
+        tenant.setId(1L);
+        tenant.setStatus("trial");
+        when(tenantMapper.selectById(1L)).thenReturn(tenant);
+        SysPlan plan = new SysPlan();
+        plan.setId(3L);
+        when(planMapper.selectById(3L)).thenReturn(plan);
+        // 模拟并发命中 uk_sub_active_tenant 唯一约束
+        when(subscriptionMapper.insert(any(SysTenantSubscription.class)))
+                .thenThrow(new DuplicateKeyException("uk_sub_active_tenant"));
+
+        assertThrows(BizException.class,
+                () -> service().bind(1L, new SubscriptionSaveDTO(3L, null, null, null)));
     }
 }
