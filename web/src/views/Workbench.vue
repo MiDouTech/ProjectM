@@ -1,6 +1,10 @@
 <template>
   <div class="mido-page">
     <div class="wb__bar">
+      <div class="wb__greeting">
+        <span class="wb__hello">{{ greeting }}{{ myName ? '，' + myName : '' }} 👋</span>
+        <span class="wb__date mido-text-secondary">{{ todayText }}</span>
+      </div>
       <el-button type="primary" :icon="Plus" @click="addDialog = true">添加卡片</el-button>
     </div>
 
@@ -50,6 +54,22 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import WorkbenchCard from './workbench/WorkbenchCard.vue'
 import { workbenchApi } from '@/api/workbench'
+import { userApi } from '@/api/org'
+
+// 顶部问候条：时段问候 + 当前用户名 + 日期，给工作台身份感、不浪费顶部空间
+const myName = ref('')
+const now = new Date()
+const greeting = (() => {
+  const h = now.getHours()
+  if (h < 6) return '凌晨好'
+  if (h < 11) return '早上好'
+  if (h < 13) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})()
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const todayText = `${now.getMonth() + 1}月${now.getDate()}日 ${WEEKDAYS[now.getDay()]}`
+userApi.me().then((me) => { myName.value = me.name || me.username || '' }).catch(() => {})
 
 // 卡片目录（design-system §7-C）。basic=基础卡片：始终存在、不可移除。
 const CATALOG = [
@@ -138,8 +158,21 @@ function removeCard(id) {
 .wb__bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.wb__greeting {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mido-space-3);
+}
+.wb__hello {
+  font-size: var(--mido-font-size-h1);
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+.wb__date {
+  font-size: var(--mido-font-size-secondary);
 }
 .wb__grid {
   display: grid;

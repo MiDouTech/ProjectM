@@ -104,13 +104,13 @@ export const projectTypeApi = {
   setStatus: (id, active) => request.put(`/project-types/${id}/status`, null, { params: { active } }),
 }
 
-/** 项目类型标签可选颜色（design-system token，禁裸 hex） */
+/** 项目类型标签可选颜色（value=design-system 语义色 token，禁裸 hex；label 用颜色本身，便于用户识别） */
 export const PROJECT_TYPE_COLORS = [
-  { value: 'primary', label: '主色' },
-  { value: 'success', label: '成功' },
-  { value: 'warning', label: '警示' },
-  { value: 'danger', label: '危险' },
-  { value: 'info', label: '中性' },
+  { value: 'primary', label: '蓝' },
+  { value: 'success', label: '绿' },
+  { value: 'warning', label: '橙' },
+  { value: 'danger', label: '红' },
+  { value: 'info', label: '灰' },
 ]
 
 

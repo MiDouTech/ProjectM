@@ -43,7 +43,7 @@
     </el-table>
 
     <el-drawer v-model="drawer" :title="editing ? '编辑项目类型' : '新建项目类型'" size="var(--mido-drawer-width)">
-      <el-form ref="formRef" :model="form" :rules="rules" :label-width="92">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="auto">
         <el-form-item label="类型标识" prop="code">
           <el-input v-model="form.code" :disabled="editing" placeholder="租户内唯一，仅英文/数字，如 strategy" />
           <span v-if="editing" class="mido-text-secondary hint">系统内部使用，创建后不可更改</span>
@@ -53,7 +53,12 @@
         </el-form-item>
         <el-form-item label="标签颜色">
           <el-select v-model="form.color" placeholder="选择颜色">
-            <el-option v-for="c in PROJECT_TYPE_COLORS" :key="c.value" :label="c.label" :value="c.value" />
+            <el-option v-for="c in PROJECT_TYPE_COLORS" :key="c.value" :label="c.label" :value="c.value">
+              <span class="color-opt">
+                <span class="color-dot" :style="{ background: `var(--el-color-${c.value})` }" />
+                {{ c.label }}
+              </span>
+            </el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="归属上级">
@@ -203,6 +208,17 @@ onMounted(load)
 }
 .code {
   margin-left: var(--mido-space-2);
+}
+.color-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.color-dot {
+  width: var(--mido-space-3);
+  height: var(--mido-space-3);
+  border-radius: 50%;
+  flex: none;
 }
 .hint {
   margin-left: var(--mido-space-2);
