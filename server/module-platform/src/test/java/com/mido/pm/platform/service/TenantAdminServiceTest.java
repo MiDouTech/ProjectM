@@ -1,6 +1,7 @@
 package com.mido.pm.platform.service;
 
 import com.mido.pm.common.exception.BizException;
+import com.mido.pm.platform.dto.TenantBatchStatusDTO;
 import com.mido.pm.platform.dto.TenantCreateDTO;
 import com.mido.pm.platform.dto.TenantStatusDTO;
 import com.mido.pm.platform.entity.SysTenant;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +87,25 @@ class TenantAdminServiceTest {
         assertEquals("suspended", t.getStatus());
         verify(tenantMapper).updateById(t);
         verify(auditService).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void batchChangeStatusProcessesAllIds() {
+        SysTenant a = new SysTenant();
+        a.setId(1L);
+        a.setStatus("active");
+        SysTenant b = new SysTenant();
+        b.setId(2L);
+        b.setStatus("active");
+        when(tenantMapper.selectById(1L)).thenReturn(a);
+        when(tenantMapper.selectById(2L)).thenReturn(b);
+
+        int n = service().batchChangeStatus(new TenantBatchStatusDTO(java.util.List.of(1L, 2L), "suspended", "批量"));
+
+        assertEquals(2, n);
+        assertEquals("suspended", a.getStatus());
+        assertEquals("suspended", b.getStatus());
+        verify(tenantMapper, times(2)).updateById(any(SysTenant.class));
     }
 
     @Test

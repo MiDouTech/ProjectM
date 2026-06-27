@@ -7,6 +7,7 @@ import com.mido.pm.platform.dto.ImpersonateVO;
 import com.mido.pm.platform.dto.TenantCreateDTO;
 import com.mido.pm.platform.dto.TenantDetailVO;
 import com.mido.pm.platform.dto.TenantQueryDTO;
+import com.mido.pm.platform.dto.TenantBatchStatusDTO;
 import com.mido.pm.platform.dto.TenantStatusDTO;
 import com.mido.pm.platform.dto.TenantUpdateDTO;
 import com.mido.pm.platform.dto.TenantUsageVO;
@@ -84,6 +85,13 @@ public class TenantAdminController {
     public R<Void> changeStatus(@PathVariable Long id, @Valid @RequestBody TenantStatusDTO dto) {
         tenantService.changeStatus(id, dto);
         return R.ok();
+    }
+
+    /** 批量状态流转（批量启用/停用）。 */
+    @PreAuthorize("hasAuthority('" + PlatformPerms.TENANT_MANAGE + "')")
+    @PostMapping("/batch-status")
+    public R<Integer> batchChangeStatus(@Valid @RequestBody TenantBatchStatusDTO dto) {
+        return R.ok(tenantService.batchChangeStatus(dto));
     }
 
     /** 租户用量（用量 vs 套餐配额，含是否超限）。 */

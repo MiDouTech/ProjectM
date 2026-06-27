@@ -15,7 +15,15 @@
 
     <ErrorState v-if="loadError" @retry="load" />
     <template v-else>
-    <el-table v-loading="loading" :data="rows" stripe>
+    <div v-if="selectedIds.length" class="batchbar">
+      <span class="batchbar__info">已选 {{ selectedIds.length }} 个租户</span>
+      <el-button size="small" type="success" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
+        @click="batchStatus('active')">批量启用</el-button>
+      <el-button size="small" type="warning" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
+        @click="batchStatus('suspended')">批量停用</el-button>
+    </div>
+    <el-table v-loading="loading" :data="rows" stripe @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
       <el-table-column prop="code" label="编码" width="160" />
       <el-table-column prop="name" label="名称" min-width="160" />
       <el-table-column label="状态" width="100">
@@ -287,6 +295,20 @@ function reload() {
   load()
 }
 
+/* ===== 批量操作 ===== */
+const selectedIds = ref([])
+function onSelectionChange(rows) {
+  selectedIds.value = rows.map((r) => r.id)
+}
+async function batchStatus(status) {
+  const label = status === 'active' ? '启用' : '停用'
+  await ElMessageBox.confirm(`确认批量${label}选中的 ${selectedIds.value.length} 个租户？`, '批量操作', { type: 'warning' })
+  const n = await tenantApi.batchStatus({ ids: selectedIds.value, status })
+  ElMessage.success(`已${label} ${n} 个租户`)
+  selectedIds.value = []
+  load()
+}
+
 /* ===== 开通 / 编辑 ===== */
 const formDrawer = ref(false)
 const editing = ref(false)
@@ -523,6 +545,20 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.batchbar {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-2) var(--mido-space-3);
+  margin-bottom: var(--mido-space-3);
+  background-color: var(--el-fill-color-light);
+  border-radius: var(--mido-radius-md);
+}
+.batchbar__info {
+  margin-right: auto;
+  font-size: var(--mido-font-size-secondary);
+  color: var(--el-text-color-regular);
 }
 .bar__right {
   display: flex;

@@ -7,6 +7,7 @@ import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.platform.dto.QuotaVO;
 import com.mido.pm.platform.dto.SubscriptionVO;
+import com.mido.pm.platform.dto.TenantBatchStatusDTO;
 import com.mido.pm.platform.dto.TenantCreateDTO;
 import com.mido.pm.platform.dto.TenantDetailVO;
 import com.mido.pm.platform.dto.TenantQueryDTO;
@@ -159,6 +160,19 @@ public class TenantAdminService {
 
     @Transactional(rollbackFor = Exception.class)
     public void changeStatus(Long id, TenantStatusDTO dto) {
+        doChangeStatus(id, dto);
+    }
+
+    /** 批量状态流转（同事务，全成或全回滚）。返回处理数量。 */
+    @Transactional(rollbackFor = Exception.class)
+    public int batchChangeStatus(TenantBatchStatusDTO dto) {
+        for (Long id : dto.ids()) {
+            doChangeStatus(id, new TenantStatusDTO(dto.status(), dto.reason()));
+        }
+        return dto.ids().size();
+    }
+
+    private void doChangeStatus(Long id, TenantStatusDTO dto) {
         if (!SETTABLE_STATUS.contains(dto.status())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "非法的目标状态: " + dto.status());
         }

@@ -26,6 +26,8 @@ export const tenantApi = {
   create: (data) => request.post('/platform/tenants', data),
   update: (id, data) => request.put(`/platform/tenants/${id}`, data),
   changeStatus: (id, data) => request.put(`/platform/tenants/${id}/status`, data),
+  // 批量状态流转：{ids:[], status, reason} → 处理数量
+  batchStatus: (data) => request.post('/platform/tenants/batch-status', data),
   bindSubscription: (id, data) => request.post(`/platform/tenants/${id}/subscription`, data),
   // 用量 vs 配额：[{resource, used, limit, exceeded, snapshotTime}]，limit=-1 表示不限
   usage: (id) => request.get(`/platform/tenants/${id}/usage`),
