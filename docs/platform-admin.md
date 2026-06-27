@@ -105,7 +105,7 @@ erDiagram
 
 - **开放平台 API Key**（P2.2a）：`sys_api_key`(V34) 租户业务表，key 绑定用户、SHA-256 存储仅前缀展示；`ApiKeyAuthenticationFilter`（租户链置于 JWT 前）读 `X-API-Key` → 以绑定用户身份访问全量 `/api/v1`（继承其权限/数据范围）；租户 `/admin` 下管理页，明文一次性展示。
 - **数据导出**（P2.2b）：`TenantDataExporter` 端口（org/project/task/goal 实现核心域），`sys_tenant_export`(V35) 异步任务 + `PlatformMaintenanceScheduler` 定时处理 → JSON 写对象存储 → 下载走限时预签名 URL（不外泄 key）。
-- **注销合规**（P2.2b）：发起注销→标记 `closed` + `purge_scheduled_at`（默认 30 天宽限，可取消）；定时任务对到期租户经 `TenantDataPurger` 端口（org/project/task/goal 物理删除）清除数据并标记 `purged`；**自用租户（tenant_id=1）永不注销/清除**。
+- **注销合规**（P2.2b + P0-c/P0-d 加固）：发起注销→标记 `closed` + `purge_scheduled_at`（宽限至少 1 天、默认 30 天，可取消）+ **自动发起一次数据导出作为清除前备份**；定时任务对到期租户经 `TenantDataPurger` 端口（**已覆盖全部 16 个业务域**：org/project/task/goal/stakeholder/verify/cost/change/approval/doc/report/calendar/briefing/view/field/collab，其中 doc 域先删对象存储文件再删表行）物理删除并标记 `purged`；**清除前强校验存在已完成导出，否则跳过保留数据**；**自用租户（tenant_id=1）永不注销/清除**。
 
 > 端口续用 common 下沉模式（`TenantDataExporter`/`TenantDataPurger`），实现分散业务域，platform 仅编排，模块无环。
 
