@@ -8,6 +8,7 @@
         <el-input v-model="query.action" placeholder="动作" clearable class="bar__filter"
           @keyup.enter="reload" @clear="reload" />
         <el-button type="primary" @click="reload">查询</el-button>
+        <el-button :icon="Download" :disabled="!rows.length" @click="doExport">导出本页</el-button>
       </div>
     </div>
 
@@ -58,8 +59,25 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Download } from '@element-plus/icons-vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { auditApi } from '@/api/ops'
+import { exportCsv } from '@/utils/exportCsv'
+
+function doExport() {
+  const cols = [
+    { key: 'createTime', title: '时间' },
+    { key: 'adminName', title: '操作人' },
+    { key: 'action', title: '动作' },
+    { key: 'targetText', title: '对象' },
+    { key: 'ip', title: 'IP' },
+  ]
+  const data = rows.value.map((r) => ({
+    ...r,
+    targetText: r.targetId ? `${r.target} #${r.targetId}` : r.target,
+  }))
+  exportCsv('运营审计', cols, data)
+}
 
 const loading = ref(false)
 const loadError = ref(false)

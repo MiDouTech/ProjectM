@@ -6,9 +6,10 @@
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
-    <el-table v-else v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="username" label="登录名" width="160" />
-      <el-table-column prop="name" label="姓名" min-width="120" />
+    <template v-else>
+    <el-table v-loading="loading" :data="paged" stripe @sort-change="onSort">
+      <el-table-column prop="username" label="登录名" width="160" sortable="custom" />
+      <el-table-column prop="name" label="姓名" min-width="120" sortable="custom" />
       <el-table-column label="角色" min-width="160">
         <template #default="{ row }">{{ (row.roleNames || []).join('，') || '—' }}</template>
       </el-table-column>
@@ -26,6 +27,11 @@
       </el-table-column>
       <template #empty><el-empty description="暂无运营账号，点击新建" /></template>
     </el-table>
+    <div class="pager">
+      <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total"
+        :page-sizes="[10, 20, 50]" layout="total, sizes, prev, pager, next" />
+    </div>
+    </template>
 
     <!-- 新建 / 编辑（右抽屉）-->
     <el-drawer v-model="drawer" :title="editing ? '编辑账号' : '新建账号'" size="var(--mido-drawer-width)">
@@ -77,6 +83,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { platformAdminApi, ENABLE_STATUS } from '@/api/ops'
 import { useOpsUserStore } from '@/store/opsUser'
+import { useClientTable } from '@/composables/useClientTable'
 
 const ops = useOpsUserStore()
 
@@ -87,6 +94,7 @@ const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
 const rows = ref([])
+const { page, size, total, paged, onSort } = useClientTable(rows)
 const roles = ref([])
 
 async function load() {
@@ -183,5 +191,10 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
 }
 </style>

@@ -2,7 +2,10 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">收入台账</h2>
-      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="openCreate">新增记录</el-button>
+      <div class="bar__right">
+        <el-button :icon="Download" :disabled="!rows.length" @click="doExport">导出本页</el-button>
+        <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="openCreate">新增记录</el-button>
+      </div>
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
@@ -41,7 +44,11 @@
         <template #default="{ row }">{{ row.tenantName || '—' }}</template>
       </el-table-column>
       <el-table-column label="类型" width="90">
-        <template #default="{ row }"><StatusTag :status="row.type" /></template>
+        <template #default="{ row }">
+          <el-tag :type="row.type === 'refund' ? 'warning' : 'success'" effect="plain" size="small">
+            {{ REVENUE_TYPE[row.type] || row.type }}
+          </el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="金额" width="150" align="right">
         <template #default="{ row }">{{ row.currency || 'CNY' }} {{ fmtAmount(row.amount) }}</template>
@@ -116,14 +123,28 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import StatusTag from '@/components/StatusTag.vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import ErrorState from '@/components/ErrorState.vue'
-import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS } from '@/api/ops'
+import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS, REVENUE_TYPE } from '@/api/ops'
 import { useOpsUserStore } from '@/store/opsUser'
+import { exportCsv } from '@/utils/exportCsv'
 
 const ops = useOpsUserStore()
 const CURRENCY_OPTIONS = ['CNY', 'USD', 'HKD', 'EUR']
+
+function doExport() {
+  const cols = [
+    { key: 'tenantName', title: '租户' },
+    { key: 'typeLabel', title: '类型' },
+    { key: 'amount', title: '金额' },
+    { key: 'currency', title: '币种' },
+    { key: 'contractNo', title: '合同号' },
+    { key: 'occurredDate', title: '发生日期' },
+    { key: 'remark', title: '备注' },
+  ]
+  const data = rows.value.map((r) => ({ ...r, typeLabel: REVENUE_TYPE[r.type] || r.type }))
+  exportCsv('收入台账', cols, data)
+}
 
 const loading = ref(false)
 const loadError = ref(false)
@@ -249,6 +270,10 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.bar__right {
+  display: flex;
+  gap: var(--mido-space-2);
 }
 .bar--filter {
   justify-content: flex-start;
