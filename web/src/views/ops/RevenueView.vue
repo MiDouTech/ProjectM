@@ -9,24 +9,25 @@
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
     <template v-else>
     <!-- 汇总卡片 -->
     <div class="summary">
       <div class="summary__item">
         <div class="summary__label">收款合计</div>
-        <div class="summary__value summary__value--income">{{ fmtAmount(summary.totalPayment) }}</div>
+        <div class="summary__value summary__value--income mido-mono">{{ fmtAmount(summary.totalPayment) }}</div>
       </div>
       <div class="summary__item">
         <div class="summary__label">退款合计</div>
-        <div class="summary__value summary__value--refund">{{ fmtAmount(summary.totalRefund) }}</div>
+        <div class="summary__value summary__value--refund mido-mono">{{ fmtAmount(summary.totalRefund) }}</div>
       </div>
       <div class="summary__item">
         <div class="summary__label">净收入</div>
-        <div class="summary__value summary__value--net">{{ fmtAmount(summary.net) }}</div>
+        <div class="summary__value summary__value--net mido-mono">{{ fmtAmount(summary.net) }}</div>
       </div>
       <div class="summary__item">
         <div class="summary__label">记录数</div>
-        <div class="summary__value">{{ summary.count || 0 }}</div>
+        <div class="summary__value mido-mono">{{ summary.count || 0 }}</div>
       </div>
     </div>
 
@@ -51,7 +52,7 @@
         </template>
       </el-table-column>
       <el-table-column label="金额" width="150" align="right">
-        <template #default="{ row }">{{ row.currency || 'CNY' }} {{ fmtAmount(row.amount) }}</template>
+        <template #default="{ row }"><span class="mido-mono">{{ row.currency || 'CNY' }} {{ fmtAmount(row.amount) }}</span></template>
       </el-table-column>
       <el-table-column prop="contractNo" label="合同号" min-width="140">
         <template #default="{ row }">{{ row.contractNo || '—' }}</template>

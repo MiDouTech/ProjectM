@@ -6,7 +6,7 @@
     <div class="dash__metrics">
       <el-card v-for="m in metrics" :key="m.key" shadow="never" class="metric">
         <div class="metric__label">{{ m.label }}</div>
-        <div class="metric__value">{{ m.value }}</div>
+        <div class="metric__value mido-mono">{{ m.value }}</div>
       </el-card>
     </div>
 

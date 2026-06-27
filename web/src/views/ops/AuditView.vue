@@ -13,6 +13,7 @@
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
     <template v-else>
     <el-table v-loading="loading" :data="rows" stripe>
       <el-table-column prop="createTime" label="时间" width="180" />
@@ -22,11 +23,11 @@
       <el-table-column prop="action" label="动作" width="160" />
       <el-table-column label="对象" min-width="180">
         <template #default="{ row }">
-          {{ row.target }}<span v-if="row.targetId"> #{{ row.targetId }}</span>
+          {{ row.target }}<span v-if="row.targetId" class="mido-mono"> #{{ row.targetId }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="ip" label="IP" width="140">
-        <template #default="{ row }">{{ row.ip || '—' }}</template>
+        <template #default="{ row }"><span class="mido-mono">{{ row.ip || '—' }}</span></template>
       </el-table-column>
       <el-table-column label="明细" width="100">
         <template #default="{ row }">

@@ -6,12 +6,13 @@
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
     <template v-else>
     <el-table v-loading="loading" :data="paged" stripe @sort-change="onSort">
       <el-table-column prop="code" label="编码" width="140" sortable="custom" />
       <el-table-column prop="name" label="名称" min-width="140" sortable="custom" />
-      <el-table-column label="价格" width="120">
-        <template #default="{ row }">{{ row.price }}</template>
+      <el-table-column label="价格" width="120" align="right">
+        <template #default="{ row }"><span class="mido-mono">{{ row.price }}</span></template>
       </el-table-column>
       <el-table-column label="计费周期" width="110">
         <template #default="{ row }">{{ cycleLabel(row.billingCycle) }}</template>

@@ -6,6 +6,7 @@
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
     <template v-else>
     <el-table v-loading="loading" :data="paged" stripe @sort-change="onSort">
       <el-table-column prop="username" label="登录名" width="160" sortable="custom" />

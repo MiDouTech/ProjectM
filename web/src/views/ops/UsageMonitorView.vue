@@ -9,6 +9,7 @@
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
     <template v-else>
     <el-table v-loading="loading" :data="rows" stripe>
       <el-table-column label="租户" min-width="180">
@@ -20,11 +21,20 @@
       <el-table-column label="状态" width="100">
         <template #default="{ row }"><StatusTag :status="row.status" :label="tenantLabel(row.status)" /></template>
       </el-table-column>
-      <el-table-column v-for="res in QUOTA_RESOURCE" :key="res.value" :label="res.label" min-width="120">
+      <el-table-column v-for="res in QUOTA_RESOURCE" :key="res.value" :label="res.label" min-width="140">
         <template #default="{ row }">
-          <span :class="{ 'over': cell(row, res.value).exceeded }">
-            {{ cell(row, res.value).used }} / {{ fmtLimit(cell(row, res.value).limit) }}
-          </span>
+          <div class="usage-cell">
+            <span class="usage-cell__num mido-mono" :class="{ over: cell(row, res.value).exceeded }">
+              {{ cell(row, res.value).used }} / {{ fmtLimit(cell(row, res.value).limit) }}
+            </span>
+            <el-progress
+              v-if="cell(row, res.value).limit >= 0"
+              :percentage="pct(cell(row, res.value))"
+              :status="cell(row, res.value).exceeded ? 'exception' : undefined"
+              :stroke-width="6"
+              :show-text="false"
+            />
+          </div>
         </template>
       </el-table-column>
       <el-table-column label="超限" width="90">
@@ -72,6 +82,10 @@ function cell(row, resource) {
 }
 function fmtLimit(limit) {
   return limit < 0 ? '不限' : limit
+}
+function pct(c) {
+  if (!c || c.limit <= 0) return 0
+  return Math.min(100, Math.round((c.used / c.limit) * 100))
 }
 function tenantLabel(status) {
   return TENANT_STATUS.find((s) => s.value === status)?.label || ''
@@ -128,6 +142,15 @@ onMounted(load)
 .mut {
   color: var(--el-text-color-secondary);
   font-size: var(--mido-font-size-caption);
+}
+.usage-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-1);
+}
+.usage-cell__num {
+  font-size: var(--mido-font-size-caption);
+  color: var(--el-text-color-regular);
 }
 .over {
   color: var(--el-color-danger);
