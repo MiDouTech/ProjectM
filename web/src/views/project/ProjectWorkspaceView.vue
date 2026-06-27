@@ -45,12 +45,23 @@
       <div class="pw__tabbar">
         <el-menu :default-active="tab" mode="horizontal" :ellipsis="true" class="pw__nav"
           @select="onSelectTab">
-          <el-menu-item v-for="t in visibleTabs" :key="t.name" :index="t.name">
+          <el-menu-item v-for="t in navTabs" :key="t.name" :index="t.name">
             <el-icon><component :is="t.icon" /></el-icon>
             <span>{{ t.label }}</span>
           </el-menu-item>
         </el-menu>
-        <el-button link type="primary" :icon="Setting" class="pw__comp-btn" @click="openComp">组件管理</el-button>
+        <!-- 齿轮菜单：设置/活动（配置与日志）+ 组件管理，不与浏览导航抢位 -->
+        <el-dropdown class="pw__more" trigger="click" @command="onTabbarCommand">
+          <el-button link :icon="Setting" aria-label="更多：设置 / 活动 / 组件管理" />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="t in menuTabs" :key="t.name" :command="`tab:${t.name}`">
+                {{ t.label }}
+              </el-dropdown-item>
+              <el-dropdown-item command="components" divided>组件管理</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
 
       <!-- 按 projectId 设 key：切换到另一个项目时强制重挂面板，避免内嵌面板沿用上个项目的数据 -->
@@ -179,10 +190,28 @@ const userName = (id) => userMap.value[id] || (id ? `用户#${id}` : '—')
 // 阶段5 组件化顶栏：已安装组件驱动可见 Tab；无安装记录则回落默认全量 TABS
 const installed = ref([])
 const tabByName = Object.fromEntries(TABS.map((t) => [t.name, t]))
-const visibleTabs = computed(() => {
+// 配置/日志类，收进齿轮菜单（非日常浏览）
+const UTILITY_TABS = ['info', 'activity']
+// 阶段动作类：仅在相关阶段出现在主导航，平时不占位
+const STAGE_TABS = {
+  approval: ['草稿', '审批中'],
+  verify: ['结果验收', '已结案', '价值验收中', '已评价'],
+}
+const stageOk = (name) => {
+  const allow = STAGE_TABS[name]
+  return !allow || allow.includes(project.value.status)
+}
+// 全量可见集（安装配置优先，否则默认全量）
+const installedOrDefault = computed(() => {
   if (!installed.value.length) return TABS
   return installed.value.map((c) => tabByName[c.componentCode]).filter(Boolean)
 })
+// 主导航：浏览类 + 当前阶段相关的阶段类
+const navTabs = computed(() =>
+  installedOrDefault.value.filter((t) => !UTILITY_TABS.includes(t.name) && stageOk(t.name)))
+// 齿轮菜单：设置 / 活动
+const menuTabs = computed(() =>
+  installedOrDefault.value.filter((t) => UTILITY_TABS.includes(t.name)))
 // 组件管理
 const compOpen = ref(false)
 const compSel = ref([]) // 选中的组件 code（有序）
@@ -190,8 +219,8 @@ async function loadComponents() {
   if (!projectId.value) return
   installed.value = (await componentApi.listInstalled(projectId.value)) || []
   // 当前 Tab 不在可见集合（被卸载/排除）时，切到首个可见 Tab，避免空白内容
-  if (!visibleTabs.value.some((t) => t.name === tab.value)) {
-    tab.value = visibleTabs.value[0]?.name || 'overview'
+  if (!installedOrDefault.value.some((t) => t.name === tab.value)) {
+    tab.value = installedOrDefault.value[0]?.name || 'overview'
   }
 }
 function openComp() {
@@ -214,8 +243,8 @@ async function saveComp() {
   ElMessage.success('已保存组件')
   compOpen.value = false
   await loadComponents()
-  if (!visibleTabs.value.some((t) => t.name === tab.value)) {
-    tab.value = visibleTabs.value[0]?.name || 'overview'
+  if (!installedOrDefault.value.some((t) => t.name === tab.value)) {
+    tab.value = installedOrDefault.value[0]?.name || 'overview'
   }
 }
 
@@ -232,6 +261,11 @@ function onHeadCommand(cmd) {
   if (cmd === 'change') openChange()
   else if (cmd === 'archive') runArchive()
   else if (cmd === 'unarchive') runUnarchive()
+}
+// 齿轮菜单：tab:<name> 切到设置/活动；components 打开组件管理
+function onTabbarCommand(cmd) {
+  if (cmd === 'components') openComp()
+  else if (cmd.startsWith('tab:')) onSelectTab(cmd.slice(4))
 }
 
 // 下一步 CTA：草稿→提交立项；其余按可手动流转给出（注册等系统态不暴露）
@@ -393,7 +427,7 @@ watch(projectId, async () => {
   min-width: 0;
   border-bottom: none;
 }
-.pw__comp-btn {
+.pw__more {
   flex: none;
   margin-left: var(--mido-space-3);
 }
