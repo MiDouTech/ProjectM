@@ -255,8 +255,9 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { h, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Plus, Refresh, Switch, Download } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
@@ -304,16 +305,52 @@ function reload() {
 }
 
 /* ===== 批量操作 ===== */
+const SETTABLE = ['active', 'suspended', 'closed']
 const selectedIds = ref([])
+const selectedRows = ref([])
 function onSelectionChange(rows) {
+  selectedRows.value = rows
   selectedIds.value = rows.map((r) => r.id)
 }
 async function batchStatus(status) {
   const label = status === 'active' ? '启用' : '停用'
-  await ElMessageBox.confirm(`确认批量${label}选中的 ${selectedIds.value.length} 个租户？`, '批量操作', { type: 'warning' })
-  const n = await tenantApi.batchStatus({ ids: selectedIds.value, status })
-  ElMessage.success(`已${label} ${n} 个租户`)
+  const ids = [...selectedIds.value]
+  // 记录原状态用于撤销（仅可流转状态可还原）
+  const prev = selectedRows.value
+    .filter((r) => r.status !== status && SETTABLE.includes(r.status))
+    .map((r) => ({ id: r.id, status: r.status }))
+  await ElMessageBox.confirm(`确认批量${label}选中的 ${ids.length} 个租户？`, '批量操作', { type: 'warning' })
+  const n = await tenantApi.batchStatus({ ids, status })
   selectedIds.value = []
+  load()
+  showUndo(label, n, prev)
+}
+function showUndo(label, n, prev) {
+  if (!prev.length) {
+    ElMessage.success(`已${label} ${n} 个租户`)
+    return
+  }
+  const notif = ElNotification({
+    title: '批量操作完成',
+    type: 'success',
+    duration: 6000,
+    message: h('span', [
+      `已${label} ${n} 个租户　`,
+      h('a', {
+        style: 'color: var(--el-color-primary); cursor: pointer; font-weight: var(--mido-font-weight-bold);',
+        onClick: () => { notif.close(); undoBatch(prev) },
+      }, '撤销'),
+    ]),
+  })
+}
+async function undoBatch(prev) {
+  // 按原状态分组还原
+  const groups = {}
+  prev.forEach((p) => { (groups[p.status] ||= []).push(p.id) })
+  for (const [st, ids] of Object.entries(groups)) {
+    await tenantApi.batchStatus({ ids, status: st })
+  }
+  ElMessage.success('已撤销')
   load()
 }
 
@@ -544,7 +581,14 @@ async function saveSubscription() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  // 概览下钻：按 URL 状态预筛选
+  const s = useRoute().query.status
+  if (typeof s === 'string') {
+    query.status = s
+  }
+  load()
+})
 </script>
 
 <style scoped>

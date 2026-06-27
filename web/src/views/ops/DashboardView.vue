@@ -4,7 +4,8 @@
     <template v-else>
     <!-- 顶部指标卡 -->
     <div class="dash__metrics">
-      <el-card v-for="m in metrics" :key="m.key" shadow="never" class="metric">
+      <el-card v-for="m in metrics" :key="m.key" shadow="never" class="metric mido-hoverable"
+        @click="goTenants(m.status)">
         <div class="metric__label">{{ m.label }}</div>
         <div class="metric__value mido-mono">{{ m.value }}</div>
       </el-card>
@@ -14,7 +15,8 @@
     <el-card shadow="never" class="dash__block">
       <template #header><span class="mido-h2">租户状态分布</span></template>
       <div class="dist">
-        <div v-for="d in statusDist" :key="d.key" class="dist__row">
+        <div v-for="d in statusDist" :key="d.key" class="dist__row dist__row--click"
+          @click="goTenants(d.key)">
           <div class="dist__head">
             <StatusTag :status="d.key" />
             <span class="dist__count">{{ d.value }}</span>
@@ -53,20 +55,27 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { dashboardApi, TENANT_STATUS } from '@/api/ops'
 
+const router = useRouter()
 const loading = ref(false)
 const loadError = ref(false)
 const overview = ref({})
 
 const metrics = computed(() => [
-  { key: 'total', label: '租户总数', value: Number(overview.value.totalTenants || 0) },
-  { key: 'active', label: '正式租户', value: Number(overview.value.activeTenants || 0) },
-  { key: 'trial', label: '试用租户', value: Number(overview.value.trialTenants || 0) },
-  { key: 'new', label: '本月新增', value: Number(overview.value.newThisMonth || 0) },
+  { key: 'total', label: '租户总数', value: Number(overview.value.totalTenants || 0), status: '' },
+  { key: 'active', label: '正式租户', value: Number(overview.value.activeTenants || 0), status: 'active' },
+  { key: 'trial', label: '试用租户', value: Number(overview.value.trialTenants || 0), status: 'trial' },
+  { key: 'new', label: '本月新增', value: Number(overview.value.newThisMonth || 0), status: '' },
 ])
+
+// 指标/状态下钻：跳租户管理并按状态预筛选
+function goTenants(status) {
+  router.push({ path: '/ops/tenants', query: status ? { status } : {} })
+}
 
 const statusDist = computed(() => {
   const dist = overview.value.statusDist || {}
@@ -134,6 +143,14 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   gap: var(--mido-space-1);
+}
+.dist__row--click {
+  cursor: pointer;
+  border-radius: var(--mido-radius-sm);
+  transition: background-color var(--mido-duration) var(--mido-ease);
+}
+.dist__row--click:hover {
+  background-color: var(--el-fill-color-light);
 }
 .dist__head {
   display: flex;
