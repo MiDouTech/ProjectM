@@ -274,11 +274,9 @@ const TASK_FORM_BUILTIN = {
   dueDate: { label: '截止', type: 'date' },
   isMilestone: { label: '里程碑', type: 'checkbox' },
 }
-async function loadPageConfig(customDefs) {
+// 纯组装：cfg/defs 由 onMounted 并发拉取后传入（字段列表与视图自定义列共用一次请求）
+function applyPageConfig(cfg, defs) {
   try {
-    // customDefs 由 onMounted 预取（与视图自定义列共用一次请求）；未传则自取，避免重复拉取
-    const cfg = await pageConfigApi.get('task', 'form')
-    const defs = customDefs ?? await fieldDefApi.list('task', true).catch(() => [])
     const byKey = new Map((defs || []).map((d) => [d.fieldKey, d]))
     const fields = (cfg?.fields || []).map((f) => {
       if (f.source === 'builtin' && TASK_FORM_BUILTIN[f.fieldKey]) {
@@ -479,14 +477,18 @@ onMounted(async () => {
   users.value = members
   load()
   loadViews()
-  try {
-    cfFieldList.value = await fieldDefApi.list('task', true)
-  } catch {
+  // 页面配置 GET 与自定义字段 GET 无依赖：并发拉取；字段列表一次请求同时供视图自定义列与页面配置复用
+  const [cfg, defs] = await Promise.all([
+    pageConfigApi.get('task', 'form').catch(() => null),
+    fieldDefApi.list('task', true).catch(() => null),
+  ])
+  if (defs == null) {
     cfFieldList.value = []
     ElMessage.warning('自定义字段加载失败，视图自定义列可能不显示')
+  } else {
+    cfFieldList.value = defs
   }
-  // 复用上面已取的自定义字段列表，避免页面配置再发一次相同请求
-  loadPageConfig(cfFieldList.value)
+  applyPageConfig(cfg, defs || [])
 })
 </script>
 

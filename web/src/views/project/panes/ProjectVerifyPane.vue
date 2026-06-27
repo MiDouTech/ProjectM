@@ -78,6 +78,7 @@ import NpssSubjectConfig from '@/components/NpssSubjectConfig.vue'
 import { npssApi, resultVerifyApi, reportApi } from '@/api/npss'
 import { projectApi } from '@/api/project'
 import { stakeholderApi } from '@/api/stakeholder'
+import { todayStr } from '@/utils/display'
 
 const props = defineProps({
   project: { type: Object, default: () => ({}) },
@@ -132,8 +133,7 @@ function autofillForm() {
   }
   const p = props.project || {}
   // 用本地日期（非 toISOString 的 UTC），否则东八区凌晨会回退到昨天，误判时间达标
-  const n = new Date()
-  const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+  const today = todayStr()
   form.onTime = !!p.endDate && today <= p.endDate
   form.inBudget = p.budget != null && Number(p.actualCost || 0) <= Number(p.budget)
   form.inScope = completionRate.value != null && Number(completionRate.value) >= 100

@@ -1,10 +1,8 @@
 package com.mido.pm.project.service;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.common.project.ProjectExistenceGate;
-import com.mido.pm.project.entity.PmProject;
 import com.mido.pm.project.mapper.PmProjectMapper;
 import org.springframework.stereotype.Service;
 
@@ -26,9 +24,8 @@ public class ProjectExistenceGateImpl implements ProjectExistenceGate {
         if (projectId == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "projectId 不能为空");
         }
-        Long count = projectMapper.selectCount(Wrappers.<PmProject>lambdaQuery()
-                .eq(PmProject::getId, projectId));
-        if (count == null || count == 0) {
+        // selectById 同样经多租户拦截器注入 tenant 条件，跨租户的 id 在当前租户视角即「不存在」
+        if (projectMapper.selectById(projectId) == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "项目不存在");
         }
     }
