@@ -1,21 +1,37 @@
 <template>
   <div class="mido-page pw" v-loading="loading">
-    <!-- 头部：返回 + 标题 + 状态 + 下一步 CTA -->
+    <!-- 头部（紧凑 2 行）：返回 + 类型 + 标题 + 状态 + 迷你进度 ｜ 主操作 + 更多 -->
     <header class="pw__head">
       <div class="pw__head-main">
         <el-button :icon="ArrowLeft" link @click="$router.push('/project')">全部项目</el-button>
         <CategoryBadge v-if="project.category" :category="project.category" :show-label="false" />
         <h1 class="mido-h1">{{ project.name || '项目' }}</h1>
         <StatusTag v-if="project.status" :status="project.status" />
+        <!-- 迷你生命周期进度：N/总 + 细条；hover 展开完整阶段。替代独占一带的大流程条 -->
+        <el-popover placement="bottom-start" :width="240" trigger="hover">
+          <template #reference>
+            <span class="pw__progress" role="button" tabindex="0" aria-label="项目阶段进度">
+              <span class="pw__progress-frac mido-text-secondary">{{ activeStage + 1 }}/{{ LIFECYCLE.length }}</span>
+              <span class="pw__progress-track"><span class="pw__progress-fill" :style="{ width: progressPct + '%' }" /></span>
+            </span>
+          </template>
+          <el-steps direction="vertical" :active="activeStage" finish-status="success" :space="26">
+            <el-step v-for="s in LIFECYCLE" :key="s" :title="s" />
+          </el-steps>
+        </el-popover>
       </div>
       <div class="pw__head-right">
-        <div v-if="nextSteps.length" class="pw__cta">
-          <span class="mido-text-secondary">下一步：</span>
-          <el-button v-for="c in nextSteps" :key="c.label" type="primary" @click="c.run">{{ c.label }}</el-button>
-        </div>
-        <el-button v-if="project.id" :icon="EditPen" @click="openChange">发起变更</el-button>
-        <el-button v-if="canArchive" :icon="Box" @click="runArchive">归档</el-button>
-        <el-button v-if="project.archived === 1" :icon="RefreshLeft" @click="runUnarchive">恢复</el-button>
+        <el-button v-for="c in nextSteps" :key="c.label" type="primary" @click="c.run">{{ c.label }}</el-button>
+        <el-dropdown v-if="project.id" @command="onHeadCommand">
+          <el-button :icon="MoreFilled">更多</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="change" :icon="EditPen">发起变更</el-dropdown-item>
+              <el-dropdown-item v-if="canArchive" command="archive" :icon="Box">归档</el-dropdown-item>
+              <el-dropdown-item v-if="project.archived === 1" command="unarchive" :icon="RefreshLeft">恢复</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </header>
     <div class="pw__meta mido-text-secondary">
@@ -23,11 +39,6 @@
       <span>负责人：{{ userName(project.leaderId) }}</span>
       <span>{{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}</span>
     </div>
-
-    <!-- 生命周期阶段条：紧凑 simple 态（状态已在标题标签呈现，这里只作进度定位，不喧宾夺主） -->
-    <el-steps :active="activeStage" finish-status="success" simple class="pw__steps">
-      <el-step v-for="s in LIFECYCLE" :key="s" :title="s" />
-    </el-steps>
 
     <!-- 主体：顶部横向导航 + 全宽内容（详情页统一范式，design-system §7） -->
     <div class="pw__body">
@@ -116,7 +127,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Odometer, Stamp, InfoFilled, Tickets, Aim, User,
-  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft, EditPen, Setting, Rank,
+  CircleCheck, TrendCharts, Money, Folder, Clock, Box, RefreshLeft, EditPen, Setting, Rank, MoreFilled,
 } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import StatusTag from '@/components/StatusTag.vue'
@@ -212,6 +223,16 @@ const activeStage = computed(() => {
   const i = LIFECYCLE.indexOf(project.value.status)
   return i < 0 ? 0 : i
 })
+// 迷你进度填充百分比：草稿 0% → 已评价 100%
+const progressPct = computed(() =>
+  LIFECYCLE.length > 1 ? Math.round((activeStage.value / (LIFECYCLE.length - 1)) * 100) : 0)
+
+// 头部「更多」菜单：发起变更 / 归档 / 恢复
+function onHeadCommand(cmd) {
+  if (cmd === 'change') openChange()
+  else if (cmd === 'archive') runArchive()
+  else if (cmd === 'unarchive') runUnarchive()
+}
 
 // 下一步 CTA：草稿→提交立项；其余按可手动流转给出（注册等系统态不暴露）
 const nextSteps = computed(() => {
@@ -324,19 +345,37 @@ watch(projectId, async () => {
   align-items: center;
   gap: var(--mido-space-2);
 }
-.pw__cta {
-  display: flex;
+/* 迷你生命周期进度：N/总 + 细条，紧凑内联在标题行 */
+.pw__progress {
+  display: inline-flex;
   align-items: center;
   gap: var(--mido-space-2);
+  margin-left: var(--mido-space-2);
+  cursor: default;
+}
+.pw__progress-frac {
+  font-size: var(--mido-font-size-caption);
+}
+.pw__progress-track {
+  width: 96px;
+  height: var(--mido-space-1);
+  border-radius: var(--mido-space-1);
+  background: var(--el-fill-color);
+  overflow: hidden;
+}
+.pw__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--mido-space-1);
+  background: var(--el-color-primary);
+  transition: width var(--mido-duration) var(--mido-ease);
 }
 .pw__meta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--mido-space-4);
   margin-top: var(--mido-space-2);
-}
-.pw__steps {
-  margin: var(--mido-space-3) 0;
+  margin-bottom: var(--mido-space-3);
 }
 .pw__body {
   display: flex;
