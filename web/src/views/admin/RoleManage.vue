@@ -6,15 +6,22 @@
     </div>
 
     <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="name" label="角色名" />
-      <el-table-column prop="code" label="角色编码" />
+      <el-table-column label="角色" min-width="200">
+        <template #default="{ row }">
+          <div class="role-name">
+            <span>{{ row.name }}</span>
+            <el-tag v-if="row.code === 'admin'" size="small" type="info" effect="plain">内置</el-tag>
+            <span class="mido-mono mido-text-secondary role-name__code">{{ row.code }}</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="400">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openPerms(row)">功能权限</el-button>
           <el-button link type="primary" @click="openScopes(row)">数据范围</el-button>
           <el-button link type="primary" @click="openFieldPerms(row)">字段权限</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="danger" :disabled="row.code === 'admin'" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无角色，点击新建" /></template>
@@ -23,8 +30,11 @@
     <!-- 新建/编辑 -->
     <el-drawer v-model="drawer" :title="editing ? '编辑角色' : '新建角色'" size="var(--mido-drawer-width)">
       <el-form ref="formRef" :model="form" :rules="rules" :label-width="80">
-        <el-form-item label="角色名" prop="name"><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="编码" prop="code"><el-input v-model="form.code" /></el-form-item>
+        <el-form-item label="角色名" prop="name"><el-input v-model="form.name" placeholder="如：项目经理" /></el-form-item>
+        <el-form-item label="角色标识" prop="code">
+          <el-input v-model="form.code" :disabled="editing" placeholder="如：pm，仅英文/数字" />
+          <div class="mido-text-secondary form-hint">系统内部使用，创建后不可更改。</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="drawer = false">取消</el-button>
@@ -32,11 +42,15 @@
       </template>
     </el-drawer>
 
-    <!-- 功能权限 -->
-    <el-drawer v-model="permsDrawer" title="功能权限（权限码）" size="var(--mido-drawer-width)">
-      <p class="mido-text-secondary">输入权限码后回车添加，如 org:user:query</p>
-      <el-select v-model="permCodes" multiple filterable allow-create default-first-option
-        :reserve-keyword="false" placeholder="输入权限码回车添加" class="full" />
+    <!-- 功能权限：勾选该角色可使用的功能（中文分组目录，不暴露权限码） -->
+    <el-drawer v-model="permsDrawer" title="功能权限" size="var(--mido-drawer-width)">
+      <p class="mido-text-secondary">勾选该角色可使用的功能。</p>
+      <div v-for="g in PERM_CATALOG" :key="g.group" class="perm-group">
+        <div class="perm-group__title mido-h2">{{ g.group }}</div>
+        <el-checkbox-group v-model="permCodes" class="perm-group__items">
+          <el-checkbox v-for="p in g.perms" :key="p.code" :value="p.code">{{ p.name }}</el-checkbox>
+        </el-checkbox-group>
+      </div>
       <template #footer>
         <el-button @click="permsDrawer = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="savePerms">保存</el-button>
@@ -100,6 +114,26 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { roleApi, deptApi, DATA_SCOPES, DATA_SCOPE_RESOURCES, FIELD_ACCESS, FIELD_PERM_RESOURCES } from '@/api/org'
 
+// 功能权限目录：中文分组呈现，屏蔽权限码技术细节。code 与后端 @PreAuthorize 对齐。
+const PERM_CATALOG = [
+  {
+    group: '成员与组织', perms: [
+      { code: 'org:user:query', name: '查看成员' },
+      { code: 'org:user:create', name: '管理成员（新增 / 编辑 / 停用）' },
+      { code: 'org:dept:create', name: '管理部门' },
+      { code: 'org:role:create', name: '管理角色与权限' },
+    ],
+  },
+  {
+    group: '系统与运维', perms: [
+      { code: 'org:config:manage', name: '管理系统配置（项目类型 / 状态 / 字段等）' },
+      { code: 'org:audit:query', name: '查看操作日志' },
+      { code: 'org:apikey:manage', name: '管理开放平台（API 密钥）' },
+    ],
+  },
+]
+const CATALOG_CODES = new Set(PERM_CATALOG.flatMap((g) => g.perms.map((p) => p.code)))
+
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref([])
@@ -115,6 +149,8 @@ const rules = {
 
 const permsDrawer = ref(false)
 const permCodes = ref([])
+// 目录外的历史权限码：勾选界面不展示，但保存时原样保留，避免误删
+const extraCodes = ref([])
 const scopesDrawer = ref(false)
 const scopes = ref([])
 const customDepts = ref([])
@@ -168,13 +204,16 @@ async function remove(row) {
 
 async function openPerms(row) {
   currentRoleId.value = row.id
-  permCodes.value = await roleApi.getPerms(row.id)
+  const all = (await roleApi.getPerms(row.id)) || []
+  // 目录内的进勾选区，目录外的暂存以便保存时保留
+  permCodes.value = all.filter((c) => CATALOG_CODES.has(c))
+  extraCodes.value = all.filter((c) => !CATALOG_CODES.has(c))
   permsDrawer.value = true
 }
 async function savePerms() {
   saving.value = true
   try {
-    await roleApi.savePerms(currentRoleId.value, permCodes.value)
+    await roleApi.savePerms(currentRoleId.value, [...permCodes.value, ...extraCodes.value])
     ElMessage.success('已保存权限')
     permsDrawer.value = false
   } finally {
@@ -240,6 +279,29 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.role-name {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.role-name__code {
+  font-size: var(--mido-font-size-caption);
+}
+.form-hint {
+  margin-top: var(--mido-space-1);
+  font-size: var(--mido-font-size-caption);
+}
+.perm-group {
+  margin-bottom: var(--mido-space-4);
+}
+.perm-group__title {
+  margin-bottom: var(--mido-space-2);
+}
+.perm-group__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-2);
 }
 .full {
   width: 100%;

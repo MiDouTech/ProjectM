@@ -5,13 +5,14 @@
       <el-button type="primary" :icon="Plus" @click="openCreate">新建类型</el-button>
     </div>
     <p class="mido-text-secondary tip">
-      项目类型由租户自配（取代固定的 S/I/O）。职级门槛、是否走 NPSS、绑定的审批流均在此设置，立项时按类型生效。
+      项目类型由租户自配。<b>内置类型（战略级 / 创新级 / 运营级）仅作初始参考，同样可改名、改色、调整规则或停用</b>，立项时按类型生效。
     </p>
 
     <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column label="类型" min-width="160">
+      <el-table-column label="类型" min-width="180">
         <template #default="{ row }">
           <el-tag :type="row.color || 'info'" effect="light" disable-transitions>{{ row.name }}</el-tag>
+          <el-tag v-if="isBuiltin(row.code)" size="small" type="info" effect="plain" class="builtin-tag">内置</el-tag>
           <span class="mido-text-secondary code">{{ row.code }}</span>
         </template>
       </el-table-column>
@@ -43,10 +44,11 @@
 
     <el-drawer v-model="drawer" :title="editing ? '编辑项目类型' : '新建项目类型'" size="var(--mido-drawer-width)">
       <el-form ref="formRef" :model="form" :rules="rules" :label-width="92">
-        <el-form-item label="类型码" prop="code">
-          <el-input v-model="form.code" :disabled="editing" placeholder="租户内唯一，如 S / O_NORMAL" />
+        <el-form-item label="类型标识" prop="code">
+          <el-input v-model="form.code" :disabled="editing" placeholder="租户内唯一，仅英文/数字，如 strategy" />
+          <span v-if="editing" class="mido-text-secondary hint">系统内部使用，创建后不可更改</span>
         </el-form-item>
-        <el-form-item label="显示名" prop="name">
+        <el-form-item label="类型名称" prop="name">
           <el-input v-model="form.name" placeholder="如 战略级 / 运营级·常规运营" />
         </el-form-item>
         <el-form-item label="标签颜色">
@@ -54,8 +56,8 @@
             <el-option v-for="c in PROJECT_TYPE_COLORS" :key="c.value" :label="c.label" :value="c.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="上级类型码">
-          <el-input v-model="form.parentCode" placeholder="报表汇总用，可空（如 O_* 填 O）" />
+        <el-form-item label="归属上级">
+          <el-input v-model="form.parentCode" placeholder="报表汇总用，可空（填上级类型标识）" />
         </el-form-item>
         <el-form-item label="职级门槛">
           <el-input v-model="form.minJobLevel" placeholder="如 L3，空=不限" />
@@ -94,6 +96,10 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { projectTypeApi, approvalFlowApi, PROJECT_TYPE_COLORS } from '@/api/project'
+
+// 内置种子类型标识（仅用于「内置」徽章展示；这些类型同样可改名/改色/停用）
+const BUILTIN_TYPE_CODES = new Set(['S', 'I', 'O', 'O_NORMAL', 'O_RECTIFY', 'O_SPECIAL'])
+const isBuiltin = (code) => BUILTIN_TYPE_CODES.has(code)
 
 const loading = ref(false)
 const saving = ref(false)
@@ -191,6 +197,9 @@ onMounted(load)
 }
 .tip {
   margin-bottom: var(--mido-space-4);
+}
+.builtin-tag {
+  margin-left: var(--mido-space-2);
 }
 .code {
   margin-left: var(--mido-space-2);
