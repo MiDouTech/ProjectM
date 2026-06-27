@@ -110,8 +110,14 @@ public class LocalSsoProvider implements SsoProvider {
     @Override
     public String refreshToken(String token) {
         TokenPayload payload = verifyToken(token);
-        return payload == null ? null
-                : issueToken(payload.userId(), payload.tenantId(), payload.impersonatedBy(), ttlMillis);
+        if (payload == null) {
+            return null;
+        }
+        // 模拟登录令牌为短时令牌，禁止刷新延长（否则短时约束被刷新链路绕过）
+        if (payload.impersonatedBy() != null) {
+            return null;
+        }
+        return issueToken(payload.userId(), payload.tenantId(), null, ttlMillis);
     }
 
     @Override

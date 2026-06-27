@@ -2,6 +2,7 @@ package com.mido.pm.platform.service;
 
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
+import com.mido.pm.common.tenant.TenantContext;
 import com.mido.pm.common.tenant.TenantUserLocator;
 import com.mido.pm.platform.dto.ImpersonateVO;
 import com.mido.pm.platform.entity.SysTenant;
@@ -40,6 +41,10 @@ public class PlatformImpersonationService {
 
     @Transactional(rollbackFor = Exception.class)
     public ImpersonateVO impersonate(Long tenantId) {
+        // 自用租户(平台自身)不可被模拟，与注销护栏一致
+        if (tenantId != null && tenantId == TenantContext.DEFAULT_TENANT_ID) {
+            throw new BizException(ErrorCode.FORBIDDEN, "自用租户不可模拟登录");
+        }
         SysTenant tenant = tenantMapper.selectById(tenantId);
         if (tenant == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "租户不存在");

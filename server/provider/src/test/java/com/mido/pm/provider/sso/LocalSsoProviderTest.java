@@ -142,6 +142,13 @@ class LocalSsoProviderTest {
     }
 
     @Test
+    void refreshRejectsImpersonationToken() {
+        String token = sso.issueImpersonationToken(7L, 9L, 100L);
+        // 模拟登录令牌为短时令牌，不允许刷新延长
+        assertNull(sso.refreshToken(token));
+    }
+
+    @Test
     void weakSecretRejectedAtConstruction() {
         assertThrows(IllegalStateException.class,
                 () -> new LocalSsoProvider("short", 60_000L, 30_000L, identityProvider, encoder, tenantDirectory));

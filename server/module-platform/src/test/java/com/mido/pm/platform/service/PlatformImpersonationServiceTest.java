@@ -57,6 +57,12 @@ class PlatformImpersonationServiceTest {
     }
 
     @Test
+    void selfUseTenantCannotBeImpersonated() {
+        assertThrows(BizException.class,
+                () -> service().impersonate(com.mido.pm.common.tenant.TenantContext.DEFAULT_TENANT_ID));
+    }
+
+    @Test
     void impersonatePrefersTenantAdminUser() {
         PlatformContext.set(new PlatformPrincipal(100L, "superadmin", "超管", List.of(), false));
         when(tenantMapper.selectById(9L)).thenReturn(tenant(5L));
