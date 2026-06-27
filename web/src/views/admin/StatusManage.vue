@@ -16,7 +16,10 @@
       </el-table-column>
       <el-table-column prop="sort" label="排序" width="80" />
       <el-table-column label="类型" width="90">
-        <template #default="{ row }">{{ row.builtin === 1 ? '内置' : '自定义' }}</template>
+        <template #default="{ row }">
+          <el-tag v-if="row.builtin === 1" size="small" type="info" effect="plain">内置</el-tag>
+          <span v-else class="mido-text-secondary">自定义</span>
+        </template>
       </el-table-column>
       <el-table-column label="操作" width="160">
         <template #default="{ row }">
@@ -36,8 +39,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="颜色">
-          <el-select v-model="form.color" class="full" placeholder="语义色 token">
-            <el-option v-for="c in COLOR_TOKENS" :key="c" :label="c" :value="c" />
+          <el-select v-model="form.color" class="full" placeholder="选择状态色">
+            <el-option v-for="c in COLOR_OPTIONS" :key="c.value" :label="c.label" :value="c.value">
+              <span class="color-opt">
+                <span class="color-dot" :style="{ background: `var(--el-color-${c.value})` }" />
+                {{ c.label }}
+              </span>
+            </el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="分组"><el-input v-model="form.groupName" placeholder="如 缺陷" /></el-form-item>
@@ -64,7 +72,14 @@ import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { statusApi, META_CATEGORIES } from '@/api/task'
 
-const COLOR_TOKENS = ['info', 'primary', 'warning', 'danger', 'success']
+// 状态色：中文含义 + 色块预览，不让用户面对 info/primary 等 token 名
+const COLOR_OPTIONS = [
+  { value: 'info', label: '灰 · 中性/未开始' },
+  { value: 'primary', label: '蓝 · 进行中' },
+  { value: 'warning', label: '橙 · 风险/临期' },
+  { value: 'danger', label: '红 · 逾期/阻塞' },
+  { value: 'success', label: '绿 · 已完成' },
+]
 
 const loading = ref(false)
 const saving = ref(false)
@@ -138,5 +153,16 @@ onMounted(load)
 }
 .full {
   width: 100%;
+}
+.color-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.color-dot {
+  width: var(--mido-space-3);
+  height: var(--mido-space-3);
+  border-radius: 50%;
+  flex: none;
 }
 </style>
