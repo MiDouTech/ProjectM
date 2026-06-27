@@ -7,7 +7,11 @@
  */
 export function exportCsv(filename, columns, rows) {
   const escape = (v) => {
-    const s = v == null ? '' : String(v)
+    let s = v == null ? '' : String(v)
+    // 防 CSV 公式注入：以 = + - @ 开头的单元格在 Excel/WPS 中会被当作公式执行，加前导单引号转为文本
+    if (/^[=+\-@]/.test(s)) {
+      s = `'${s}`
+    }
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   const header = columns.map((c) => escape(c.title)).join(',')

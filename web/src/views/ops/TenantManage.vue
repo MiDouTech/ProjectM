@@ -361,12 +361,12 @@ function showUndo(label, n, prev) {
   })
 }
 async function undoBatch(prev) {
-  // 按原状态分组还原
+  // 按原状态分组还原；各组互不依赖，并发提交（避免串行等待逐组往返）
   const groups = {}
   prev.forEach((p) => { (groups[p.status] ||= []).push(p.id) })
-  for (const [st, ids] of Object.entries(groups)) {
-    await tenantApi.batchStatus({ ids, status: st })
-  }
+  await Promise.all(
+    Object.entries(groups).map(([st, ids]) => tenantApi.batchStatus({ ids, status: st })),
+  )
   ElMessage.success('已撤销')
   load()
 }

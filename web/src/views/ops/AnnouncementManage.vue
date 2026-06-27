@@ -12,7 +12,7 @@
       <el-table-column prop="title" label="标题" min-width="200" sortable="custom" />
       <el-table-column label="级别" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.level === 'warning' ? 'warning' : 'info'" effect="plain" size="small">
+          <el-tag type="info" effect="plain" size="small">
             {{ levelLabel(row.level) }}
           </el-tag>
         </template>

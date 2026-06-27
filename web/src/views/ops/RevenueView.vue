@@ -46,7 +46,7 @@
       </el-table-column>
       <el-table-column label="类型" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.type === 'refund' ? 'warning' : 'success'" effect="plain" size="small">
+          <el-tag type="info" effect="plain" size="small">
             {{ REVENUE_TYPE[row.type] || row.type }}
           </el-tag>
         </template>
