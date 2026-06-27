@@ -41,5 +41,11 @@
             <artifactId>jjwt-jackson</artifactId>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- OpenAPI/Swagger 注解（仅注解，无 web 运行时；UI 由 bootstrap 的 springdoc 提供） -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+        </dependency>
     </dependencies>
 </project>

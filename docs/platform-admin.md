@@ -76,10 +76,11 @@ erDiagram
 | 账号 | GET `/admins`、GET `/roles` | `platform:admin:query` |
 | 账号 | POST `/admins`、PUT `/admins/{id}`、PUT `/admins/{id}/password` | `platform:admin:manage` |
 | 审计 | POST `/audit/query` | `platform:audit:query` |
+| 用量 | POST `/usage/tenants/query`（跨租户用量监控，可仅看超限） | `platform:tenant:query` |
 
 ## 4. 关键设计约束
 
-- **租户生命周期**：`trial`(开通即试用) → 绑定订阅转 `active` → `suspended`(停用) / `closed`(注销)；`expired` 预留给到期自动流转（P1 定时任务）。
+- **租户生命周期**：`trial`(开通即试用) → 绑定订阅转 `active` → `suspended`(停用) / `closed`(注销)；`expired` 由到期定时任务自动流转（P0-b：`PlatformMaintenanceScheduler.expireOverdueTenants` 每日扫 `expire_at`）。**停用/到期/注销即时生效**：`isLoginable` 复合校验状态 + `expire_at`，且租户请求链 `JwtAuthenticationFilter` 每请求复查（模拟态放行），不再等令牌过期。
 - **订阅不变量**：每租户至多一条 `active` 订阅；绑定新订阅时旧 active 置 `cancelled`，并同步租户 `expire_at`/`status`/首次 `activated_at`。
 - **自用租户**：`sys_tenant.id=1`（与业务侧固定 `tenant_id=1` 对齐），内置订阅旗舰版、不限期。
 - **种子账号**：平台超管 `superadmin / superadmin123`（BCrypt；生产必须改密码并覆盖 `MIDO_PLATFORM_JWT_SECRET`）。
@@ -105,7 +106,7 @@ erDiagram
 
 - **开放平台 API Key**（P2.2a）：`sys_api_key`(V34) 租户业务表，key 绑定用户、SHA-256 存储仅前缀展示；`ApiKeyAuthenticationFilter`（租户链置于 JWT 前）读 `X-API-Key` → 以绑定用户身份访问全量 `/api/v1`（继承其权限/数据范围）；租户 `/admin` 下管理页，明文一次性展示。
 - **数据导出**（P2.2b）：`TenantDataExporter` 端口（org/project/task/goal 实现核心域），`sys_tenant_export`(V35) 异步任务 + `PlatformMaintenanceScheduler` 定时处理 → JSON 写对象存储 → 下载走限时预签名 URL（不外泄 key）。
-- **注销合规**（P2.2b）：发起注销→标记 `closed` + `purge_scheduled_at`（默认 30 天宽限，可取消）；定时任务对到期租户经 `TenantDataPurger` 端口（org/project/task/goal 物理删除）清除数据并标记 `purged`；**自用租户（tenant_id=1）永不注销/清除**。
+- **注销合规**（P2.2b + P0-c/P0-d 加固）：发起注销→标记 `closed` + `purge_scheduled_at`（宽限至少 1 天、默认 30 天，可取消）+ **自动发起一次数据导出作为清除前备份**；定时任务对到期租户经 `TenantDataPurger` 端口（**已覆盖全部 16 个业务域**：org/project/task/goal/stakeholder/verify/cost/change/approval/doc/report/calendar/briefing/view/field/collab，其中 doc 域先删对象存储文件再删表行）物理删除并标记 `purged`；**清除前强校验存在已完成导出，否则跳过保留数据**；**自用租户（tenant_id=1）永不注销/清除**。
 
 > 端口续用 common 下沉模式（`TenantDataExporter`/`TenantDataPurger`），实现分散业务域，platform 仅编排，模块无环。
 

@@ -2,14 +2,17 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">套餐管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建套餐</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:plan:manage')" @click="openCreate">新建套餐</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="code" label="编码" width="140" />
-      <el-table-column prop="name" label="名称" min-width="140" />
-      <el-table-column label="价格" width="120">
-        <template #default="{ row }">{{ row.price }}</template>
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
+    <template v-else>
+    <el-table v-loading="loading" :data="paged" stripe @sort-change="onSort">
+      <el-table-column prop="code" label="编码" width="140" sortable="custom" />
+      <el-table-column prop="name" label="名称" min-width="140" sortable="custom" />
+      <el-table-column label="价格" width="120" align="right">
+        <template #default="{ row }"><span class="mido-mono">{{ row.price }}</span></template>
       </el-table-column>
       <el-table-column label="计费周期" width="110">
         <template #default="{ row }">{{ cycleLabel(row.billingCycle) }}</template>
@@ -17,19 +20,24 @@
       <el-table-column label="状态" width="100">
         <template #default="{ row }"><StatusTag :status="row.status" /></template>
       </el-table-column>
-      <el-table-column prop="sort" label="排序" width="80" />
+      <el-table-column prop="sort" label="排序" width="80" sortable="custom" />
       <el-table-column label="配额项" min-width="160">
         <template #default="{ row }">{{ quotaSummary(row.quotas) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openFeatures(row)">功能开关</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:plan:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:feature:manage')" @click="openFeatures(row)">功能开关</el-button>
+          <el-button link type="danger" :disabled="!ops.hasPerm('platform:plan:manage')" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无套餐，点击新建" /></template>
     </el-table>
+    <div class="pager">
+      <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total"
+        :page-sizes="[10, 20, 50]" layout="total, sizes, prev, pager, next" />
+    </div>
+    </template>
 
     <!-- 新建 / 编辑（右抽屉）-->
     <el-drawer v-model="drawer" :title="editing ? '编辑套餐' : '新建套餐'" size="var(--mido-drawer-width)">
@@ -64,10 +72,12 @@
               <el-select v-model="q.resource" placeholder="资源" class="quotas__res">
                 <el-option v-for="r in QUOTA_RESOURCE" :key="r.value" :label="r.label" :value="r.value" />
               </el-select>
-              <el-input-number v-model="q.limitValue" :min="-1" :step="1" class="quotas__limit" />
+              <el-switch :model-value="q.limitValue === -1" active-text="不限" inactive-text="限额"
+                inline-prompt @change="(v) => (q.limitValue = v ? -1 : 0)" />
+              <el-input-number v-if="q.limitValue !== -1" v-model="q.limitValue" :min="0" :step="1" class="quotas__limit" />
               <el-button link type="danger" :icon="Delete" @click="form.quotas.splice(i, 1)" />
             </div>
-            <el-button link type="primary" :icon="Plus" @click="addQuota">添加配额项（-1=不限）</el-button>
+            <el-button link type="primary" :icon="Plus" @click="addQuota">添加配额项</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -99,10 +109,17 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { planApi, BILLING_CYCLE, ENABLE_STATUS, QUOTA_RESOURCE, FEATURE_LABELS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
+import { useClientTable } from '@/composables/useClientTable'
+
+const ops = useOpsUserStore()
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
+const { page, size, total, paged, onSort } = useClientTable(rows)
 
 function cycleLabel(c) {
   return BILLING_CYCLE.find((x) => x.value === c)?.label || c
@@ -117,8 +134,11 @@ function quotaSummary(quotas) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     rows.value = await planApi.list()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -237,6 +257,11 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
 }
 .quotas {
   width: 100%;

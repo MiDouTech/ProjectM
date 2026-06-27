@@ -2,12 +2,15 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">运营账号</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建账号</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:admin:manage')" @click="openCreate">新建账号</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="username" label="登录名" width="160" />
-      <el-table-column prop="name" label="姓名" min-width="120" />
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
+    <template v-else>
+    <el-table v-loading="loading" :data="paged" stripe @sort-change="onSort">
+      <el-table-column prop="username" label="登录名" width="160" sortable="custom" />
+      <el-table-column prop="name" label="姓名" min-width="120" sortable="custom" />
       <el-table-column label="角色" min-width="160">
         <template #default="{ row }">{{ (row.roleNames || []).join('，') || '—' }}</template>
       </el-table-column>
@@ -19,12 +22,17 @@
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openResetPwd(row)">重置密码</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:admin:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:admin:manage')" @click="openResetPwd(row)">重置密码</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无运营账号，点击新建" /></template>
     </el-table>
+    <div class="pager">
+      <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total"
+        :page-sizes="[10, 20, 50]" layout="total, sizes, prev, pager, next" />
+    </div>
+    </template>
 
     <!-- 新建 / 编辑（右抽屉）-->
     <el-drawer v-model="drawer" :title="editing ? '编辑账号' : '新建账号'" size="var(--mido-drawer-width)">
@@ -73,17 +81,33 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { platformAdminApi, ENABLE_STATUS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
+import { useClientTable } from '@/composables/useClientTable'
+
+const ops = useOpsUserStore()
+
+// 密码强度：8-64 位且同时含字母和数字（与后端 PasswordPolicy 一致）
+const PWD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/
 
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
 const rows = ref([])
+const { page, size, total, paged, onSort } = useClientTable(rows)
 const roles = ref([])
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
+    if (roles.value.length === 0) {
+      roles.value = await platformAdminApi.roles()
+    }
     rows.value = await platformAdminApi.list()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -96,7 +120,10 @@ const form = reactive({ id: null, username: '', name: '', password: '', status: 
 const rules = {
   username: [{ required: true, message: '请输入登录名', trigger: 'blur' }],
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { pattern: PWD_REGEX, message: '密码需 8-64 位且同时包含字母和数字', trigger: 'blur' },
+  ],
 }
 
 function openCreate() {
@@ -134,7 +161,10 @@ const pwdDialog = ref(false)
 const pwdFormRef = ref()
 const pwdForm = reactive({ id: null, password: '' })
 const pwdRules = {
-  password: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { pattern: PWD_REGEX, message: '密码需 8-64 位且同时包含字母和数字', trigger: 'blur' },
+  ],
 }
 function openResetPwd(row) {
   pwdForm.id = row.id
@@ -153,10 +183,7 @@ async function saveResetPwd() {
   }
 }
 
-onMounted(async () => {
-  roles.value = await platformAdminApi.roles()
-  load()
-})
+onMounted(load)
 </script>
 
 <style scoped>
@@ -165,5 +192,10 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
 }
 </style>

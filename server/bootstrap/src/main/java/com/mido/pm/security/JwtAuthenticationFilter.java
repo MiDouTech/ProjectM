@@ -3,6 +3,7 @@ package com.mido.pm.security;
 import com.mido.pm.common.security.CurrentUser;
 import com.mido.pm.common.security.UserContext;
 import com.mido.pm.common.tenant.TenantContext;
+import com.mido.pm.common.tenant.TenantDirectory;
 import com.mido.pm.provider.identity.IdentityProvider;
 import com.mido.pm.provider.identity.UserPrincipal;
 import com.mido.pm.provider.sso.SsoProvider;
@@ -31,10 +32,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final SsoProvider ssoProvider;
     private final IdentityProvider identityProvider;
+    private final TenantDirectory tenantDirectory;
 
-    public JwtAuthenticationFilter(SsoProvider ssoProvider, IdentityProvider identityProvider) {
+    public JwtAuthenticationFilter(SsoProvider ssoProvider, IdentityProvider identityProvider,
+                                   TenantDirectory tenantDirectory) {
         this.ssoProvider = ssoProvider;
         this.identityProvider = identityProvider;
+        this.tenantDirectory = tenantDirectory;
     }
 
     @Override
@@ -49,8 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 按令牌真实租户覆盖基线租户上下文，落地多租户隔离（替代固定 tenant_id=1）
                     TenantContext.set(payload.tenantId());
                     Long impersonatedBy = payload.impersonatedBy();
-                    identityProvider.loadById(payload.userId())
-                            .ifPresent(p -> authenticate(p, impersonatedBy));
+                    // 租户停用/到期/注销即时生效：非模拟态下不可登录租户不予认证（认证缺失 → 安全链返回 401）。
+                    // 模拟态放行，便于运营对停用租户排查（写操作另由只读拦截器拦截）。
+                    if (impersonatedBy != null || tenantDirectory.isLoginable(payload.tenantId())) {
+                        identityProvider.loadById(payload.userId())
+                                .ifPresent(p -> authenticate(p, impersonatedBy));
+                    }
                 }
             }
             filterChain.doFilter(request, response);

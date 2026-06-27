@@ -63,14 +63,16 @@ export const adminNavGroups = [
 ]
 
 // 平台运营后台侧导航（独立于租户应用 navItems）
+// group: L1 分组（运营/商业化/治理）；perm: 该入口所需权限码（无则恒显示）
 export const opsNavItems = [
-  { path: '/ops/dashboard', title: '运营概览', icon: 'DataLine' },
-  { path: '/ops/tenants', title: '租户管理', icon: 'OfficeBuilding' },
-  { path: '/ops/plans', title: '套餐管理', icon: 'Goods' },
-  { path: '/ops/revenue', title: '收入台账', icon: 'Coin' },
-  { path: '/ops/announcements', title: '公告', icon: 'Bell' },
-  { path: '/ops/admins', title: '运营账号', icon: 'UserFilled' },
-  { path: '/ops/audit', title: '审计日志', icon: 'Tickets' },
+  { path: '/ops/dashboard', title: '运营概览', icon: 'DataLine', group: '租户运营', perm: 'platform:dashboard:view' },
+  { path: '/ops/tenants', title: '租户管理', icon: 'OfficeBuilding', group: '租户运营', perm: 'platform:tenant:query' },
+  { path: '/ops/usage', title: '用量监控', icon: 'Odometer', group: '租户运营', perm: 'platform:tenant:query' },
+  { path: '/ops/plans', title: '套餐管理', icon: 'Goods', group: '商业化', perm: 'platform:plan:query' },
+  { path: '/ops/revenue', title: '收入台账', icon: 'Coin', group: '商业化', perm: 'platform:revenue:query' },
+  { path: '/ops/announcements', title: '公告', icon: 'Bell', group: '商业化', perm: 'platform:announcement:manage' },
+  { path: '/ops/admins', title: '运营账号', icon: 'UserFilled', group: '平台治理', perm: 'platform:admin:query' },
+  { path: '/ops/audit', title: '审计日志', icon: 'Tickets', group: '平台治理', perm: 'platform:audit:query' },
 ]
 
 const routes = [
@@ -85,6 +87,7 @@ const routes = [
     children: [
       { path: 'dashboard', component: () => import('@/views/ops/DashboardView.vue') },
       { path: 'tenants', component: () => import('@/views/ops/TenantManage.vue') },
+      { path: 'usage', component: () => import('@/views/ops/UsageMonitorView.vue') },
       { path: 'plans', component: () => import('@/views/ops/PlanManage.vue') },
       { path: 'revenue', component: () => import('@/views/ops/RevenueView.vue') },
       { path: 'announcements', component: () => import('@/views/ops/AnnouncementManage.vue') },

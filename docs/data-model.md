@@ -244,7 +244,10 @@ CREATE TABLE sys_tenant_subscription (    -- 租户订阅(每租户至多一条 
   quota_override TEXT, remark VARCHAR(255), KEY idx_tenant(tenant_id,status), KEY idx_plan(plan_id));
 CREATE TABLE sys_platform_admin (         -- 平台运营账号(独立账号体系,不属于任何租户)
   id BIGINT PRIMARY KEY, username VARCHAR(64) NOT NULL, password VARCHAR(128) NOT NULL, name VARCHAR(64) NOT NULL,
-  status VARCHAR(16) DEFAULT 'active', last_login_at DATETIME, UNIQUE KEY uk_username(username));
+  status VARCHAR(16) DEFAULT 'active',
+  must_change_password TINYINT DEFAULT 0,  -- 首登强制改密(P0,V73)
+  fail_count INT DEFAULT 0, locked_until DATETIME, -- 登录失败锁定(P0,V73)
+  last_login_at DATETIME, UNIQUE KEY uk_username(username));
 CREATE TABLE sys_platform_role (id BIGINT PRIMARY KEY, name VARCHAR(64), code VARCHAR(64) NOT NULL, remark VARCHAR(255), UNIQUE KEY uk_code(code));
 CREATE TABLE sys_platform_admin_role (id BIGINT PRIMARY KEY, admin_id BIGINT, role_id BIGINT, KEY idx_admin(admin_id));
 CREATE TABLE sys_platform_role_perm (id BIGINT PRIMARY KEY, role_id BIGINT, perm_code VARCHAR(64), KEY idx_role(role_id)); -- perm_code 取自 PlatformPerms

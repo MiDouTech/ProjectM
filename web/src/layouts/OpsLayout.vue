@@ -1,5 +1,8 @@
 <template>
-  <div class="mido-layout">
+  <!-- 运营后台 ops 层：el-config-provider 注入 compact 密度(small)，data-density 供 CSS 钩子；
+       与租户端物理隔离，仅在 OpsLayout 作用域生效（design-system ops 层 P0）。 -->
+  <el-config-provider :size="opsSize">
+  <div class="mido-layout" data-density="compact">
     <!-- 顶栏 TopBar（沿用 design-system §4，token 化）-->
     <header class="mido-topbar">
       <div class="mido-topbar__brand">
@@ -35,14 +38,20 @@
           router
           background-color="transparent"
         >
-          <el-menu-item
-            v-for="item in opsNavItems"
-            :key="item.path"
-            :index="item.path"
+          <el-menu-item-group
+            v-for="g in visibleGroups"
+            :key="g.title"
+            :title="g.title"
           >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.title }}</span>
-          </el-menu-item>
+            <el-menu-item
+              v-for="item in g.items"
+              :key="item.path"
+              :index="item.path"
+            >
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.title }}</span>
+            </el-menu-item>
+          </el-menu-item-group>
         </el-menu>
       </aside>
 
@@ -52,6 +61,7 @@
       </main>
     </div>
   </div>
+  </el-config-provider>
 </template>
 
 <script setup>
@@ -65,8 +75,26 @@ const route = useRoute()
 const router = useRouter()
 const opsStore = useOpsUserStore()
 
+// 运营后台默认 compact 密度（Element 组件 small 尺寸），提升数据密集场景信息量
+const opsSize = 'small'
+
 // 高亮当前二级导航（/ops/tenants 等直接整段匹配）
 const activeMenu = computed(() => route.path)
+
+// 按权限过滤 + 按 group 分组（L1 分组标题 + L2 项）
+const visibleGroups = computed(() => {
+  const groups = []
+  for (const item of opsNavItems) {
+    if (!opsStore.hasPerm(item.perm)) continue
+    let g = groups.find((x) => x.title === item.group)
+    if (!g) {
+      g = { title: item.group, items: [] }
+      groups.push(g)
+    }
+    g.items.push(item)
+  }
+  return groups
+})
 
 const accountName = computed(() => opsStore.displayName)
 const accountInitial = computed(() => (accountName.value || 'M').charAt(0))

@@ -2,7 +2,7 @@
   <div class="mido-page">
     <div class="wb__bar">
       <div class="wb__greeting">
-        <span class="wb__hello">{{ greeting }}{{ myName ? '，' + myName : '' }} 👋</span>
+        <span class="wb__hello">{{ greeting }}{{ myName ? '，' + myName : '' }}</span>
         <span class="wb__date mido-text-secondary">{{ todayText }}</span>
       </div>
       <el-button type="primary" :icon="Plus" @click="addDialog = true">添加卡片</el-button>

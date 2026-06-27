@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 平台运营认证过滤器：仅作用于平台安全链（/api/v1/platform/**）。
@@ -42,7 +43,15 @@ public class PlatformAuthenticationFilter extends OncePerRequestFilter {
             if (token != null) {
                 Long adminId = tokenService.verify(token);
                 if (adminId != null) {
-                    authService.loadPrincipal(adminId).ifPresent(this::authenticate);
+                    Optional<PlatformPrincipal> principal = authService.loadPrincipal(adminId);
+                    if (principal.isPresent()) {
+                        authenticate(principal.get());
+                        // 首登/被重置后强制改密：除自助改密与查询自身外，一律拦截，避免前端门控被绕过
+                        if (principal.get().mustChangePassword() && !isChangePasswordAllowed(request)) {
+                            writeForbidden(response);
+                            return;
+                        }
+                    }
                 }
             }
             filterChain.doFilter(request, response);
@@ -59,6 +68,18 @@ public class PlatformAuthenticationFilter extends OncePerRequestFilter {
                 new UsernamePasswordAuthenticationToken(principal, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(auth);
         PlatformContext.set(principal);
+    }
+
+    /** 强制改密期间放行的接口：自助改密、查询当前账号。 */
+    private boolean isChangePasswordAllowed(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri != null && (uri.endsWith("/platform/auth/password") || uri.endsWith("/platform/auth/me"));
+    }
+
+    private void writeForbidden(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":40300,\"message\":\"请先修改初始密码后再操作\"}");
     }
 
     private String resolveToken(HttpServletRequest request) {

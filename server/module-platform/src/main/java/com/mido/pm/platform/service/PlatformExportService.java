@@ -67,6 +67,14 @@ public class PlatformExportService {
         return task.getId();
     }
 
+    /** 该租户是否存在已成功完成的导出（注销清除前置校验：无完成导出不予物理清除）。 */
+    public boolean hasCompletedExport(Long tenantId) {
+        Long cnt = exportMapper.selectCount(Wrappers.<SysTenantExport>lambdaQuery()
+                .eq(SysTenantExport::getTenantId, tenantId)
+                .eq(SysTenantExport::getStatus, "done"));
+        return cnt != null && cnt > 0;
+    }
+
     /** 某租户的导出任务列表。 */
     public List<SysTenantExport> list(Long tenantId) {
         return exportMapper.selectList(Wrappers.<SysTenantExport>lambdaQuery()

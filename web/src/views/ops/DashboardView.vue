@@ -1,18 +1,29 @@
 <template>
   <div v-loading="loading" class="dash">
+    <ErrorState v-if="loadError" @retry="load" />
+    <template v-else>
     <!-- 顶部指标卡 -->
     <div class="dash__metrics">
-      <el-card v-for="m in metrics" :key="m.key" shadow="never" class="metric">
+      <el-card v-for="m in metrics" :key="m.key" shadow="never" class="metric mido-hoverable"
+        @click="goTenants(m.status)">
         <div class="metric__label">{{ m.label }}</div>
-        <div class="metric__value">{{ m.value }}</div>
+        <div class="metric__value mido-mono">{{ m.value }}</div>
       </el-card>
     </div>
+
+    <!-- 租户增长趋势 -->
+    <el-card shadow="never" class="dash__block">
+      <template #header><span class="mido-h2">近 12 月新增租户</span></template>
+      <G2Chart v-if="hasTrend" :option="trendOption" :height="260" />
+      <el-empty v-else description="暂无趋势数据" />
+    </el-card>
 
     <!-- 状态分布 -->
     <el-card shadow="never" class="dash__block">
       <template #header><span class="mido-h2">租户状态分布</span></template>
       <div class="dist">
-        <div v-for="d in statusDist" :key="d.key" class="dist__row">
+        <div v-for="d in statusDist" :key="d.key" class="dist__row dist__row--click"
+          @click="goTenants(d.key)">
           <div class="dist__head">
             <StatusTag :status="d.key" />
             <span class="dist__count">{{ d.value }}</span>
@@ -45,23 +56,49 @@
         <template #empty><el-empty description="近 30 天无到期租户" /></template>
       </el-table>
     </el-card>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
+import G2Chart from '@/components/G2Chart.vue'
 import { dashboardApi, TENANT_STATUS } from '@/api/ops'
 
+const router = useRouter()
 const loading = ref(false)
+const loadError = ref(false)
 const overview = ref({})
+const trend = ref([])
+
+const hasTrend = computed(() => trend.value.some((p) => Number(p.value) > 0))
+const trendOption = computed(() => {
+  const primary = getComputedStyle(document.documentElement).getPropertyValue('--el-color-primary').trim()
+  return {
+    type: 'view',
+    data: trend.value.map((p) => ({ month: p.month, value: Number(p.value || 0) })),
+    children: [
+      { type: 'line', encode: { x: 'month', y: 'value' }, style: { stroke: primary || undefined, lineWidth: 2 } },
+      { type: 'point', encode: { x: 'month', y: 'value' }, style: { fill: primary || undefined }, tooltip: { items: ['value'] } },
+    ],
+    axis: { x: { title: false }, y: { title: false, nice: true } },
+  }
+})
 
 const metrics = computed(() => [
-  { key: 'total', label: '租户总数', value: Number(overview.value.totalTenants || 0) },
-  { key: 'active', label: '正式租户', value: Number(overview.value.activeTenants || 0) },
-  { key: 'trial', label: '试用租户', value: Number(overview.value.trialTenants || 0) },
-  { key: 'new', label: '本月新增', value: Number(overview.value.newThisMonth || 0) },
+  { key: 'total', label: '租户总数', value: Number(overview.value.totalTenants || 0), status: '' },
+  { key: 'active', label: '正式租户', value: Number(overview.value.activeTenants || 0), status: 'active' },
+  { key: 'trial', label: '试用租户', value: Number(overview.value.trialTenants || 0), status: 'trial' },
+  { key: 'new', label: '本月新增', value: Number(overview.value.newThisMonth || 0), status: '' },
 ])
+
+// 指标/状态下钻：跳租户管理并按状态预筛选
+function goTenants(status) {
+  router.push({ path: '/ops/tenants', query: status ? { status } : {} })
+}
 
 const statusDist = computed(() => {
   const dist = overview.value.statusDist || {}
@@ -80,8 +117,17 @@ function tenantLabel(status) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     overview.value = await dashboardApi.overview()
+    // 趋势图单独容错，失败不影响概览主体
+    try {
+      trend.value = await dashboardApi.trend()
+    } catch {
+      trend.value = []
+    }
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -126,6 +172,14 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   gap: var(--mido-space-1);
+}
+.dist__row--click {
+  cursor: pointer;
+  border-radius: var(--mido-radius-sm);
+  transition: background-color var(--mido-duration) var(--mido-ease);
+}
+.dist__row--click:hover {
+  background-color: var(--el-fill-color-light);
 }
 .dist__head {
   display: flex;

@@ -98,4 +98,24 @@
   --mido-border-width: 1px;
   --mido-login-card-width: 360px;
   --mido-admin-nav-width: 180px;
+
+  /* ===== 运营后台 ops 层（operator console，派生自上方 token，不另立色板）=====
+     治理：所有 --mido-ops-* 必须可追溯到一个既有 --mido-*/--el-* 源（别名或 color-mix 派生），
+     以保证 token 唯一性；将来若租户端收敛，可整体「晋级」为全局基座。详见 docs/design-system.md ops 层章节。 */
+  /* 颜色：语义别名 / 派生 */
+  --mido-ops-nav-bg: var(--mido-nav-bg);
+  --mido-ops-nav-active: var(--mido-nav-active-bg);
+  --mido-ops-canvas: var(--el-bg-color-page);
+  --mido-ops-surface: var(--el-bg-color);
+  --mido-ops-accent: var(--el-color-primary);
+  --mido-ops-data: color-mix(in srgb, var(--el-color-primary) 85%, var(--el-color-info));
+  --mido-ops-neutral: var(--el-color-info);
+  --mido-ops-row-hover: var(--el-fill-color-light);
+  --mido-ops-border: var(--el-border-color-light);
+  /* 密度档（compact）：行高与紧凑间距，映射既有 space 阶梯，不新增数值 */
+  --mido-ops-line-height-compact: 1.4;
+  --mido-ops-space-section: var(--mido-space-4);
+  --mido-ops-space-card: var(--mido-space-3);
+  --mido-ops-space-cell: var(--mido-space-2);
+  --mido-ops-space-control: var(--mido-space-2);
 }

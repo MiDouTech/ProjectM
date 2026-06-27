@@ -3,12 +3,15 @@ package com.mido.pm.platform.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.platform.dto.DashboardVO;
 import com.mido.pm.platform.dto.TenantVO;
+import com.mido.pm.platform.dto.TrendPointVO;
 import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.mapper.SysTenantMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +60,24 @@ public class PlatformDashboardService {
                 .toList();
 
         return new DashboardVO(total, active, trial, newThisMonth, dist, expiring);
+    }
+
+    /** 近 12 个月新增租户趋势（缺失月份补 0）。 */
+    public List<TrendPointVO> tenantTrend() {
+        int months = 12;
+        LocalDate firstMonth = LocalDate.now().withDayOfMonth(1).minusMonths(months - 1L);
+        Map<String, Long> byMonth = new HashMap<>();
+        for (Map<String, Object> r : tenantMapper.monthlyRegistrations(firstMonth.atStartOfDay())) {
+            Object cnt = r.get("cnt");
+            byMonth.put(String.valueOf(r.get("ym")), cnt == null ? 0L : ((Number) cnt).longValue());
+        }
+        List<TrendPointVO> out = new ArrayList<>();
+        for (int i = 0; i < months; i++) {
+            LocalDate m = firstMonth.plusMonths(i);
+            String ym = String.format("%04d-%02d", m.getYear(), m.getMonthValue());
+            out.add(new TrendPointVO(ym, byMonth.getOrDefault(ym, 0L)));
+        }
+        return out;
     }
 
     private long count(String status) {

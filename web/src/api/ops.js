@@ -10,11 +10,15 @@ import request from './request'
 export const opsAuthApi = {
   login: (data) => request.post('/platform/auth/login', data),
   me: () => request.get('/platform/auth/me'),
+  // 自助改密（含首登强制改密）：{oldPassword, newPassword}
+  changePassword: (data) => request.post('/platform/auth/password', data),
 }
 
 /** 仪表盘 */
 export const dashboardApi = {
   overview: () => request.get('/platform/dashboard/overview'),
+  // 近12月新增租户趋势：[{month:'YYYY-MM', value:n}]
+  trend: () => request.get('/platform/dashboard/trend'),
 }
 
 /** 租户管理 */
@@ -24,6 +28,8 @@ export const tenantApi = {
   create: (data) => request.post('/platform/tenants', data),
   update: (id, data) => request.put(`/platform/tenants/${id}`, data),
   changeStatus: (id, data) => request.put(`/platform/tenants/${id}/status`, data),
+  // 批量状态流转：{ids:[], status, reason} → 处理数量
+  batchStatus: (data) => request.post('/platform/tenants/batch-status', data),
   bindSubscription: (id, data) => request.post(`/platform/tenants/${id}/subscription`, data),
   // 用量 vs 配额：[{resource, used, limit, exceeded, snapshotTime}]，limit=-1 表示不限
   usage: (id) => request.get(`/platform/tenants/${id}/usage`),
@@ -49,9 +55,11 @@ export const EXPORT_STATUS = [
   { value: 'failed', label: '失败' },
 ]
 
-/** 用量快照（手动触发全量，返回处理租户数）*/
+/** 用量监控 */
 export const usageApi = {
   snapshot: () => request.post('/platform/usage/snapshot'),
+  // 跨租户用量监控：{page,size,onlyExceeded} → PageResult<{tenantId,tenantCode,tenantName,status,usage[],anyExceeded}>
+  monitorQuery: (data) => request.post('/platform/usage/tenants/query', data),
 }
 
 /** 套餐管理 */

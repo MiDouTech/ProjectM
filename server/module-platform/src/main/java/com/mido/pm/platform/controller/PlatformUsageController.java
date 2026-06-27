@@ -1,14 +1,21 @@
 package com.mido.pm.platform.controller;
 
+import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.api.R;
+import com.mido.pm.platform.dto.TenantUsageOverviewVO;
+import com.mido.pm.platform.dto.UsageMonitorQueryDTO;
 import com.mido.pm.platform.security.PlatformPerms;
 import com.mido.pm.platform.service.PlatformUsageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 用量快照手动触发（日常由定时任务自动执行）。 */
+/** 用量监控：跨租户用量/配额概览 + 快照手动触发（日常由定时任务自动执行）。 */
+@Tag(name = "平台-用量监控", description = "跨租户用量/配额概览与快照")
 @RestController
 @RequestMapping("/api/v1/platform/usage")
 public class PlatformUsageController {
@@ -19,7 +26,16 @@ public class PlatformUsageController {
         this.usageService = usageService;
     }
 
+    /** 跨租户用量监控列表（可仅看超限）。 */
+    @PreAuthorize("hasAuthority('" + PlatformPerms.TENANT_QUERY + "')")
+    @Operation(summary = "跨租户用量监控", description = "可仅看超限租户")
+    @PostMapping("/tenants/query")
+    public R<PageResult<TenantUsageOverviewVO>> tenantsQuery(@RequestBody UsageMonitorQueryDTO query) {
+        return R.ok(usageService.pageTenantUsage(query));
+    }
+
     @PreAuthorize("hasAuthority('" + PlatformPerms.TENANT_MANAGE + "')")
+    @Operation(summary = "手动用量快照", description = "全量触发，日常由定时任务执行")
     @PostMapping("/snapshot")
     public R<Integer> snapshot() {
         return R.ok(usageService.snapshotAll());

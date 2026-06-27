@@ -9,25 +9,47 @@
           <el-option v-for="s in TENANT_STATUS" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
         <el-button :icon="Refresh" :loading="snapshotLoading" @click="refreshUsage">刷新用量</el-button>
-        <el-button type="primary" :icon="Plus" @click="openCreate">开通租户</el-button>
+        <el-dropdown :hide-on-click="false" trigger="click">
+          <el-button :icon="Setting" circle plain title="列设置" />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="c in pref.optionalCols" :key="c.key">
+                <el-checkbox :model-value="pref.visible(c.key)" @change="(v) => pref.toggle(c.key, v)">{{ c.label }}</el-checkbox>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openCreate">开通租户</el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="code" label="编码" width="160" />
-      <el-table-column prop="name" label="名称" min-width="160" />
-      <el-table-column label="状态" width="100">
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
+    <template v-else>
+    <div v-if="selectedIds.length" class="batchbar">
+      <span class="batchbar__info">已选 {{ selectedIds.length }} 个租户</span>
+      <el-button size="small" type="success" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
+        @click="batchStatus('active')">批量启用</el-button>
+      <el-button size="small" type="warning" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
+        @click="batchStatus('suspended')">批量停用</el-button>
+    </div>
+    <el-table v-loading="loading" :data="rows" stripe border
+      @header-dragend="pref.onHeaderResize" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="46" />
+      <el-table-column prop="code" label="编码" :width="pref.w('编码', 160)" />
+      <el-table-column prop="name" label="名称" :width="pref.w('名称', 200)" />
+      <el-table-column label="状态" :width="pref.w('状态', 100)">
         <template #default="{ row }">
           <StatusTag :status="row.status" :label="tenantLabel(row.status)" />
         </template>
       </el-table-column>
-      <el-table-column label="套餐" width="140">
+      <el-table-column v-if="pref.visible('plan')" label="套餐" :width="pref.w('套餐', 140)">
         <template #default="{ row }">{{ row.planName || '—' }}</template>
       </el-table-column>
-      <el-table-column label="到期" width="180">
+      <el-table-column v-if="pref.visible('expire')" label="到期" :width="pref.w('到期', 180)">
         <template #default="{ row }">{{ row.expireAt || '不限期' }}</template>
       </el-table-column>
-      <el-table-column label="联系" min-width="160">
+      <el-table-column v-if="pref.visible('contact')" label="联系" :width="pref.w('联系', 200)">
         <template #default="{ row }">
           <span v-if="row.contactName || row.contactPhone">
             {{ row.contactName || '' }} {{ row.contactPhone || '' }}
@@ -38,10 +60,10 @@
       <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status === 'suspended'" link type="success" @click="changeStatus(row, 'active')">启用</el-button>
-          <el-button v-else-if="row.status !== 'closed'" link type="warning" @click="changeStatus(row, 'suspended')">停用</el-button>
-          <el-button v-if="row.status !== 'closed'" link type="danger" @click="changeStatus(row, 'closed')">注销</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="row.status === 'suspended'" link type="success" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'active')">启用</el-button>
+          <el-button v-else-if="row.status !== 'closed'" link type="warning" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'suspended')">停用</el-button>
+          <el-button v-if="row.status !== 'closed'" link type="danger" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'closed')">注销</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无租户，点击开通" /></template>
@@ -58,6 +80,7 @@
         @size-change="reload"
       />
     </div>
+    </template>
 
     <!-- 开通 / 编辑（右抽屉） -->
     <el-drawer v-model="formDrawer" :title="editing ? '编辑租户' : '开通租户'" size="var(--mido-drawer-width)">
@@ -70,7 +93,7 @@
           <el-input v-model="form.adminUsername" placeholder="留空默认 admin" />
         </el-form-item>
         <el-form-item v-if="!editing" label="初始密码">
-          <el-input v-model="form.adminPassword" placeholder="留空默认 Mido@2024，请提示客户首登后修改" />
+          <el-input v-model="form.adminPassword" placeholder="留空将生成默认初始密码，请提示客户首登后立即修改" />
         </el-form-item>
         <el-form-item label="行业"><el-input v-model="form.industry" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contactName" /></el-form-item>
@@ -89,142 +112,153 @@
       <div v-loading="detailLoading" class="detail">
         <template v-if="detail.id">
           <div class="detail__actions">
-            <el-button type="primary" plain :icon="Switch" @click="impersonate">模拟登录</el-button>
+            <el-button type="primary" plain :icon="Switch" :disabled="!ops.hasPerm('platform:tenant:impersonate')" @click="impersonate">模拟登录</el-button>
           </div>
 
-          <el-descriptions title="基础信息" :column="1" border>
-            <el-descriptions-item label="编码">{{ detail.code }}</el-descriptions-item>
-            <el-descriptions-item label="名称">{{ detail.name }}</el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <StatusTag :status="detail.status" :label="tenantLabel(detail.status)" />
-            </el-descriptions-item>
-            <el-descriptions-item label="行业">{{ detail.industry || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="联系人">{{ detail.contactName || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="联系电话">{{ detail.contactPhone || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="联系邮箱">{{ detail.contactEmail || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="来源">{{ detail.source || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="激活时间">{{ detail.activatedAt || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="到期时间">{{ detail.expireAt || '不限期' }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ detail.createTime || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="备注">{{ detail.remark || '—' }}</el-descriptions-item>
-          </el-descriptions>
+          <el-tabs class="detail__tabs">
+            <el-tab-pane label="基础">
+              <el-descriptions :column="1" border>
+                <el-descriptions-item label="编码"><span class="mido-mono">{{ detail.code }}</span></el-descriptions-item>
+                <el-descriptions-item label="名称">{{ detail.name }}</el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  <StatusTag :status="detail.status" :label="tenantLabel(detail.status)" />
+                </el-descriptions-item>
+                <el-descriptions-item label="行业">{{ detail.industry || '—' }}</el-descriptions-item>
+                <el-descriptions-item label="联系人">{{ detail.contactName || '—' }}</el-descriptions-item>
+                <el-descriptions-item label="联系电话"><span class="mido-mono">{{ detail.contactPhone || '—' }}</span></el-descriptions-item>
+                <el-descriptions-item label="联系邮箱">{{ detail.contactEmail || '—' }}</el-descriptions-item>
+                <el-descriptions-item label="来源">{{ detail.source || '—' }}</el-descriptions-item>
+                <el-descriptions-item label="激活时间">{{ detail.activatedAt || '—' }}</el-descriptions-item>
+                <el-descriptions-item label="到期时间">{{ detail.expireAt || '不限期' }}</el-descriptions-item>
+                <el-descriptions-item label="创建时间">{{ detail.createTime || '—' }}</el-descriptions-item>
+                <el-descriptions-item label="备注">{{ detail.remark || '—' }}</el-descriptions-item>
+              </el-descriptions>
+            </el-tab-pane>
 
-          <div class="detail__block">
-            <div class="detail__sub-title">资源用量</div>
-            <el-table v-if="usage.length" :data="usage" size="small" border>
-              <el-table-column label="资源">
-                <template #default="{ row }">{{ resourceLabel(row.resource) }}</template>
-              </el-table-column>
-              <el-table-column label="已用" width="90">
-                <template #default="{ row }">{{ row.used }}</template>
-              </el-table-column>
-              <el-table-column label="上限" width="90">
-                <template #default="{ row }">{{ row.limit === -1 ? '不限' : row.limit }}</template>
-              </el-table-column>
-              <el-table-column label="状态" width="100">
-                <template #default="{ row }">
-                  <StatusTag v-if="row.exceeded" status="逾期" label="超限" />
-                  <StatusTag v-else status="达标" label="正常" />
+            <el-tab-pane label="订阅与配额">
+              <el-descriptions class="detail__block" title="当前订阅" :column="1" border>
+                <template v-if="detail.subscription">
+                  <el-descriptions-item label="套餐">{{ detail.subscription.planName }}</el-descriptions-item>
+                  <el-descriptions-item label="状态">
+                    <StatusTag :status="detail.subscription.status" />
+                  </el-descriptions-item>
+                  <el-descriptions-item label="开始">{{ detail.subscription.startAt || '—' }}</el-descriptions-item>
+                  <el-descriptions-item label="到期">{{ detail.subscription.expireAt || '不限期' }}</el-descriptions-item>
+                  <el-descriptions-item label="备注">{{ detail.subscription.remark || '—' }}</el-descriptions-item>
                 </template>
-              </el-table-column>
-            </el-table>
-            <el-empty v-else description="暂无用量数据" :image-size="60" />
-          </div>
+                <el-descriptions-item v-else label="订阅">暂无订阅</el-descriptions-item>
+              </el-descriptions>
 
-          <div class="detail__block">
-            <div class="detail__sub-title detail__sub-title--bar">
-              <span>数据导出</span>
-              <el-button type="primary" plain size="small" :icon="Download"
-                :loading="exportRequesting" @click="requestExport">发起导出</el-button>
-            </div>
-            <el-table v-if="exports.length" :data="exports" size="small" border>
-              <el-table-column label="创建时间" min-width="160">
-                <template #default="{ row }">{{ row.createTime || '—' }}</template>
-              </el-table-column>
-              <el-table-column label="状态" width="100">
-                <template #default="{ row }">
-                  <StatusTag :status="row.status" />
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="120">
-                <template #default="{ row }">
-                  <el-button v-if="row.status === 'done' && row.fileReady" link type="primary"
-                    @click="downloadExport(row)">下载</el-button>
-                  <el-tooltip v-else-if="row.status === 'failed' && row.error"
-                    :content="row.error" placement="top">
-                    <span class="detail__error">查看错误</span>
-                  </el-tooltip>
-                  <span v-else>—</span>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-empty v-else description="暂无导出任务" :image-size="60" />
-          </div>
+              <div class="detail__block">
+                <div class="detail__sub-title">配额</div>
+                <el-table v-if="detail.quotas && detail.quotas.length" :data="detail.quotas" size="small" border>
+                  <el-table-column label="资源">
+                    <template #default="{ row }">{{ resourceLabel(row.resource) }}</template>
+                  </el-table-column>
+                  <el-table-column label="上限" align="right">
+                    <template #default="{ row }"><span class="mido-mono">{{ row.limitValue === -1 ? '不限' : row.limitValue }}</span></template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-else description="暂无配额" :image-size="60" />
+              </div>
 
-          <div class="detail__block">
-            <div class="detail__sub-title">注销合规</div>
-            <el-alert v-if="detail.purgeScheduledAt" type="error" :closable="false" show-icon
-              :title="`已注销，计划清除时间：${detail.purgeScheduledAt}`"
-              description="该租户处于注销宽限期，到期后数据将被物理清除。" />
-            <div class="detail__deletion">
-              <el-button v-if="detail.purgeScheduledAt" type="warning"
-                :loading="deletionLoading" @click="cancelDeletion">取消注销</el-button>
-              <el-button v-else-if="String(detail.id) !== '1'" type="danger"
-                :loading="deletionLoading" @click="requestDeletion">注销租户</el-button>
-              <span v-else class="detail__hint">自用租户不可注销</span>
-            </div>
-          </div>
+              <div class="detail__block">
+                <div class="detail__sub-title">绑定 / 续期套餐</div>
+                <el-form :model="subForm" :label-width="80">
+                  <el-form-item label="套餐">
+                    <el-select v-model="subForm.planId" placeholder="选择套餐" style="width: 100%">
+                      <el-option v-for="p in plans" :key="p.id" :label="p.name" :value="p.id" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="开始日期">
+                    <el-date-picker v-model="subForm.startAt" type="date" value-format="YYYY-MM-DD"
+                      placeholder="可空，默认即时生效" style="width: 100%" />
+                  </el-form-item>
+                  <el-form-item label="到期日期">
+                    <el-date-picker v-model="subForm.expireAt" type="date" value-format="YYYY-MM-DD"
+                      placeholder="可空，留空=不限期" style="width: 100%" />
+                  </el-form-item>
+                  <el-form-item label="备注">
+                    <el-input v-model="subForm.remark" type="textarea" :rows="2" />
+                  </el-form-item>
+                  <el-button type="primary" :loading="subSaving"
+                    :disabled="!subForm.planId || !ops.hasPerm('platform:subscription:manage')" @click="saveSubscription">
+                    绑定 / 续期
+                  </el-button>
+                </el-form>
+              </div>
+            </el-tab-pane>
 
-          <el-descriptions class="detail__block" title="当前订阅" :column="1" border>
-            <template v-if="detail.subscription">
-              <el-descriptions-item label="套餐">{{ detail.subscription.planName }}</el-descriptions-item>
-              <el-descriptions-item label="状态">
-                <StatusTag :status="detail.subscription.status" />
-              </el-descriptions-item>
-              <el-descriptions-item label="开始">{{ detail.subscription.startAt || '—' }}</el-descriptions-item>
-              <el-descriptions-item label="到期">{{ detail.subscription.expireAt || '不限期' }}</el-descriptions-item>
-              <el-descriptions-item label="备注">{{ detail.subscription.remark || '—' }}</el-descriptions-item>
-            </template>
-            <el-descriptions-item v-else label="订阅">暂无订阅</el-descriptions-item>
-          </el-descriptions>
+            <el-tab-pane label="用量">
+              <el-table v-if="usage.length" :data="usage" size="small" border>
+                <el-table-column label="资源">
+                  <template #default="{ row }">{{ resourceLabel(row.resource) }}</template>
+                </el-table-column>
+                <el-table-column label="已用" width="90" align="right">
+                  <template #default="{ row }"><span class="mido-mono">{{ row.used }}</span></template>
+                </el-table-column>
+                <el-table-column label="上限" width="90" align="right">
+                  <template #default="{ row }"><span class="mido-mono">{{ row.limit === -1 ? '不限' : row.limit }}</span></template>
+                </el-table-column>
+                <el-table-column label="状态" width="100">
+                  <template #default="{ row }">
+                    <StatusTag v-if="row.exceeded" status="逾期" label="超限" />
+                    <StatusTag v-else status="达标" label="正常" />
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else description="暂无用量数据" :image-size="60" />
+            </el-tab-pane>
 
-          <div class="detail__block">
-            <div class="detail__sub-title">配额</div>
-            <el-table v-if="detail.quotas && detail.quotas.length" :data="detail.quotas" size="small" border>
-              <el-table-column label="资源">
-                <template #default="{ row }">{{ resourceLabel(row.resource) }}</template>
-              </el-table-column>
-              <el-table-column label="上限">
-                <template #default="{ row }">{{ row.limitValue === -1 ? '不限' : row.limitValue }}</template>
-              </el-table-column>
-            </el-table>
-            <el-empty v-else description="暂无配额" :image-size="60" />
-          </div>
+            <el-tab-pane label="导出与注销">
+              <div class="detail__block">
+                <div class="detail__sub-title detail__sub-title--bar">
+                  <span>数据导出</span>
+                  <el-button type="primary" plain size="small" :icon="Download"
+                    :disabled="!ops.hasPerm('platform:tenant:manage')"
+                    :loading="exportRequesting" @click="requestExport">发起导出</el-button>
+                </div>
+                <el-table v-if="exports.length" :data="exports" size="small" border>
+                  <el-table-column label="创建时间" min-width="160">
+                    <template #default="{ row }">{{ row.createTime || '—' }}</template>
+                  </el-table-column>
+                  <el-table-column label="状态" width="100">
+                    <template #default="{ row }">
+                      <StatusTag :status="row.status" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="120">
+                    <template #default="{ row }">
+                      <el-button v-if="row.status === 'done' && row.fileReady" link type="primary"
+                        @click="downloadExport(row)">下载</el-button>
+                      <el-tooltip v-else-if="row.status === 'failed' && row.error"
+                        :content="row.error" placement="top">
+                        <span class="detail__error">查看错误</span>
+                      </el-tooltip>
+                      <span v-else>—</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-else description="暂无导出任务" :image-size="60" />
+              </div>
 
-          <div class="detail__block">
-            <div class="detail__sub-title">绑定 / 续期套餐</div>
-            <el-form :model="subForm" :label-width="80">
-              <el-form-item label="套餐">
-                <el-select v-model="subForm.planId" placeholder="选择套餐" style="width: 100%">
-                  <el-option v-for="p in plans" :key="p.id" :label="p.name" :value="p.id" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="开始日期">
-                <el-date-picker v-model="subForm.startAt" type="date" value-format="YYYY-MM-DD"
-                  placeholder="可空，默认即时生效" style="width: 100%" />
-              </el-form-item>
-              <el-form-item label="到期日期">
-                <el-date-picker v-model="subForm.expireAt" type="date" value-format="YYYY-MM-DD"
-                  placeholder="可空，留空=不限期" style="width: 100%" />
-              </el-form-item>
-              <el-form-item label="备注">
-                <el-input v-model="subForm.remark" type="textarea" :rows="2" />
-              </el-form-item>
-              <el-button type="primary" :loading="subSaving" :disabled="!subForm.planId" @click="saveSubscription">
-                绑定 / 续期
-              </el-button>
-            </el-form>
-          </div>
+              <div class="detail__block">
+                <div class="detail__sub-title">注销合规</div>
+                <el-alert v-if="detail.purgeScheduledAt" type="error" :closable="false" show-icon
+                  :title="`已注销，计划清除时间：${detail.purgeScheduledAt}`"
+                  description="该租户处于注销宽限期，到期后数据将被物理清除。" />
+                <div class="detail__deletion">
+                  <el-button v-if="detail.purgeScheduledAt" type="warning"
+                    :disabled="!ops.hasPerm('platform:tenant:manage')"
+                    :loading="deletionLoading" @click="cancelDeletion">取消注销</el-button>
+                  <el-button v-else-if="String(detail.id) !== '1'" type="danger"
+                    :disabled="!ops.hasPerm('platform:tenant:manage')"
+                    :loading="deletionLoading" @click="requestDeletion">注销租户</el-button>
+                  <span v-else class="detail__hint">自用租户不可注销</span>
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
         </template>
       </div>
     </el-drawer>
@@ -232,14 +266,25 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Switch, Download } from '@element-plus/icons-vue'
+import { h, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { Plus, Refresh, Switch, Download, Setting } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
+import { useOpsUserStore } from '@/store/opsUser'
+import { useOpsTablePref } from '@/composables/useOpsTablePref'
 
+const ops = useOpsUserStore()
+const pref = useOpsTablePref('tenants', [
+  { key: 'plan', label: '套餐' },
+  { key: 'expire', label: '到期' },
+  { key: 'contact', label: '联系' },
+])
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
 const total = ref(0)
 const query = reactive({ keyword: '', status: '', page: 1, size: 10 })
@@ -255,6 +300,7 @@ function resourceLabel(res) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     const res = await tenantApi.query({
       keyword: query.keyword || undefined,
@@ -264,12 +310,64 @@ async function load() {
     })
     rows.value = res.list || []
     total.value = Number(res.total || 0)
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
 }
 function reload() {
   query.page = 1
+  load()
+}
+
+/* ===== 批量操作 ===== */
+const SETTABLE = ['active', 'suspended', 'closed']
+const selectedIds = ref([])
+const selectedRows = ref([])
+function onSelectionChange(rows) {
+  selectedRows.value = rows
+  selectedIds.value = rows.map((r) => r.id)
+}
+async function batchStatus(status) {
+  const label = status === 'active' ? '启用' : '停用'
+  const ids = [...selectedIds.value]
+  // 记录原状态用于撤销（仅可流转状态可还原）
+  const prev = selectedRows.value
+    .filter((r) => r.status !== status && SETTABLE.includes(r.status))
+    .map((r) => ({ id: r.id, status: r.status }))
+  await ElMessageBox.confirm(`确认批量${label}选中的 ${ids.length} 个租户？`, '批量操作', { type: 'warning' })
+  const n = await tenantApi.batchStatus({ ids, status })
+  selectedIds.value = []
+  load()
+  showUndo(label, n, prev)
+}
+function showUndo(label, n, prev) {
+  if (!prev.length) {
+    ElMessage.success(`已${label} ${n} 个租户`)
+    return
+  }
+  const notif = ElNotification({
+    title: '批量操作完成',
+    type: 'success',
+    duration: 6000,
+    message: h('span', [
+      `已${label} ${n} 个租户　`,
+      h('a', {
+        style: 'color: var(--el-color-primary); cursor: pointer; font-weight: var(--mido-font-weight-bold);',
+        onClick: () => { notif.close(); undoBatch(prev) },
+      }, '撤销'),
+    ]),
+  })
+}
+async function undoBatch(prev) {
+  // 按原状态分组还原；各组互不依赖，并发提交（避免串行等待逐组往返）
+  const groups = {}
+  prev.forEach((p) => { (groups[p.status] ||= []).push(p.id) })
+  await Promise.all(
+    Object.entries(groups).map(([st, ids]) => tenantApi.batchStatus({ ids, status: st })),
+  )
+  ElMessage.success('已撤销')
   load()
 }
 
@@ -500,7 +598,14 @@ async function saveSubscription() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  // 概览下钻：按 URL 状态预筛选
+  const s = useRoute().query.status
+  if (typeof s === 'string') {
+    query.status = s
+  }
+  load()
+})
 </script>
 
 <style scoped>
@@ -509,6 +614,20 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.batchbar {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-2) var(--mido-space-3);
+  margin-bottom: var(--mido-space-3);
+  background-color: var(--el-fill-color-light);
+  border-radius: var(--mido-radius-md);
+}
+.batchbar__info {
+  margin-right: auto;
+  font-size: var(--mido-font-size-secondary);
+  color: var(--el-text-color-regular);
 }
 .bar__right {
   display: flex;

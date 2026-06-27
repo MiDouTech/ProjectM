@@ -44,10 +44,15 @@ public class PlatformAuditService {
         this.objectMapper = objectMapper;
     }
 
-    /** 记录一条运营审计。须在调用方事务内执行（与业务变更同生共死）。 */
+    /** 记录一条运营审计（操作人取自 PlatformContext）。须在调用方事务内执行（与业务变更同生共死）。 */
     public void record(String action, String target, Long targetId, Object detail) {
+        record(PlatformContext.currentAdminId(), action, target, targetId, detail);
+    }
+
+    /** 记录一条运营审计，显式指定操作人（用于登录等无 PlatformContext 的场景）。 */
+    public void record(Long actorAdminId, String action, String target, Long targetId, Object detail) {
         SysPlatformAuditLog log = new SysPlatformAuditLog();
-        log.setAdminId(PlatformContext.currentAdminId());
+        log.setAdminId(actorAdminId);
         log.setAction(action);
         log.setTarget(target);
         log.setTargetId(targetId);

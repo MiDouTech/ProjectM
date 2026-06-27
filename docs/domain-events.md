@@ -109,6 +109,17 @@
 | `briefing.issue.raised` | 从简报提出跟进问题 | 消息(通知负责人·P2)、活动流 |
 | `briefing.issue.closed` | 跟进问题关闭 | 活动流 |
 
+## 5.4 平台/租户域 tenant.*（SaaS 运营总后台跨租户生命周期）
+> 平台域为跨租户全局域，事件由平台运营动作触发；payload 的 `tenantId` 为**目标租户**（非操作上下文）。发布经 `DomainEventPublisher.publish(eventType, tenantId, payload)` 显式指定租户。
+| 事件 | 触发 | 订阅方 |
+|---|---|---|
+| `tenant.registered` | 运营开通新租户 | 报表(租户增长)、消息(欢迎·P2)、活动流 |
+| `tenant.subscription_changed` | 绑定/续期/降级订阅 | 报表(收入预测)、消息(到期/变更通知·P2) |
+| `tenant.status_changed` | 运营手动改租户状态(启用/停用/注销) | 报表、活动流 |
+| `tenant.expired` | 定时任务按到期日自动流转为 expired | 报表、消息(到期提醒·P2) |
+| `tenant.deletion_requested` | 发起注销(进入清除宽限期) | 报表、消息(合规告知·P2) |
+| `tenant.purged` | 宽限期满物理清除完成 | 报表、活动流 |
+
 ## 6. 订阅方说明
 - **消息(MessageProvider)**：阶段一站内信；激活后企微推送。按事件类型路由到 `pm_notification` 或企微应用消息。
 - **AI 编排器**：阶段一不启用（事件照常入库，无消费者）；阶段二/三按 §5.2 能力顺序订阅。

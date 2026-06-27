@@ -2,13 +2,20 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">公告管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建公告</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="openCreate">新建公告</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="title" label="标题" min-width="200" />
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
+    <template v-else>
+    <el-table v-loading="loading" :data="paged" stripe @sort-change="onSort">
+      <el-table-column prop="title" label="标题" min-width="200" sortable="custom" />
       <el-table-column label="级别" width="100">
-        <template #default="{ row }"><StatusTag :status="row.level" /></template>
+        <template #default="{ row }">
+          <el-tag type="info" effect="plain" size="small">
+            {{ levelLabel(row.level) }}
+          </el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }"><StatusTag :status="row.status" /></template>
@@ -21,12 +28,17 @@
       </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="danger" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无公告，点击新建" /></template>
     </el-table>
+    <div class="pager">
+      <el-pagination v-model:current-page="page" v-model:page-size="size" :total="total"
+        :page-sizes="[10, 20, 50]" layout="total, sizes, prev, pager, next" />
+    </div>
+    </template>
 
     <!-- 新建 / 编辑（右抽屉）-->
     <el-drawer v-model="drawer" :title="editing ? '编辑公告' : '新建公告'" size="var(--mido-drawer-width)">
@@ -67,15 +79,29 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { announcementApi, ANNOUNCEMENT_LEVEL_OPTIONS, ANNOUNCEMENT_STATUS_OPTIONS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
+import { useClientTable } from '@/composables/useClientTable'
+
+const ops = useOpsUserStore()
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
+const { page, size, total, paged, onSort } = useClientTable(rows)
+
+function levelLabel(level) {
+  return ANNOUNCEMENT_LEVEL_OPTIONS.find((l) => l.value === level)?.label || level
+}
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     rows.value = await announcementApi.list()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -146,5 +172,10 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
 }
 </style>

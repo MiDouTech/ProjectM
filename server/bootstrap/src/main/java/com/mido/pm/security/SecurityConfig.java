@@ -1,5 +1,6 @@
 package com.mido.pm.security;
 
+import com.mido.pm.common.tenant.TenantDirectory;
 import com.mido.pm.org.service.ApiKeyService;
 import com.mido.pm.platform.security.PlatformTokenService;
 import com.mido.pm.platform.service.PlatformAuthService;
@@ -72,8 +73,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    SsoProvider ssoProvider,
                                                    IdentityProvider identityProvider,
-                                                   ApiKeyService apiKeyService) throws Exception {
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(ssoProvider, identityProvider);
+                                                   ApiKeyService apiKeyService,
+                                                   TenantDirectory tenantDirectory) throws Exception {
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(ssoProvider, identityProvider, tenantDirectory);
         // 开放平台 API Key 过滤器置于 JWT 之前：带 X-API-Key 时以绑定用户身份认证，否则放行交给 JWT
         ApiKeyAuthenticationFilter apiKeyFilter = new ApiKeyAuthenticationFilter(apiKeyService, identityProvider);
         http

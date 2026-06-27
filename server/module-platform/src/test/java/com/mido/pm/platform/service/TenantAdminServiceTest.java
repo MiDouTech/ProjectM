@@ -1,6 +1,7 @@
 package com.mido.pm.platform.service;
 
 import com.mido.pm.common.exception.BizException;
+import com.mido.pm.platform.dto.TenantBatchStatusDTO;
 import com.mido.pm.platform.dto.TenantCreateDTO;
 import com.mido.pm.platform.dto.TenantStatusDTO;
 import com.mido.pm.platform.entity.SysTenant;
@@ -11,9 +12,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,10 +34,16 @@ class TenantAdminServiceTest {
     private PlatformPlanService planService;
     @Mock
     private PlatformAuditService auditService;
+    @Mock
+    private com.mido.pm.common.outbox.DomainEventPublisher eventPublisher;
+    @Mock
+    private org.springframework.transaction.PlatformTransactionManager txManager;
 
     private TenantAdminService service() {
         // 播种器列表传空：本单测聚焦租户行写入与审计，播种各域已由各自单测/联调覆盖。
-        return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService, java.util.List.of());
+        // 注入 mock 事务管理器：TransactionTemplate 会同步执行回调（mock getTransaction 返回 null 状态即可）。
+        return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService,
+                eventPublisher, java.util.List.of(), txManager);
     }
 
     @Test
@@ -45,6 +56,11 @@ class TenantAdminServiceTest {
     @Test
     void createStartsAsTrialFromManualSource() {
         when(tenantMapper.selectCount(any())).thenReturn(0L);
+        // 模拟 MyBatis-Plus 插入回填雪花 id（供事件 payload 使用）
+        when(tenantMapper.insert(any(SysTenant.class))).thenAnswer(inv -> {
+            inv.getArgument(0, SysTenant.class).setId(99L);
+            return 1;
+        });
         TenantCreateDTO dto = new TenantCreateDTO("新客户", "newco", "互联网", "张三", "13800000000", null, "备注", null, null);
 
         service().create(dto);
@@ -74,5 +90,40 @@ class TenantAdminServiceTest {
         assertEquals("suspended", t.getStatus());
         verify(tenantMapper).updateById(t);
         verify(auditService).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void batchChangeStatusProcessesAllIds() {
+        SysTenant a = new SysTenant();
+        a.setId(1L);
+        a.setStatus("active");
+        SysTenant b = new SysTenant();
+        b.setId(2L);
+        b.setStatus("active");
+        when(tenantMapper.selectById(1L)).thenReturn(a);
+        when(tenantMapper.selectById(2L)).thenReturn(b);
+
+        int n = service().batchChangeStatus(new TenantBatchStatusDTO(java.util.List.of(1L, 2L), "suspended", "批量"));
+
+        assertEquals(2, n);
+        assertEquals("suspended", a.getStatus());
+        assertEquals("suspended", b.getStatus());
+        verify(tenantMapper, times(2)).updateById(any(SysTenant.class));
+    }
+
+    @Test
+    void expireOverdueFlipsStatusAndAudits() {
+        SysTenant t = new SysTenant();
+        t.setId(2L);
+        t.setStatus("active");
+        t.setExpireAt(LocalDateTime.now().minusDays(1));
+        when(tenantMapper.selectList(any())).thenReturn(java.util.List.of(t));
+
+        int n = service().expireOverdue();
+
+        assertEquals(1, n);
+        assertEquals("expired", t.getStatus());
+        verify(tenantMapper).updateById(t);
+        verify(auditService).record(any(), any(), eq(2L), any());
     }
 }

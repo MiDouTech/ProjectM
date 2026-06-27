@@ -9,6 +9,7 @@ import com.mido.pm.platform.dto.RevenueQueryDTO;
 import com.mido.pm.platform.dto.RevenueRecordDTO;
 import com.mido.pm.platform.dto.RevenueSummaryVO;
 import com.mido.pm.platform.dto.RevenueVO;
+import com.mido.pm.platform.dto.SubscriptionVO;
 import com.mido.pm.platform.entity.SysRevenueRecord;
 import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.mapper.SysRevenueRecordMapper;
@@ -30,15 +31,20 @@ public class PlatformRevenueService {
     private static final String TYPE_PAYMENT = "payment";
     private static final String TYPE_REFUND = "refund";
 
+    private static final String DEFAULT_CURRENCY = "CNY";
+
     private final SysRevenueRecordMapper revenueMapper;
     private final SysTenantMapper tenantMapper;
     private final PlatformAuditService auditService;
+    private final PlatformSubscriptionService subscriptionService;
 
     public PlatformRevenueService(SysRevenueRecordMapper revenueMapper, SysTenantMapper tenantMapper,
-                                  PlatformAuditService auditService) {
+                                  PlatformAuditService auditService,
+                                  PlatformSubscriptionService subscriptionService) {
         this.revenueMapper = revenueMapper;
         this.tenantMapper = tenantMapper;
         this.auditService = auditService;
+        this.subscriptionService = subscriptionService;
     }
 
     public PageResult<RevenueVO> page(RevenueQueryDTO query) {
@@ -74,6 +80,7 @@ public class PlatformRevenueService {
     @Transactional(rollbackFor = Exception.class)
     public Long create(RevenueRecordDTO dto) {
         requireTenant(dto.tenantId());
+        guardRefundNotExceedCollected(dto, null);
         SysRevenueRecord r = new SysRevenueRecord();
         apply(r, dto);
         revenueMapper.insert(r);
@@ -86,10 +93,40 @@ public class PlatformRevenueService {
     public void update(Long id, RevenueRecordDTO dto) {
         SysRevenueRecord r = requireExists(id);
         requireTenant(dto.tenantId());
+        guardRefundNotExceedCollected(dto, id);
         apply(r, dto);
         revenueMapper.updateById(r);
         auditService.record(PlatformAuditActions.REVENUE_SAVED, PlatformAuditActions.TARGET_REVENUE, id,
                 Map.of("op", "update", "amount", dto.amount()));
+    }
+
+    /**
+     * 退款不得超过该租户【同币种】已收净额（排除被编辑记录自身），防止产生负净额。
+     * 必须按币种隔离累计：不同币种金额不可直接加减（summary 的全币种汇总仅作展示，不能复用于此校验）。
+     */
+    private void guardRefundNotExceedCollected(RevenueRecordDTO dto, Long excludeId) {
+        if (!TYPE_REFUND.equals(dto.type())) {
+            return;
+        }
+        String currency = dto.currency() == null || dto.currency().isBlank() ? DEFAULT_CURRENCY : dto.currency();
+        List<SysRevenueRecord> rows = revenueMapper.selectList(Wrappers.<SysRevenueRecord>lambdaQuery()
+                .eq(SysRevenueRecord::getTenantId, dto.tenantId()));
+        BigDecimal net = BigDecimal.ZERO;
+        for (SysRevenueRecord r : rows) {
+            if (excludeId != null && excludeId.equals(r.getId())) {
+                continue;
+            }
+            // 仅累计同币种记录（历史记录 currency 可能为空，按默认币种处理）
+            String rc = r.getCurrency() == null || r.getCurrency().isBlank() ? DEFAULT_CURRENCY : r.getCurrency();
+            if (!currency.equals(rc)) {
+                continue;
+            }
+            BigDecimal amt = r.getAmount() == null ? BigDecimal.ZERO : r.getAmount();
+            net = TYPE_REFUND.equals(r.getType()) ? net.subtract(amt) : net.add(amt);
+        }
+        if (dto.amount().compareTo(net) > 0) {
+            throw new BizException(ErrorCode.CONFLICT, "退款金额不能超过该租户已收净额（" + currency + "）：" + net);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -101,8 +138,16 @@ public class PlatformRevenueService {
 
     private void apply(SysRevenueRecord r, RevenueRecordDTO dto) {
         r.setTenantId(dto.tenantId());
+        // 自动关联：未显式指定时取该租户当前生效订阅，便于按订阅对账
+        if (dto.subscriptionId() != null) {
+            r.setSubscriptionId(dto.subscriptionId());
+        } else if (r.getSubscriptionId() == null) {
+            SubscriptionVO sub = subscriptionService.currentSubscription(dto.tenantId());
+            r.setSubscriptionId(sub == null ? null : sub.id());
+        }
         r.setType(TYPE_REFUND.equals(dto.type()) ? TYPE_REFUND : TYPE_PAYMENT);
         r.setAmount(dto.amount());
+        r.setCurrency(dto.currency() == null || dto.currency().isBlank() ? DEFAULT_CURRENCY : dto.currency());
         r.setContractNo(dto.contractNo());
         r.setOccurredDate(dto.occurredDate());
         r.setRemark(dto.remark());
@@ -133,7 +178,8 @@ public class PlatformRevenueService {
     }
 
     private RevenueVO toVO(SysRevenueRecord r, Map<Long, String> names) {
-        return new RevenueVO(r.getId(), r.getTenantId(), names.get(r.getTenantId()), r.getType(),
-                r.getAmount(), r.getContractNo(), r.getOccurredDate(), r.getRemark(), r.getCreateTime());
+        return new RevenueVO(r.getId(), r.getTenantId(), names.get(r.getTenantId()), r.getSubscriptionId(),
+                r.getType(), r.getAmount(), r.getCurrency(), r.getContractNo(), r.getOccurredDate(),
+                r.getRemark(), r.getCreateTime());
     }
 }
