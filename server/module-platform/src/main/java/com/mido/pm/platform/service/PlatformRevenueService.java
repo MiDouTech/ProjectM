@@ -74,6 +74,7 @@ public class PlatformRevenueService {
     @Transactional(rollbackFor = Exception.class)
     public Long create(RevenueRecordDTO dto) {
         requireTenant(dto.tenantId());
+        guardRefundNotExceedCollected(dto, null);
         SysRevenueRecord r = new SysRevenueRecord();
         apply(r, dto);
         revenueMapper.insert(r);
@@ -86,10 +87,31 @@ public class PlatformRevenueService {
     public void update(Long id, RevenueRecordDTO dto) {
         SysRevenueRecord r = requireExists(id);
         requireTenant(dto.tenantId());
+        guardRefundNotExceedCollected(dto, id);
         apply(r, dto);
         revenueMapper.updateById(r);
         auditService.record(PlatformAuditActions.REVENUE_SAVED, PlatformAuditActions.TARGET_REVENUE, id,
                 Map.of("op", "update", "amount", dto.amount()));
+    }
+
+    /** 退款不得超过该租户已收净额（排除被编辑记录自身），防止产生负净额。 */
+    private void guardRefundNotExceedCollected(RevenueRecordDTO dto, Long excludeId) {
+        if (!TYPE_REFUND.equals(dto.type())) {
+            return;
+        }
+        List<SysRevenueRecord> rows = revenueMapper.selectList(Wrappers.<SysRevenueRecord>lambdaQuery()
+                .eq(SysRevenueRecord::getTenantId, dto.tenantId()));
+        BigDecimal net = BigDecimal.ZERO;
+        for (SysRevenueRecord r : rows) {
+            if (excludeId != null && excludeId.equals(r.getId())) {
+                continue;
+            }
+            BigDecimal amt = r.getAmount() == null ? BigDecimal.ZERO : r.getAmount();
+            net = TYPE_REFUND.equals(r.getType()) ? net.subtract(amt) : net.add(amt);
+        }
+        if (dto.amount().compareTo(net) > 0) {
+            throw new BizException(ErrorCode.CONFLICT, "退款金额不能超过该租户已收净额：" + net);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
