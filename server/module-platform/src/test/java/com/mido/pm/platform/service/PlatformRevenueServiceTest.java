@@ -31,6 +31,8 @@ class PlatformRevenueServiceTest {
     private SysTenantMapper tenantMapper;
     @Mock
     private PlatformAuditService auditService;
+    @Mock
+    private PlatformSubscriptionService subscriptionService;
     @InjectMocks
     private PlatformRevenueService service;
 
@@ -59,7 +61,7 @@ class PlatformRevenueServiceTest {
         when(tenantMapper.selectById(1L)).thenReturn(new SysTenant());
         // 已收净额 = 1000 - 0 = 1000，退款 1500 应被拒
         when(revenueMapper.selectList(any())).thenReturn(List.of(rec("payment", "1000.00")));
-        RevenueRecordDTO dto = new RevenueRecordDTO(1L, "refund", new BigDecimal("1500.00"), null, null, null);
+        RevenueRecordDTO dto = new RevenueRecordDTO(1L, "refund", new BigDecimal("1500.00"), null, null, null, null, null);
         assertThrows(BizException.class, () -> service.create(dto));
     }
 
@@ -67,7 +69,7 @@ class PlatformRevenueServiceTest {
     void refundWithinCollectedAllowed() {
         when(tenantMapper.selectById(1L)).thenReturn(new SysTenant());
         when(revenueMapper.selectList(any())).thenReturn(List.of(rec("payment", "1000.00")));
-        RevenueRecordDTO dto = new RevenueRecordDTO(1L, "refund", new BigDecimal("300.00"), null, null, null);
+        RevenueRecordDTO dto = new RevenueRecordDTO(1L, "refund", new BigDecimal("300.00"), null, null, null, null, null);
         // 不抛异常即通过（insert 由 mock 吞掉）
         service.create(dto);
     }

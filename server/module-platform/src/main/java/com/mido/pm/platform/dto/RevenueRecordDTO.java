@@ -13,6 +13,8 @@ public record RevenueRecordDTO(
         @NotBlank(message = "类型不能为空") String type,
         @NotNull(message = "金额不能为空")
         @DecimalMin(value = "0.01", message = "金额必须大于0") BigDecimal amount,
+        String currency,
+        Long subscriptionId,
         String contractNo,
         LocalDate occurredDate,
         String remark) {

@@ -13,9 +13,13 @@ import java.time.LocalDate;
 public class SysRevenueRecord extends PlatformBaseEntity {
 
     private Long tenantId;
+    /** 关联订阅 id（创建时自动关联当前生效订阅，可空） */
+    private Long subscriptionId;
     /** payment 收款 / refund 退款 */
     private String type;
     private BigDecimal amount;
+    /** 币种，默认 CNY */
+    private String currency;
     private String contractNo;
     private LocalDate occurredDate;
     private String remark;
@@ -26,6 +30,22 @@ public class SysRevenueRecord extends PlatformBaseEntity {
 
     public void setTenantId(Long tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public Long getSubscriptionId() {
+        return subscriptionId;
+    }
+
+    public void setSubscriptionId(Long subscriptionId) {
+        this.subscriptionId = subscriptionId;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public String getType() {

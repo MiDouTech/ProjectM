@@ -9,6 +9,7 @@ import com.mido.pm.platform.dto.RevenueQueryDTO;
 import com.mido.pm.platform.dto.RevenueRecordDTO;
 import com.mido.pm.platform.dto.RevenueSummaryVO;
 import com.mido.pm.platform.dto.RevenueVO;
+import com.mido.pm.platform.dto.SubscriptionVO;
 import com.mido.pm.platform.entity.SysRevenueRecord;
 import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.mapper.SysRevenueRecordMapper;
@@ -30,15 +31,20 @@ public class PlatformRevenueService {
     private static final String TYPE_PAYMENT = "payment";
     private static final String TYPE_REFUND = "refund";
 
+    private static final String DEFAULT_CURRENCY = "CNY";
+
     private final SysRevenueRecordMapper revenueMapper;
     private final SysTenantMapper tenantMapper;
     private final PlatformAuditService auditService;
+    private final PlatformSubscriptionService subscriptionService;
 
     public PlatformRevenueService(SysRevenueRecordMapper revenueMapper, SysTenantMapper tenantMapper,
-                                  PlatformAuditService auditService) {
+                                  PlatformAuditService auditService,
+                                  PlatformSubscriptionService subscriptionService) {
         this.revenueMapper = revenueMapper;
         this.tenantMapper = tenantMapper;
         this.auditService = auditService;
+        this.subscriptionService = subscriptionService;
     }
 
     public PageResult<RevenueVO> page(RevenueQueryDTO query) {
@@ -123,8 +129,16 @@ public class PlatformRevenueService {
 
     private void apply(SysRevenueRecord r, RevenueRecordDTO dto) {
         r.setTenantId(dto.tenantId());
+        // 自动关联：未显式指定时取该租户当前生效订阅，便于按订阅对账
+        if (dto.subscriptionId() != null) {
+            r.setSubscriptionId(dto.subscriptionId());
+        } else if (r.getSubscriptionId() == null) {
+            SubscriptionVO sub = subscriptionService.currentSubscription(dto.tenantId());
+            r.setSubscriptionId(sub == null ? null : sub.id());
+        }
         r.setType(TYPE_REFUND.equals(dto.type()) ? TYPE_REFUND : TYPE_PAYMENT);
         r.setAmount(dto.amount());
+        r.setCurrency(dto.currency() == null || dto.currency().isBlank() ? DEFAULT_CURRENCY : dto.currency());
         r.setContractNo(dto.contractNo());
         r.setOccurredDate(dto.occurredDate());
         r.setRemark(dto.remark());
@@ -155,7 +169,8 @@ public class PlatformRevenueService {
     }
 
     private RevenueVO toVO(SysRevenueRecord r, Map<Long, String> names) {
-        return new RevenueVO(r.getId(), r.getTenantId(), names.get(r.getTenantId()), r.getType(),
-                r.getAmount(), r.getContractNo(), r.getOccurredDate(), r.getRemark(), r.getCreateTime());
+        return new RevenueVO(r.getId(), r.getTenantId(), names.get(r.getTenantId()), r.getSubscriptionId(),
+                r.getType(), r.getAmount(), r.getCurrency(), r.getContractNo(), r.getOccurredDate(),
+                r.getRemark(), r.getCreateTime());
     }
 }

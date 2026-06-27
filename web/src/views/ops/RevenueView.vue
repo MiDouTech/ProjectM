@@ -43,8 +43,8 @@
       <el-table-column label="类型" width="90">
         <template #default="{ row }"><StatusTag :status="row.type" /></template>
       </el-table-column>
-      <el-table-column label="金额" width="130" align="right">
-        <template #default="{ row }">{{ fmtAmount(row.amount) }}</template>
+      <el-table-column label="金额" width="150" align="right">
+        <template #default="{ row }">{{ row.currency || 'CNY' }} {{ fmtAmount(row.amount) }}</template>
       </el-table-column>
       <el-table-column prop="contractNo" label="合同号" min-width="140">
         <template #default="{ row }">{{ row.contractNo || '—' }}</template>
@@ -91,7 +91,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="金额" prop="amount">
-          <el-input-number v-model="form.amount" :min="0" :precision="2" :step="1" style="width: 100%" />
+          <el-input-number v-model="form.amount" :min="0.01" :precision="2" :step="1" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="币种" prop="currency">
+          <el-select v-model="form.currency" style="width: 100%">
+            <el-option v-for="c in CURRENCY_OPTIONS" :key="c" :label="c" :value="c" />
+          </el-select>
         </el-form-item>
         <el-form-item label="合同号"><el-input v-model="form.contractNo" /></el-form-item>
         <el-form-item label="发生日期" prop="occurredDate">
@@ -115,6 +120,8 @@ import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS } from '@/api/ops'
+
+const CURRENCY_OPTIONS = ['CNY', 'USD', 'HKD', 'EUR']
 
 const loading = ref(false)
 const loadError = ref(false)
@@ -176,7 +183,7 @@ const rules = {
 }
 
 function resetForm() {
-  Object.assign(form, { id: null, tenantId: '', type: 'payment', amount: 0, contractNo: '', occurredDate: '', remark: '' })
+  Object.assign(form, { id: null, tenantId: '', type: 'payment', amount: 0, currency: 'CNY', contractNo: '', occurredDate: '', remark: '' })
 }
 function openCreate() {
   editing.value = false
@@ -187,6 +194,7 @@ function openEdit(row) {
   editing.value = true
   Object.assign(form, {
     id: row.id, tenantId: row.tenantId, type: row.type, amount: Number(row.amount || 0),
+    currency: row.currency || 'CNY',
     contractNo: row.contractNo || '', occurredDate: row.occurredDate || '', remark: row.remark || '',
   })
   drawer.value = true
@@ -196,7 +204,7 @@ async function save() {
   saving.value = true
   try {
     const payload = {
-      tenantId: form.tenantId, type: form.type, amount: form.amount,
+      tenantId: form.tenantId, type: form.type, amount: form.amount, currency: form.currency,
       contractNo: form.contractNo || undefined, occurredDate: form.occurredDate,
       remark: form.remark || undefined,
     }
