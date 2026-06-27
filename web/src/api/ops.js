@@ -17,6 +17,8 @@ export const opsAuthApi = {
 /** 仪表盘 */
 export const dashboardApi = {
   overview: () => request.get('/platform/dashboard/overview'),
+  // 近12月新增租户趋势：[{month:'YYYY-MM', value:n}]
+  trend: () => request.get('/platform/dashboard/trend'),
 }
 
 /** 租户管理 */

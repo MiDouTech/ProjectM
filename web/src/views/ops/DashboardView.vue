@@ -11,6 +11,13 @@
       </el-card>
     </div>
 
+    <!-- 租户增长趋势 -->
+    <el-card shadow="never" class="dash__block">
+      <template #header><span class="mido-h2">近 12 月新增租户</span></template>
+      <G2Chart v-if="hasTrend" :option="trendOption" :height="260" />
+      <el-empty v-else description="暂无趋势数据" />
+    </el-card>
+
     <!-- 状态分布 -->
     <el-card shadow="never" class="dash__block">
       <template #header><span class="mido-h2">租户状态分布</span></template>
@@ -58,12 +65,28 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import G2Chart from '@/components/G2Chart.vue'
 import { dashboardApi, TENANT_STATUS } from '@/api/ops'
 
 const router = useRouter()
 const loading = ref(false)
 const loadError = ref(false)
 const overview = ref({})
+const trend = ref([])
+
+const hasTrend = computed(() => trend.value.some((p) => Number(p.value) > 0))
+const trendOption = computed(() => {
+  const primary = getComputedStyle(document.documentElement).getPropertyValue('--el-color-primary').trim()
+  return {
+    type: 'view',
+    data: trend.value.map((p) => ({ month: p.month, value: Number(p.value || 0) })),
+    children: [
+      { type: 'line', encode: { x: 'month', y: 'value' }, style: { stroke: primary || undefined, lineWidth: 2 } },
+      { type: 'point', encode: { x: 'month', y: 'value' }, style: { fill: primary || undefined }, tooltip: { items: ['value'] } },
+    ],
+    axis: { x: { title: false }, y: { title: false, nice: true } },
+  }
+})
 
 const metrics = computed(() => [
   { key: 'total', label: '租户总数', value: Number(overview.value.totalTenants || 0), status: '' },
@@ -97,6 +120,12 @@ async function load() {
   loadError.value = false
   try {
     overview.value = await dashboardApi.overview()
+    // 趋势图单独容错，失败不影响概览主体
+    try {
+      trend.value = await dashboardApi.trend()
+    } catch {
+      trend.value = []
+    }
   } catch (e) {
     loadError.value = true
   } finally {
