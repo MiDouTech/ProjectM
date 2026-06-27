@@ -9,7 +9,7 @@
           <el-option v-for="s in TENANT_STATUS" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
         <el-button :icon="Refresh" :loading="snapshotLoading" @click="refreshUsage">刷新用量</el-button>
-        <el-button type="primary" :icon="Plus" @click="openCreate">开通租户</el-button>
+        <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openCreate">开通租户</el-button>
       </div>
     </div>
 
@@ -40,10 +40,10 @@
       <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status === 'suspended'" link type="success" @click="changeStatus(row, 'active')">启用</el-button>
-          <el-button v-else-if="row.status !== 'closed'" link type="warning" @click="changeStatus(row, 'suspended')">停用</el-button>
-          <el-button v-if="row.status !== 'closed'" link type="danger" @click="changeStatus(row, 'closed')">注销</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="row.status === 'suspended'" link type="success" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'active')">启用</el-button>
+          <el-button v-else-if="row.status !== 'closed'" link type="warning" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'suspended')">停用</el-button>
+          <el-button v-if="row.status !== 'closed'" link type="danger" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'closed')">注销</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无租户，点击开通" /></template>
@@ -92,7 +92,7 @@
       <div v-loading="detailLoading" class="detail">
         <template v-if="detail.id">
           <div class="detail__actions">
-            <el-button type="primary" plain :icon="Switch" @click="impersonate">模拟登录</el-button>
+            <el-button type="primary" plain :icon="Switch" :disabled="!ops.hasPerm('platform:tenant:impersonate')" @click="impersonate">模拟登录</el-button>
           </div>
 
           <el-descriptions title="基础信息" :column="1" border>
@@ -138,6 +138,7 @@
             <div class="detail__sub-title detail__sub-title--bar">
               <span>数据导出</span>
               <el-button type="primary" plain size="small" :icon="Download"
+                :disabled="!ops.hasPerm('platform:tenant:manage')"
                 :loading="exportRequesting" @click="requestExport">发起导出</el-button>
             </div>
             <el-table v-if="exports.length" :data="exports" size="small" border>
@@ -171,8 +172,10 @@
               description="该租户处于注销宽限期，到期后数据将被物理清除。" />
             <div class="detail__deletion">
               <el-button v-if="detail.purgeScheduledAt" type="warning"
+                :disabled="!ops.hasPerm('platform:tenant:manage')"
                 :loading="deletionLoading" @click="cancelDeletion">取消注销</el-button>
               <el-button v-else-if="String(detail.id) !== '1'" type="danger"
+                :disabled="!ops.hasPerm('platform:tenant:manage')"
                 :loading="deletionLoading" @click="requestDeletion">注销租户</el-button>
               <span v-else class="detail__hint">自用租户不可注销</span>
             </div>
@@ -223,7 +226,8 @@
               <el-form-item label="备注">
                 <el-input v-model="subForm.remark" type="textarea" :rows="2" />
               </el-form-item>
-              <el-button type="primary" :loading="subSaving" :disabled="!subForm.planId" @click="saveSubscription">
+              <el-button type="primary" :loading="subSaving"
+                :disabled="!subForm.planId || !ops.hasPerm('platform:subscription:manage')" @click="saveSubscription">
                 绑定 / 续期
               </el-button>
             </el-form>
@@ -242,7 +246,9 @@ import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
+import { useOpsUserStore } from '@/store/opsUser'
 
+const ops = useOpsUserStore()
 const loading = ref(false)
 const loadError = ref(false)
 const rows = ref([])

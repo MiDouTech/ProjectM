@@ -2,7 +2,7 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">运营账号</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建账号</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:admin:manage')" @click="openCreate">新建账号</el-button>
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
@@ -20,8 +20,8 @@
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openResetPwd(row)">重置密码</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:admin:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:admin:manage')" @click="openResetPwd(row)">重置密码</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无运营账号，点击新建" /></template>
@@ -76,6 +76,9 @@ import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { platformAdminApi, ENABLE_STATUS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
+
+const ops = useOpsUserStore()
 
 // 密码强度：8-64 位且同时含字母和数字（与后端 PasswordPolicy 一致）
 const PWD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/

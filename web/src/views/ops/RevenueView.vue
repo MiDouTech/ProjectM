@@ -2,7 +2,7 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">收入台账</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新增记录</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="openCreate">新增记录</el-button>
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
@@ -57,8 +57,8 @@
       </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="danger" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无收入记录" /></template>
@@ -120,7 +120,9 @@ import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
 
+const ops = useOpsUserStore()
 const CURRENCY_OPTIONS = ['CNY', 'USD', 'HKD', 'EUR']
 
 const loading = ref(false)

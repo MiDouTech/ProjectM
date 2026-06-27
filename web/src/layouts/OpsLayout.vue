@@ -35,14 +35,20 @@
           router
           background-color="transparent"
         >
-          <el-menu-item
-            v-for="item in opsNavItems"
-            :key="item.path"
-            :index="item.path"
+          <el-menu-item-group
+            v-for="g in visibleGroups"
+            :key="g.title"
+            :title="g.title"
           >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.title }}</span>
-          </el-menu-item>
+            <el-menu-item
+              v-for="item in g.items"
+              :key="item.path"
+              :index="item.path"
+            >
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.title }}</span>
+            </el-menu-item>
+          </el-menu-item-group>
         </el-menu>
       </aside>
 
@@ -67,6 +73,21 @@ const opsStore = useOpsUserStore()
 
 // 高亮当前二级导航（/ops/tenants 等直接整段匹配）
 const activeMenu = computed(() => route.path)
+
+// 按权限过滤 + 按 group 分组（L1 分组标题 + L2 项）
+const visibleGroups = computed(() => {
+  const groups = []
+  for (const item of opsNavItems) {
+    if (!opsStore.hasPerm(item.perm)) continue
+    let g = groups.find((x) => x.title === item.group)
+    if (!g) {
+      g = { title: item.group, items: [] }
+      groups.push(g)
+    }
+    g.items.push(item)
+  }
+  return groups
+})
 
 const accountName = computed(() => opsStore.displayName)
 const accountInitial = computed(() => (accountName.value || 'M').charAt(0))

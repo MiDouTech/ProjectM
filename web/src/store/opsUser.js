@@ -19,6 +19,8 @@ export const useOpsUserStore = defineStore('opsUser', {
     // 运营账号显示名（顶栏用），缺失时回落登录名
     displayName: (state) => state.me?.name || state.me?.username || '运营员',
     perms: (state) => state.me?.perms || [],
+    // 按钮级/导航级权限判定：me 未加载时返回 false（按钮置灰），加载后按权限码判定
+    hasPerm: (state) => (code) => !code || (state.me?.perms || []).includes(code),
   },
   actions: {
     setToken(token) {

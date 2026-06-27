@@ -2,7 +2,7 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">公告管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建公告</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="openCreate">新建公告</el-button>
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
@@ -22,8 +22,8 @@
       </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="danger" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无公告，点击新建" /></template>
@@ -70,6 +70,9 @@ import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { announcementApi, ANNOUNCEMENT_LEVEL_OPTIONS, ANNOUNCEMENT_STATUS_OPTIONS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
+
+const ops = useOpsUserStore()
 
 const loading = ref(false)
 const loadError = ref(false)

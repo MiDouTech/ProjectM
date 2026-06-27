@@ -2,7 +2,7 @@
   <el-card shadow="never">
     <div class="bar">
       <h2 class="mido-h2">套餐管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建套餐</el-button>
+      <el-button type="primary" :icon="Plus" :disabled="!ops.hasPerm('platform:plan:manage')" @click="openCreate">新建套餐</el-button>
     </div>
 
     <ErrorState v-if="loadError" @retry="load" />
@@ -24,9 +24,9 @@
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openFeatures(row)">功能开关</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:plan:manage')" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" :disabled="!ops.hasPerm('platform:feature:manage')" @click="openFeatures(row)">功能开关</el-button>
+          <el-button link type="danger" :disabled="!ops.hasPerm('platform:plan:manage')" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无套餐，点击新建" /></template>
@@ -102,6 +102,9 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import { planApi, BILLING_CYCLE, ENABLE_STATUS, QUOTA_RESOURCE, FEATURE_LABELS } from '@/api/ops'
+import { useOpsUserStore } from '@/store/opsUser'
+
+const ops = useOpsUserStore()
 
 const loading = ref(false)
 const loadError = ref(false)
