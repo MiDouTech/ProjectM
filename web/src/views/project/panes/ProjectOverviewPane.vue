@@ -6,12 +6,11 @@
         <h3 class="mido-h2">项目要点</h3>
         <DynamicDetail v-if="useDetailConfig" :fields="detailFields" :model-value="detailModel"
           :layout="detailLayout" :user-name="userName" />
+        <!-- 仅列与头部不重复的属性（负责人/周期/状态已在页头呈现） -->
         <el-descriptions v-else :column="2" border size="small">
           <el-descriptions-item label="类型">{{ categoryLabel(project.category) }}</el-descriptions-item>
           <el-descriptions-item label="子类">{{ project.subCategory || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="负责人">{{ userName(project.leaderId) }}</el-descriptions-item>
           <el-descriptions-item label="预算">{{ money(project.budget) }}</el-descriptions-item>
-          <el-descriptions-item label="周期">{{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}</el-descriptions-item>
           <el-descriptions-item label="价值验收(NPSS)">
             <el-tag size="small" :type="requiresNpss ? 'success' : 'info'" effect="plain">
               {{ requiresNpss ? '走 NPSS' : '不走 NPSS' }}
