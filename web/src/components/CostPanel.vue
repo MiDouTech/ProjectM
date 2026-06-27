@@ -14,7 +14,7 @@
 
     <el-table :data="rows" size="small">
       <el-table-column v-for="key in costCols" :key="key" :label="costColLabel(key)"
-        :prop="costColProp(key)" :width="costColWidth(key)" :min-width="costColMinWidth(key)"
+        :prop="key" :sort-by="costColSortBy(key)" :width="costColWidth(key)" :min-width="costColMinWidth(key)"
         :align="key === 'budgetAmount' || key === 'actualAmount' ? 'right' : undefined"
         :fixed="costFrozen.includes(key) ? 'left' : false" sortable>
         <template #default="{ row }">
@@ -107,8 +107,9 @@ const costFrozen = ref([])
 const costColLabel = (key) => COST_COLUMNS.find((c) => c.key === key)?.label || key
 const costColWidth = (key) => COST_COL_META[key]?.width
 const costColMinWidth = (key) => COST_COL_META[key]?.minWidth
-// 自定义渲染列（金额/状态）不设 prop，避免 el-table 默认按对象渲染
-const costColProp = (key) => (['budgetAmount', 'actualAmount', 'status'].includes(key) ? undefined : key)
+// 金额列按数值排序（否则字符串列默认按字典序，金额会错排）；其余列回落 prop 默认排序
+const costColSortBy = (key) =>
+  (key === 'budgetAmount' || key === 'actualAmount') ? (row) => Number(row[key] || 0) : undefined
 function onCostColsChange({ columns: cols, frozen }) {
   costCols.value = cols
   costFrozen.value = frozen

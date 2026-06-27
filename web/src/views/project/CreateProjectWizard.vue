@@ -147,7 +147,8 @@ async function loadPageConfig() {
         const b = PROJECT_FORM_BUILTIN[f.fieldKey]
         return {
           fieldKey: f.fieldKey, source: 'builtin', label: b.label, type: b.type,
-          required: f.required ?? b.required ?? false, readonly: !!f.readonly, width: f.width, group: f.group || '',
+          // 后端必填的内置字段(name/leaderId)恒为必填，配置不可下调，避免提交触发服务端校验错
+          required: b.required || (f.required ?? false), readonly: !!f.readonly, width: f.width, group: f.group || '',
         }
       }
       if (f.source === 'custom' && byKey.has(f.fieldKey)) {
@@ -160,8 +161,10 @@ async function loadPageConfig() {
       }
       return null
     }).filter(Boolean)
-    // 兜底：配置须含项目名称（提交必需）方启用，否则回落原向导
-    if (fields.length && fields.some((f) => f.fieldKey === 'name')) {
+    // 兜底：配置须含后端必填的内置字段(项目名称+负责人)方启用，缺任一则回落原向导，
+    // 否则建单将丢失这些输入并在提交时触发服务端 @NotNull 校验错
+    const REQUIRED_BUILTINS = ['name', 'leaderId']
+    if (fields.length && REQUIRED_BUILTINS.every((k) => fields.some((f) => f.fieldKey === k))) {
       pageFields.value = fields
       pageLayout.value = cfg.layout || { columns: 1 }
       usePageConfig.value = true

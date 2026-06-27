@@ -131,7 +131,9 @@ function autofillForm() {
     return
   }
   const p = props.project || {}
-  const today = new Date().toISOString().slice(0, 10)
+  // 用本地日期（非 toISOString 的 UTC），否则东八区凌晨会回退到昨天，误判时间达标
+  const n = new Date()
+  const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
   form.onTime = !!p.endDate && today <= p.endDate
   form.inBudget = p.budget != null && Number(p.actualCost || 0) <= Number(p.budget)
   form.inScope = completionRate.value != null && Number(completionRate.value) >= 100
