@@ -13,6 +13,8 @@
       </div>
     </div>
 
+    <ErrorState v-if="loadError" @retry="load" />
+    <template v-else>
     <el-table v-loading="loading" :data="rows" stripe>
       <el-table-column prop="code" label="编码" width="160" />
       <el-table-column prop="name" label="名称" min-width="160" />
@@ -58,6 +60,7 @@
         @size-change="reload"
       />
     </div>
+    </template>
 
     <!-- 开通 / 编辑（右抽屉） -->
     <el-drawer v-model="formDrawer" :title="editing ? '编辑租户' : '开通租户'" size="var(--mido-drawer-width)">
@@ -70,7 +73,7 @@
           <el-input v-model="form.adminUsername" placeholder="留空默认 admin" />
         </el-form-item>
         <el-form-item v-if="!editing" label="初始密码">
-          <el-input v-model="form.adminPassword" placeholder="留空默认 Mido@2024，请提示客户首登后修改" />
+          <el-input v-model="form.adminPassword" placeholder="留空将生成默认初始密码，请提示客户首登后立即修改" />
         </el-form-item>
         <el-form-item label="行业"><el-input v-model="form.industry" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="form.contactName" /></el-form-item>
@@ -236,10 +239,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Switch, Download } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
 const total = ref(0)
 const query = reactive({ keyword: '', status: '', page: 1, size: 10 })
@@ -255,6 +260,7 @@ function resourceLabel(res) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     const res = await tenantApi.query({
       keyword: query.keyword || undefined,
@@ -264,6 +270,8 @@ async function load() {
     })
     rows.value = res.list || []
     total.value = Number(res.total || 0)
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }

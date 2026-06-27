@@ -5,7 +5,8 @@
       <el-button type="primary" :icon="Plus" @click="openCreate">新建账号</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-table v-else v-loading="loading" :data="rows" stripe>
       <el-table-column prop="username" label="登录名" width="160" />
       <el-table-column prop="name" label="姓名" min-width="120" />
       <el-table-column label="角色" min-width="160">
@@ -73,17 +74,28 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { platformAdminApi, ENABLE_STATUS } from '@/api/ops'
 
+// 密码强度：8-64 位且同时含字母和数字（与后端 PasswordPolicy 一致）
+const PWD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/
+
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
 const rows = ref([])
 const roles = ref([])
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
+    if (roles.value.length === 0) {
+      roles.value = await platformAdminApi.roles()
+    }
     rows.value = await platformAdminApi.list()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -96,7 +108,10 @@ const form = reactive({ id: null, username: '', name: '', password: '', status: 
 const rules = {
   username: [{ required: true, message: '请输入登录名', trigger: 'blur' }],
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { pattern: PWD_REGEX, message: '密码需 8-64 位且同时包含字母和数字', trigger: 'blur' },
+  ],
 }
 
 function openCreate() {
@@ -134,7 +149,10 @@ const pwdDialog = ref(false)
 const pwdFormRef = ref()
 const pwdForm = reactive({ id: null, password: '' })
 const pwdRules = {
-  password: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { pattern: PWD_REGEX, message: '密码需 8-64 位且同时包含字母和数字', trigger: 'blur' },
+  ],
 }
 function openResetPwd(row) {
   pwdForm.id = row.id
@@ -153,10 +171,7 @@ async function saveResetPwd() {
   }
 }
 
-onMounted(async () => {
-  roles.value = await platformAdminApi.roles()
-  load()
-})
+onMounted(load)
 </script>
 
 <style scoped>

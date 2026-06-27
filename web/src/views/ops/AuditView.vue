@@ -11,6 +11,8 @@
       </div>
     </div>
 
+    <ErrorState v-if="loadError" @retry="load" />
+    <template v-else>
     <el-table v-loading="loading" :data="rows" stripe>
       <el-table-column prop="createTime" label="时间" width="180" />
       <el-table-column prop="adminName" label="操作人" width="140">
@@ -45,6 +47,7 @@
         @size-change="reload"
       />
     </div>
+    </template>
 
     <!-- 明细（右抽屉，JSON 展示）-->
     <el-drawer v-model="detailDrawer" title="审计明细" size="var(--mido-drawer-width)">
@@ -55,15 +58,18 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { auditApi } from '@/api/ops'
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
 const total = ref(0)
 const query = reactive({ target: '', action: '', page: 1, size: 20 })
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     const res = await auditApi.query({
       target: query.target || undefined,
@@ -73,6 +79,8 @@ async function load() {
     })
     rows.value = res.list || []
     total.value = Number(res.total || 0)
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }

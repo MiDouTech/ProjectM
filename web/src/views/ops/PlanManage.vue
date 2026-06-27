@@ -5,7 +5,8 @@
       <el-button type="primary" :icon="Plus" @click="openCreate">新建套餐</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-table v-else v-loading="loading" :data="rows" stripe>
       <el-table-column prop="code" label="编码" width="140" />
       <el-table-column prop="name" label="名称" min-width="140" />
       <el-table-column label="价格" width="120">
@@ -99,9 +100,11 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { planApi, BILLING_CYCLE, ENABLE_STATUS, QUOTA_RESOURCE, FEATURE_LABELS } from '@/api/ops'
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
 
 function cycleLabel(c) {
@@ -117,8 +120,11 @@ function quotaSummary(quotas) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     rows.value = await planApi.list()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }

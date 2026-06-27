@@ -1,5 +1,7 @@
 <template>
   <div v-loading="loading" class="dash">
+    <ErrorState v-if="loadError" @retry="load" />
+    <template v-else>
     <!-- 顶部指标卡 -->
     <div class="dash__metrics">
       <el-card v-for="m in metrics" :key="m.key" shadow="never" class="metric">
@@ -45,15 +47,18 @@
         <template #empty><el-empty description="近 30 天无到期租户" /></template>
       </el-table>
     </el-card>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { dashboardApi, TENANT_STATUS } from '@/api/ops'
 
 const loading = ref(false)
+const loadError = ref(false)
 const overview = ref({})
 
 const metrics = computed(() => [
@@ -80,8 +85,11 @@ function tenantLabel(status) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     overview.value = await dashboardApi.overview()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }

@@ -5,7 +5,8 @@
       <el-button type="primary" :icon="Plus" @click="openCreate">新建公告</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe>
+    <ErrorState v-if="loadError" @retry="load" />
+    <el-table v-else v-loading="loading" :data="rows" stripe>
       <el-table-column prop="title" label="标题" min-width="200" />
       <el-table-column label="级别" width="100">
         <template #default="{ row }"><StatusTag :status="row.level" /></template>
@@ -67,15 +68,20 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { announcementApi, ANNOUNCEMENT_LEVEL_OPTIONS, ANNOUNCEMENT_STATUS_OPTIONS } from '@/api/ops'
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     rows.value = await announcementApi.list()
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }

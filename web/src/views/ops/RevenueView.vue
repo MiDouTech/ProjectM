@@ -5,6 +5,8 @@
       <el-button type="primary" :icon="Plus" @click="openCreate">新增记录</el-button>
     </div>
 
+    <ErrorState v-if="loadError" @retry="load" />
+    <template v-else>
     <!-- 汇总卡片 -->
     <div class="summary">
       <div class="summary__item">
@@ -73,6 +75,7 @@
         @size-change="reload"
       />
     </div>
+    </template>
 
     <!-- 新增 / 编辑（右抽屉）-->
     <el-drawer v-model="drawer" :title="editing ? '编辑记录' : '新增记录'" size="var(--mido-drawer-width)">
@@ -110,9 +113,11 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import ErrorState from '@/components/ErrorState.vue'
 import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS } from '@/api/ops'
 
 const loading = ref(false)
+const loadError = ref(false)
 const rows = ref([])
 const total = ref(0)
 const query = reactive({ tenantId: '', type: '', page: 1, size: 10 })
@@ -126,6 +131,7 @@ function fmtAmount(v) {
 
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     const res = await revenueApi.query({
       tenantId: query.tenantId || undefined,
@@ -135,6 +141,8 @@ async function load() {
     })
     rows.value = res.list || []
     total.value = Number(res.total || 0)
+  } catch (e) {
+    loadError.value = true
   } finally {
     loading.value = false
   }
