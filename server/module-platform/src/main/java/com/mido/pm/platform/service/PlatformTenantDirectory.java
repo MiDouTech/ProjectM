@@ -6,6 +6,7 @@ import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.mapper.SysTenantMapper;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -36,6 +37,10 @@ public class PlatformTenantDirectory implements TenantDirectory {
             return false;
         }
         SysTenant t = tenantMapper.selectById(tenantId);
-        return t != null && LOGINABLE.contains(t.getStatus());
+        if (t == null || !LOGINABLE.contains(t.getStatus())) {
+            return false;
+        }
+        // 到期即不可登录（expire_at 为空表示不限期，如自用租户）。即便状态尚未被定时任务流转为 expired，按日期兜底拒登。
+        return t.getExpireAt() == null || !t.getExpireAt().isBefore(LocalDateTime.now());
     }
 }

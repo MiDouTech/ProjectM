@@ -164,6 +164,26 @@ public class TenantAdminService {
                 Map.of("from", from, "to", dto.status(), "reason", dto.reason() == null ? "" : dto.reason()));
     }
 
+    /**
+     * 到期自动流转：把 trial/active 且已过 expire_at 的租户置为 expired（系统动作）。
+     * 自用租户(expire_at 为空)天然不在范围。返回流转数量。供 {@link PlatformMaintenanceScheduler} 每日调用。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int expireOverdue() {
+        List<SysTenant> due = tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
+                .in(SysTenant::getStatus, "trial", "active")
+                .isNotNull(SysTenant::getExpireAt)
+                .lt(SysTenant::getExpireAt, java.time.LocalDateTime.now()));
+        for (SysTenant t : due) {
+            String from = t.getStatus();
+            t.setStatus("expired");
+            tenantMapper.updateById(t);
+            auditService.record(PlatformAuditActions.TENANT_EXPIRED, PlatformAuditActions.TARGET_TENANT, t.getId(),
+                    Map.of("from", from, "to", "expired", "expireAt", String.valueOf(t.getExpireAt())));
+        }
+        return due.size();
+    }
+
     private TenantVO toListVO(SysTenant t) {
         SubscriptionVO sub = subscriptionService.currentSubscription(t.getId());
         return new TenantVO(t.getId(), t.getCode(), t.getName(), t.getStatus(), t.getIndustry(),

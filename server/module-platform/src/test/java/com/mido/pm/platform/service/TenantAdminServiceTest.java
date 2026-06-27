@@ -11,9 +11,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -74,5 +77,21 @@ class TenantAdminServiceTest {
         assertEquals("suspended", t.getStatus());
         verify(tenantMapper).updateById(t);
         verify(auditService).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void expireOverdueFlipsStatusAndAudits() {
+        SysTenant t = new SysTenant();
+        t.setId(2L);
+        t.setStatus("active");
+        t.setExpireAt(LocalDateTime.now().minusDays(1));
+        when(tenantMapper.selectList(any())).thenReturn(java.util.List.of(t));
+
+        int n = service().expireOverdue();
+
+        assertEquals(1, n);
+        assertEquals("expired", t.getStatus());
+        verify(tenantMapper).updateById(t);
+        verify(auditService).record(any(), any(), eq(2L), any());
     }
 }

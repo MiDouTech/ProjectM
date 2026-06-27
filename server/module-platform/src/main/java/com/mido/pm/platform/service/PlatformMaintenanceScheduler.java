@@ -17,11 +17,27 @@ public class PlatformMaintenanceScheduler {
 
     private final PlatformExportService exportService;
     private final PlatformDeletionService deletionService;
+    private final TenantAdminService tenantAdminService;
 
     public PlatformMaintenanceScheduler(PlatformExportService exportService,
-                                        PlatformDeletionService deletionService) {
+                                        PlatformDeletionService deletionService,
+                                        TenantAdminService tenantAdminService) {
         this.exportService = exportService;
         this.deletionService = deletionService;
+        this.tenantAdminService = tenantAdminService;
+    }
+
+    /** 到期租户自动流转为 expired（默认每日 01:30）。 */
+    @Scheduled(cron = "${mido.platform.expire.cron:0 30 1 * * *}")
+    public void expireOverdueTenants() {
+        try {
+            int n = tenantAdminService.expireOverdue();
+            if (n > 0) {
+                log.info("到期租户流转为 expired {} 个", n);
+            }
+        } catch (Exception e) {
+            log.error("到期租户流转失败", e);
+        }
     }
 
     /** 处理待导出任务（默认每分钟）。 */

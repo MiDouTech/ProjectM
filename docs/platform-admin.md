@@ -79,7 +79,7 @@ erDiagram
 
 ## 4. 关键设计约束
 
-- **租户生命周期**：`trial`(开通即试用) → 绑定订阅转 `active` → `suspended`(停用) / `closed`(注销)；`expired` 预留给到期自动流转（P1 定时任务）。
+- **租户生命周期**：`trial`(开通即试用) → 绑定订阅转 `active` → `suspended`(停用) / `closed`(注销)；`expired` 由到期定时任务自动流转（P0-b：`PlatformMaintenanceScheduler.expireOverdueTenants` 每日扫 `expire_at`）。**停用/到期/注销即时生效**：`isLoginable` 复合校验状态 + `expire_at`，且租户请求链 `JwtAuthenticationFilter` 每请求复查（模拟态放行），不再等令牌过期。
 - **订阅不变量**：每租户至多一条 `active` 订阅；绑定新订阅时旧 active 置 `cancelled`，并同步租户 `expire_at`/`status`/首次 `activated_at`。
 - **自用租户**：`sys_tenant.id=1`（与业务侧固定 `tenant_id=1` 对齐），内置订阅旗舰版、不限期。
 - **种子账号**：平台超管 `superadmin / superadmin123`（BCrypt；生产必须改密码并覆盖 `MIDO_PLATFORM_JWT_SECRET`）。
