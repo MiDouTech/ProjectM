@@ -10,6 +10,7 @@ import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.entity.SysTenantSubscription;
 import com.mido.pm.platform.mapper.SysPlanMapper;
 import com.mido.pm.platform.mapper.SysTenantMapper;
+import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.platform.mapper.SysTenantSubscriptionMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +38,19 @@ public class PlatformSubscriptionService {
     private final SysPlanMapper planMapper;
     private final PlatformAuditService auditService;
     private final PlatformUsageService usageService;
+    private final DomainEventPublisher eventPublisher;
 
     public PlatformSubscriptionService(SysTenantSubscriptionMapper subscriptionMapper,
                                        SysTenantMapper tenantMapper, SysPlanMapper planMapper,
                                        PlatformAuditService auditService,
-                                       PlatformUsageService usageService) {
+                                       PlatformUsageService usageService,
+                                       DomainEventPublisher eventPublisher) {
         this.subscriptionMapper = subscriptionMapper;
         this.tenantMapper = tenantMapper;
         this.planMapper = planMapper;
         this.auditService = auditService;
         this.usageService = usageService;
+        this.eventPublisher = eventPublisher;
     }
 
     /** 绑定/续期租户订阅，并同步租户 expireAt 与状态。 */
@@ -95,6 +99,8 @@ public class PlatformSubscriptionService {
         detail.put("expireAt", dto.expireAt());
         auditService.record(PlatformAuditActions.SUBSCRIPTION_SAVED,
                 PlatformAuditActions.TARGET_SUBSCRIPTION, sub.getId(), detail);
+        eventPublisher.publish(PlatformEvents.TENANT_SUBSCRIPTION_CHANGED, tenantId,
+                Map.of("tenantId", tenantId, "planId", dto.planId(), "expireAt", String.valueOf(dto.expireAt())));
 
         // 降级存量超额检测：新套餐生效后，若现有用量已超新上限，记审计告警供运营跟进（不阻断绑定）
         List<String> over = usageService.overQuotaResources(tenantId);

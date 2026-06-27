@@ -32,10 +32,13 @@ class TenantAdminServiceTest {
     private PlatformPlanService planService;
     @Mock
     private PlatformAuditService auditService;
+    @Mock
+    private com.mido.pm.common.outbox.DomainEventPublisher eventPublisher;
 
     private TenantAdminService service() {
         // 播种器列表传空：本单测聚焦租户行写入与审计，播种各域已由各自单测/联调覆盖。
-        return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService, java.util.List.of());
+        return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService,
+                eventPublisher, java.util.List.of());
     }
 
     @Test
@@ -48,6 +51,11 @@ class TenantAdminServiceTest {
     @Test
     void createStartsAsTrialFromManualSource() {
         when(tenantMapper.selectCount(any())).thenReturn(0L);
+        // 模拟 MyBatis-Plus 插入回填雪花 id（供事件 payload 使用）
+        when(tenantMapper.insert(any(SysTenant.class))).thenAnswer(inv -> {
+            inv.getArgument(0, SysTenant.class).setId(99L);
+            return 1;
+        });
         TenantCreateDTO dto = new TenantCreateDTO("新客户", "newco", "互联网", "张三", "13800000000", null, "备注", null, null);
 
         service().create(dto);

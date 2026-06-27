@@ -40,4 +40,26 @@ public class DomainEventPublisher {
 
         applicationEventPublisher.publishEvent(new DomainEventMessage(eventType, payload, tenantId));
     }
+
+    /**
+     * 显式指定租户发布（用于平台域等无请求级 TenantContext 的场景）。
+     * 临时切上下文，确保事件实体 tenant_id 与多租户拦截器注入值一致后还原。
+     *
+     * @param eventType 事件名（取自 docs/domain-events.md，不得自造）
+     * @param tenantId  目标租户 ID
+     * @param payload   事件载荷
+     */
+    public void publish(String eventType, Long tenantId, Object payload) {
+        Long prev = TenantContext.get();
+        try {
+            TenantContext.set(tenantId);
+            publish(eventType, payload);
+        } finally {
+            if (prev != null) {
+                TenantContext.set(prev);
+            } else {
+                TenantContext.clear();
+            }
+        }
+    }
 }

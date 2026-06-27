@@ -13,6 +13,7 @@ import com.mido.pm.platform.dto.TenantQueryDTO;
 import com.mido.pm.platform.dto.TenantStatusDTO;
 import com.mido.pm.platform.dto.TenantUpdateDTO;
 import com.mido.pm.platform.dto.TenantVO;
+import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.tenant.TenantContext;
 import com.mido.pm.common.tenant.TenantProvisionContext;
 import com.mido.pm.common.tenant.TenantProvisioner;
@@ -46,6 +47,7 @@ public class TenantAdminService {
     private final PlatformSubscriptionService subscriptionService;
     private final PlatformPlanService planService;
     private final PlatformAuditService auditService;
+    private final DomainEventPublisher eventPublisher;
     /** 各业务域租户播种器（org/approval/task/project…），Spring 注入全部实现，按 order 升序执行。 */
     private final List<TenantProvisioner> provisioners;
 
@@ -53,11 +55,13 @@ public class TenantAdminService {
                               PlatformSubscriptionService subscriptionService,
                               PlatformPlanService planService,
                               PlatformAuditService auditService,
+                              DomainEventPublisher eventPublisher,
                               List<TenantProvisioner> provisioners) {
         this.tenantMapper = tenantMapper;
         this.subscriptionService = subscriptionService;
         this.planService = planService;
         this.auditService = auditService;
+        this.eventPublisher = eventPublisher;
         this.provisioners = provisioners;
     }
 
@@ -112,6 +116,8 @@ public class TenantAdminService {
 
         auditService.record(PlatformAuditActions.TENANT_CREATED, PlatformAuditActions.TARGET_TENANT, t.getId(),
                 Map.of("code", dto.code(), "name", dto.name(), "adminUsername", adminUsername));
+        eventPublisher.publish(PlatformEvents.TENANT_REGISTERED, t.getId(),
+                Map.of("tenantId", t.getId(), "code", dto.code(), "name", dto.name()));
         return t.getId();
     }
 
@@ -162,6 +168,8 @@ public class TenantAdminService {
         tenantMapper.updateById(t);
         auditService.record(PlatformAuditActions.TENANT_STATUS_CHANGED, PlatformAuditActions.TARGET_TENANT, id,
                 Map.of("from", from, "to", dto.status(), "reason", dto.reason() == null ? "" : dto.reason()));
+        eventPublisher.publish(PlatformEvents.TENANT_STATUS_CHANGED, id,
+                Map.of("tenantId", id, "from", from, "to", dto.status()));
     }
 
     /**
@@ -180,6 +188,8 @@ public class TenantAdminService {
             tenantMapper.updateById(t);
             auditService.record(PlatformAuditActions.TENANT_EXPIRED, PlatformAuditActions.TARGET_TENANT, t.getId(),
                     Map.of("from", from, "to", "expired", "expireAt", String.valueOf(t.getExpireAt())));
+            eventPublisher.publish(PlatformEvents.TENANT_EXPIRED, t.getId(),
+                    Map.of("tenantId", t.getId(), "expireAt", String.valueOf(t.getExpireAt())));
         }
         return due.size();
     }

@@ -41,9 +41,12 @@ class PlatformSubscriptionServiceTest {
     private PlatformAuditService auditService;
     @Mock
     private PlatformUsageService usageService;
+    @Mock
+    private com.mido.pm.common.outbox.DomainEventPublisher eventPublisher;
 
     private PlatformSubscriptionService service() {
-        return new PlatformSubscriptionService(subscriptionMapper, tenantMapper, planMapper, auditService, usageService);
+        return new PlatformSubscriptionService(subscriptionMapper, tenantMapper, planMapper, auditService,
+                usageService, eventPublisher);
     }
 
     @Test

@@ -34,9 +34,11 @@ class PlatformDeletionServiceTest {
     private PlatformAuditService auditService;
     @Mock
     private PlatformExportService exportService;
+    @Mock
+    private com.mido.pm.common.outbox.DomainEventPublisher eventPublisher;
 
     private PlatformDeletionService service() {
-        return new PlatformDeletionService(tenantMapper, List.of(purger), auditService, exportService, 30);
+        return new PlatformDeletionService(tenantMapper, List.of(purger), auditService, exportService, eventPublisher, 30);
     }
 
     private SysTenant tenant(Long id, LocalDateTime purgeAt) {

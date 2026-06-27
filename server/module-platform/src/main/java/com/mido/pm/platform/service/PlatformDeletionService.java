@@ -3,6 +3,7 @@ package com.mido.pm.platform.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mido.pm.common.exception.BizException;
 import com.mido.pm.common.exception.ErrorCode;
+import com.mido.pm.common.outbox.DomainEventPublisher;
 import com.mido.pm.common.tenant.TenantContext;
 import com.mido.pm.common.tenant.TenantDataPurger;
 import com.mido.pm.platform.entity.SysTenant;
@@ -32,16 +33,19 @@ public class PlatformDeletionService {
     private final List<TenantDataPurger> purgers;
     private final PlatformAuditService auditService;
     private final PlatformExportService exportService;
+    private final DomainEventPublisher eventPublisher;
     private final int defaultGraceDays;
 
     public PlatformDeletionService(SysTenantMapper tenantMapper, List<TenantDataPurger> purgers,
                                    PlatformAuditService auditService,
                                    PlatformExportService exportService,
+                                   DomainEventPublisher eventPublisher,
                                    @Value("${mido.platform.purge.grace-days:30}") int defaultGraceDays) {
         this.tenantMapper = tenantMapper;
         this.purgers = purgers;
         this.auditService = auditService;
         this.exportService = exportService;
+        this.eventPublisher = eventPublisher;
         this.defaultGraceDays = defaultGraceDays;
     }
 
@@ -60,6 +64,8 @@ public class PlatformDeletionService {
         exportService.requestExport(tenantId);
         auditService.record(PlatformAuditActions.TENANT_DELETION_REQUESTED,
                 PlatformAuditActions.TARGET_TENANT, tenantId, Map.of("purgeAt", purgeAt.toString()));
+        eventPublisher.publish(PlatformEvents.TENANT_DELETION_REQUESTED, tenantId,
+                Map.of("tenantId", tenantId, "purgeAt", purgeAt.toString()));
     }
 
     /** 宽限期内取消注销：清除计划，状态置 suspended（由运营再决定恢复）。 */
@@ -118,6 +124,8 @@ public class PlatformDeletionService {
         detail.put("total", total);
         auditService.record(PlatformAuditActions.TENANT_PURGED,
                 PlatformAuditActions.TARGET_TENANT, tenant.getId(), detail);
+        eventPublisher.publish(PlatformEvents.TENANT_PURGED, tenant.getId(),
+                Map.of("tenantId", tenant.getId(), "total", total));
         log.info("租户已清除 tenantId={} 删除行数={}", tenant.getId(), total);
     }
 
