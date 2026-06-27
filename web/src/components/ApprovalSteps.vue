@@ -10,8 +10,9 @@
     <el-alert v-else type="warning" :closable="false" show-icon class="alert"
       title="审批进行中" description="立项审批尚未完成。严肃提示：未通过审批不得进入执行态。" />
 
-    <el-steps :active="activeIndex" :process-status="processStatus" finish-status="success" align-center class="steps">
-      <el-step v-for="n in nodes" :key="n.key" :title="n.name" :description="n.key" />
+    <!-- 精致紧凑态(simple)：去掉技术性 description(节点 key)，只留节点名，体量更小 -->
+    <el-steps :active="activeIndex" :process-status="processStatus" finish-status="success" simple class="steps">
+      <el-step v-for="n in nodes" :key="n.key" :title="n.name" />
     </el-steps>
 
     <el-empty v-if="!loading && !nodes.length" description="无审批流节点" />
@@ -71,6 +72,10 @@ defineExpose({ reload: load, instance })
   margin-bottom: var(--mido-space-4);
 }
 .steps {
-  margin-top: var(--mido-space-4);
+  margin-top: var(--mido-space-3);
+}
+/* 流程条整体收小：标题降至辅助字号，更克制精致 */
+.steps :deep(.el-step__title) {
+  font-size: var(--mido-font-size-secondary);
 }
 </style>

@@ -1,24 +1,26 @@
 <template>
-  <!-- 一级模块统一顶部横向导航（可配置，来自 /workspace/nav）。L2：活动顶级项的子菜单渲染为第二行。 -->
-  <div class="wsh-wrap">
-    <nav class="wsh">
-      <el-menu :default-active="activeTopCode" mode="horizontal" :ellipsis="true" class="wsh__menu" @select="onSelectTop">
-        <el-menu-item v-for="n in nav" :key="n.code" :index="n.code">
-          <el-icon v-if="n.icon"><component :is="n.icon" /></el-icon>
-          <span>{{ n.name }}</span>
-        </el-menu-item>
-      </el-menu>
-      <span v-if="$slots.actions" class="wsh__actions"><slot name="actions" /></span>
-    </nav>
+  <!-- 一级模块统一二级导航（可配置，来自 /workspace/nav）。
+       L2 横向菜单经 Teleport 并入顶栏中段（design-system §4）；actions/L3 子导航留内容区顶部。 -->
+  <Teleport to="#mido-topbar-nav" :disabled="!teleportReady">
+    <el-menu :default-active="activeTopCode" mode="horizontal" :ellipsis="true"
+      class="wsh__menu" background-color="transparent" @select="onSelectTop">
+      <el-menu-item v-for="n in nav" :key="n.code" :index="n.code">
+        <el-icon v-if="n.icon"><component :is="n.icon" /></el-icon>
+        <span>{{ n.name }}</span>
+      </el-menu-item>
+    </el-menu>
+  </Teleport>
+  <div v-if="$slots.actions || subNav.length" class="wsh-sub-wrap">
     <nav v-if="subNav.length" class="wsh-sub">
       <a v-for="c in subNav" :key="c.code" class="wsh-sub__tab"
         :class="{ 'is-active': matches(c) }" @click="go(c)">{{ c.name }}</a>
     </nav>
+    <span v-if="$slots.actions" class="wsh__actions"><slot name="actions" /></span>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceNavApi } from '@/api/view'
 
@@ -26,6 +28,9 @@ const props = defineProps({ module: { type: String, required: true } })
 const route = useRoute()
 const router = useRouter()
 const nav = ref([])
+// Teleport 目标(#mido-topbar-nav)在 MainLayout，父级先挂载即存在；挂载后再启用，避免首帧目标未就绪
+const teleportReady = ref(false)
+onMounted(() => { teleportReady.value = true })
 
 // 命中判定：路径相等；组件带 query(如 ?tab=change) 则要求 query 命中，否则要求当前无 tab query
 function matches(n) {
@@ -61,23 +66,28 @@ load()
 </script>
 
 <style scoped>
-.wsh-wrap {
-  margin-bottom: var(--mido-space-4);
-}
-.wsh {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: var(--mido-border-width) solid var(--el-border-color-light);
-}
+/* L2 菜单内嵌顶栏：撑满中段、贴合顶栏高度、去底边与背景 */
 .wsh__menu {
   flex: 1;
   min-width: 0;
+  height: var(--mido-topbar-height);
   border-bottom: none;
+  background: transparent;
+}
+.wsh__menu :deep(.el-menu-item) {
+  height: var(--mido-topbar-height);
+  line-height: var(--mido-topbar-height);
+}
+/* actions/L3 子导航留内容区顶部，整体在与正文之间留一档间距 */
+.wsh-sub-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mido-space-3);
+  margin-bottom: var(--mido-space-4);
 }
 .wsh__actions {
   flex: none;
-  margin-left: var(--mido-space-3);
 }
 .wsh-sub {
   display: flex;

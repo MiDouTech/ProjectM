@@ -9,9 +9,10 @@
         <img v-if="logoOk" class="mido-topbar__logo" src="/logo_竖_蓝色.png"
           alt="米多 · 通用项目管理系统" @error="logoOk = false" />
         <el-icon v-else class="mido-topbar__logo-fallback"><Grid /></el-icon>
-        <span v-show="!collapsed" class="mido-h2">米多项目管理</span>
+        <span v-show="!collapsed" class="mido-h2">项目管理</span>
       </div>
-      <div class="mido-topbar__spacer" />
+      <!-- 二级导航并入顶栏中段（design-system §4）：各模块的 WorkspaceShell 经 Teleport 注入此处 -->
+      <div id="mido-topbar-nav" class="mido-topbar__nav" />
       <div class="mido-topbar__actions">
         <!-- 统一消息入口：系统消息未读 + 未看平台公告，合并角标，点击进消息中心 -->
         <el-badge :value="totalUnread" :max="99" :hidden="!totalUnread" class="mido-topbar__bell">
@@ -306,8 +307,19 @@ function onUserCommand(command) {
   font-size: var(--mido-font-size-h1);
 }
 
-.mido-topbar__spacer {
+/* 顶栏中段：承载当前模块的二级导航（Teleport 目标）。空时不显分隔线，避免裸竖线 */
+.mido-topbar__nav {
   flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  margin-left: var(--mido-space-4);
+}
+.mido-topbar__nav:not(:empty) {
+  padding-left: var(--mido-space-4);
+  border-left: var(--mido-border-width) solid var(--el-border-color-lighter);
 }
 
 .mido-topbar__actions {
