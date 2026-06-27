@@ -1,8 +1,9 @@
 <template>
-  <div class="mido-briefing">
+  <div class="mido-briefing-page">
+    <WorkspaceShell module="briefing" />
+    <div class="mido-briefing">
     <!-- 左栏 -->
     <div class="mido-briefing__side">
-      <div class="mido-briefing__title">简报</div>
       <div
         v-for="m in menus"
         :key="m.key"
@@ -257,11 +258,13 @@
         <el-button type="primary" @click="saveAssign">保存</el-button>
       </template>
     </el-dialog>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, MoreFilled } from '@element-plus/icons-vue'
@@ -572,9 +575,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.mido-briefing-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .mido-briefing {
   display: flex;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   /* 与全站一致的「白卡浮于灰底」外框（对齐 el-card 视觉）：此前缺外框，整块边到边显得扁平、与其他页对比突兀 */
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-light);

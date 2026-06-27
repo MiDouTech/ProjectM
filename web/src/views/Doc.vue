@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page doc">
-    <h1 class="mido-h1">文档中心</h1>
-    <p class="mido-text-secondary doc__sub">按项目维护知识库：在线文档、目录、版本历史。</p>
+    <WorkspaceShell module="doc" />
 
     <div class="doc__body" v-loading="projLoading">
       <!-- 左：我参与的项目 -->
@@ -227,6 +226,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Folder, Document, Plus, EditPen, Delete, Check, Clock, Upload, Paperclip,
   Search, Star, StarFilled, Download, ArrowDown, Lock, Share, CopyDocument } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import DocEditor from '@/components/DocEditor.vue'
 import FilePreview from '@/components/FilePreview.vue'
 import CommentThread from '@/components/CommentThread.vue'

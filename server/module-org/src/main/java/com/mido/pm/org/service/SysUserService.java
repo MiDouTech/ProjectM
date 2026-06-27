@@ -133,6 +133,35 @@ public class SysUserService {
         userMapper.deleteById(id);
     }
 
+    /**
+     * 自助修改密码：校验原密码 → 加密落库。新密码不得与原密码相同。
+     * 不记录任何明文，审计仅留动作。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(Long userId, String oldRaw, String newRaw) {
+        SysUser user = requireExists(userId);
+        if (!passwordEncoder.matches(oldRaw, user.getPassword())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "原密码不正确");
+        }
+        if (passwordEncoder.matches(newRaw, user.getPassword())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "新密码不能与原密码相同");
+        }
+        user.setPassword(passwordEncoder.encode(newRaw));
+        userMapper.updateById(user);
+        auditLogService.record(AuditActions.MODULE_MEMBER, AuditActions.TARGET_USER, userId,
+                AuditActions.PASSWORD_CHANGED, Map.of("self", true));
+    }
+
+    /** 管理员重置用户密码：直接覆盖（不校验原密码）。不记录明文。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void resetPassword(Long userId, String newRaw) {
+        SysUser user = requireExists(userId);
+        user.setPassword(passwordEncoder.encode(newRaw));
+        userMapper.updateById(user);
+        auditLogService.record(AuditActions.MODULE_MEMBER, AuditActions.TARGET_USER, userId,
+                AuditActions.PASSWORD_RESET, Map.of("self", false));
+    }
+
     /** 用户的角色 id 集合（供跨域权限解析，如文档 ACL）。 */
     public List<Long> roleIdsOf(Long userId) {
         if (userId == null) {

@@ -29,7 +29,8 @@ public class OrgTenantProvisioner implements TenantProvisioner {
 
     /** 超级管理员功能权限码（与各 module-org 控制器 @PreAuthorize 对齐；含租户级审计查询）。 */
     private static final List<String> ADMIN_PERMS = List.of(
-            "org:user:query", "org:user:create", "org:role:create", "org:dept:create", "org:audit:query");
+            "org:user:query", "org:user:create", "org:role:create", "org:dept:create", "org:audit:query",
+            "org:config:manage");
 
     private final SysDeptMapper deptMapper;
     private final SysRoleMapper roleMapper;

@@ -30,6 +30,10 @@ public final class AuditActions {
     public static final String FIELD_PERM_CHANGED = "field_perm_changed";
     /** 给用户分配角色（detail = {from:[roleId...], to:[roleId...]}） */
     public static final String ROLES_ASSIGNED = "roles_assigned";
+    /** 用户自助修改密码（detail = {self:true}，不留明文） */
+    public static final String PASSWORD_CHANGED = "password_changed";
+    /** 管理员重置用户密码（detail = {self:false}，不留明文） */
+    public static final String PASSWORD_RESET = "password_reset";
     /** 添加项目成员（detail = {userId, projectRole}） */
     public static final String MEMBER_ADDED = "member_added";
     /** 移除项目成员（detail = {userId, projectRole}） */

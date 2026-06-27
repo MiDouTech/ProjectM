@@ -13,6 +13,13 @@ export const npssApi = {
   saveProjectSubjects: (projectId, items) => request.put(`/npss/projects/${projectId}/subjects`, items),
 }
 
+/** 结果验收（铁三角）：录入/查询 PMO 结论。结案前置硬闸门由后端在项目流转处强制。 */
+export const resultVerifyApi = {
+  latest: (projectId) => request.get(`/projects/${projectId}/result-verify`),
+  // data: { verdict: 'pass'|'fail', onTime, inBudget, inScope, completionRate, remark }
+  save: (projectId, data) => request.post(`/projects/${projectId}/result-verify`, data),
+}
+
 /** PMO 报表 + 项目/任务度量（只读，数据范围由后端拦截器约束）。 */
 export const reportApi = {
   pmoNpss: (year) => request.get('/reports/pmo-npss', { params: year ? { year } : {} }),

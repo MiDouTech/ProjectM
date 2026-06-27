@@ -4,7 +4,9 @@
     <section class="ov__main">
       <el-card shadow="never" class="ov__card">
         <h3 class="mido-h2">项目要点</h3>
-        <el-descriptions :column="2" border size="small">
+        <DynamicDetail v-if="useDetailConfig" :fields="detailFields" :model-value="detailModel"
+          :layout="detailLayout" :user-name="userName" />
+        <el-descriptions v-else :column="2" border size="small">
           <el-descriptions-item label="类型">{{ categoryLabel(project.category) }}</el-descriptions-item>
           <el-descriptions-item label="子类">{{ project.subCategory || '—' }}</el-descriptions-item>
           <el-descriptions-item label="负责人">{{ userName(project.leaderId) }}</el-descriptions-item>
@@ -70,16 +72,64 @@
 import { computed, onMounted, ref } from 'vue'
 import { Flag } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import DynamicDetail from '@/components/DynamicDetail.vue'
 import ProjectTransitionPane from './ProjectTransitionPane.vue'
 import { taskApi } from '@/api/task'
 import { stakeholderApi } from '@/api/stakeholder'
 import { PROJECT_CATEGORIES } from '@/api/project'
+import { pageConfigApi } from '@/api/view'
+import { fieldDefApi } from '@/api/field'
+import { parseFieldOptions } from '@/utils/pageConfig'
 
 const props = defineProps({
   project: { type: Object, required: true },
   projectId: { type: [Number, String], required: true },
   userName: { type: Function, default: (id) => (id ? `用户#${id}` : '—') },
 })
+
+// L3 detail 模板：项目要点可由页面配置渲染（只读），无配置回落原要点（fail-safe）
+const useDetailConfig = ref(false)
+const detailFields = ref([])
+const detailLayout = ref({ columns: 2 })
+const PROJECT_DETAIL_BUILTIN = {
+  name: { label: '项目名', type: 'text' },
+  description: { label: '描述', type: 'text' },
+  leaderId: { label: '负责人', type: 'user' },
+  budget: { label: '预算', type: 'number' },
+  startDate: { label: '开始时间', type: 'date' },
+  endDate: { label: '截止时间', type: 'date' },
+}
+const detailModel = computed(() => ({ ...(props.project || {}), ...((props.project || {}).customFields || {}) }))
+async function loadDetailConfig() {
+  try {
+    const [cfg, customDefs] = await Promise.all([
+      pageConfigApi.get('project', 'detail'),
+      fieldDefApi.list('project', true).catch(() => []),
+    ])
+    const byKey = new Map((customDefs || []).map((d) => [d.fieldKey, d]))
+    const fields = (cfg?.fields || []).map((f) => {
+      if (f.source === 'builtin' && PROJECT_DETAIL_BUILTIN[f.fieldKey]) {
+        const b = PROJECT_DETAIL_BUILTIN[f.fieldKey]
+        return { fieldKey: f.fieldKey, label: b.label, type: b.type, group: f.group || '' }
+      }
+      if (f.source === 'custom' && byKey.has(f.fieldKey)) {
+        const d = byKey.get(f.fieldKey)
+        return { fieldKey: f.fieldKey, label: d.name, type: d.type, options: parseFieldOptions(d.options), group: f.group || '' }
+      }
+      return null
+    }).filter(Boolean)
+    if (fields.length) {
+      detailFields.value = fields
+      detailLayout.value = cfg.layout || { columns: 2 }
+      useDetailConfig.value = true
+    } else {
+      useDetailConfig.value = false
+    }
+  } catch {
+    useDetailConfig.value = false
+  }
+}
+loadDetailConfig()
 defineEmits(['changed', 'navigate'])
 
 // 干系人速览仅取前若干，避免拥挤

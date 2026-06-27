@@ -1,6 +1,6 @@
 <template>
   <div class="mido-page" v-loading="loading">
-    <h1 class="mido-h1">报表 · 度量仪表盘</h1>
+    <WorkspaceShell module="report" />
 
     <!-- KPI 卡 -->
     <div class="rpt__cards" v-if="ov">
@@ -110,6 +110,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import G2Chart from '@/components/G2Chart.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { reportApi } from '@/api/npss'

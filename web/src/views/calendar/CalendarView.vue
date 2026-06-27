@@ -1,11 +1,8 @@
 <template>
   <div class="mido-calendar">
+    <WorkspaceShell module="calendar" />
     <!-- 顶部工具条 -->
     <div class="mido-calendar__bar">
-      <div class="mido-calendar__title">
-        <el-icon><Calendar /></el-icon>
-        <span>日历</span>
-      </div>
       <div class="mido-calendar__nav">
         <el-radio-group v-model="viewMode" size="small">
           <el-radio-button value="month">月</el-radio-button>
@@ -319,6 +316,7 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Plus, Connection } from '@element-plus/icons-vue'

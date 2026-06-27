@@ -4,6 +4,7 @@ import com.mido.pm.common.api.R;
 import com.mido.pm.project.dto.PortfolioOverviewVO;
 import com.mido.pm.project.dto.PortfolioSaveDTO;
 import com.mido.pm.project.dto.PortfolioVO;
+import com.mido.pm.project.dto.ProjectVO;
 import com.mido.pm.project.service.PortfolioService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -65,6 +66,25 @@ public class PortfolioController {
     @DeleteMapping("/{id}/projects/{projectId}")
     public R<Void> removeProject(@PathVariable Long id, @PathVariable Long projectId) {
         portfolioService.removeProject(id, projectId);
+        return R.ok();
+    }
+
+    /** 可加入的项目：创建人(owner)负责∪参与的项目（添加项目对话框用）。 */
+    @GetMapping("/{id}/candidate-projects")
+    public R<List<ProjectVO>> candidateProjects(@PathVariable Long id) {
+        return R.ok(portfolioService.candidateProjects(id));
+    }
+
+    /** 项目集成员用户 id 列表。 */
+    @GetMapping("/{id}/members")
+    public R<List<Long>> members(@PathVariable Long id) {
+        return R.ok(portfolioService.members(id));
+    }
+
+    /** 整组替换项目集成员（replace-all，创建人始终保留）。 */
+    @PutMapping("/{id}/members")
+    public R<Void> setMembers(@PathVariable Long id, @RequestBody List<Long> userIds) {
+        portfolioService.setMembers(id, userIds);
         return R.ok();
     }
 }

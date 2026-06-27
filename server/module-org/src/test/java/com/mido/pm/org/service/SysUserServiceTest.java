@@ -66,4 +66,58 @@ class SysUserServiceTest {
         assertThrows(BizException.class, () -> service()
                 .create(new UserCreateDTO("13800138000", "zhangsan", "张三", "pwd", 1L, "L1", null, "active")));
     }
+
+    private SysUser userWithPassword(String hash) {
+        SysUser u = new SysUser();
+        u.setId(7L);
+        u.setPassword(hash);
+        return u;
+    }
+
+    @Test
+    void changePassword_wrongOldRejected() {
+        when(userMapper.selectById(7L)).thenReturn(userWithPassword("OLD_ENC"));
+        when(passwordEncoder.matches("wrong", "OLD_ENC")).thenReturn(false);
+
+        assertThrows(BizException.class, () -> service().changePassword(7L, "wrong", "newPass123"));
+        verify(userMapper, org.mockito.Mockito.never()).updateById(any(SysUser.class));
+    }
+
+    @Test
+    void changePassword_sameAsOldRejected() {
+        when(userMapper.selectById(7L)).thenReturn(userWithPassword("OLD_ENC"));
+        // 原密码校验通过；新密码与原密码相同（同一明文 → 同一 stub 命中两次）应被拒
+        when(passwordEncoder.matches("oldPass123", "OLD_ENC")).thenReturn(true);
+
+        assertThrows(BizException.class, () -> service().changePassword(7L, "oldPass123", "oldPass123"));
+        verify(userMapper, org.mockito.Mockito.never()).updateById(any(SysUser.class));
+    }
+
+    @Test
+    void changePassword_success_encodesAndAudits() {
+        when(userMapper.selectById(7L)).thenReturn(userWithPassword("OLD_ENC"));
+        when(passwordEncoder.matches("oldPass123", "OLD_ENC")).thenReturn(true);
+        when(passwordEncoder.matches("newPass123", "OLD_ENC")).thenReturn(false);
+        when(passwordEncoder.encode("newPass123")).thenReturn("NEW_ENC");
+
+        service().changePassword(7L, "oldPass123", "newPass123");
+
+        ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals("NEW_ENC", captor.getValue().getPassword(), "新密码必须加密落库");
+        verify(auditLogService).record(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void resetPassword_success_encodesAndAudits() {
+        when(userMapper.selectById(7L)).thenReturn(userWithPassword("OLD_ENC"));
+        when(passwordEncoder.encode("resetPass123")).thenReturn("RESET_ENC");
+
+        service().resetPassword(7L, "resetPass123");
+
+        ArgumentCaptor<SysUser> captor = ArgumentCaptor.forClass(SysUser.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals("RESET_ENC", captor.getValue().getPassword(), "重置密码必须加密落库");
+        verify(auditLogService).record(any(), any(), any(), any(), any());
+    }
 }

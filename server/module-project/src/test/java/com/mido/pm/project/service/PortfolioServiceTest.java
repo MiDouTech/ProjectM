@@ -28,10 +28,11 @@ class PortfolioServiceTest {
 
     @Mock private PmPortfolioMapper portfolioMapper;
     @Mock private PmPortfolioProjectMapper linkMapper;
+    @Mock private com.mido.pm.project.mapper.PmPortfolioMemberMapper memberMapper;
     @Mock private ProjectService projectService;
 
     private PortfolioService service() {
-        return new PortfolioService(portfolioMapper, linkMapper, projectService);
+        return new PortfolioService(portfolioMapper, linkMapper, memberMapper, projectService);
     }
 
     private ProjectVO project(Long id, String status) {
@@ -40,9 +41,12 @@ class PortfolioServiceTest {
     }
 
     @Test
-    void createPersistsPortfolio() {
-        service().create(new PortfolioSaveDTO("年度战略", "desc", 9L, null));
+    void createPersistsPortfolioAndAddsOwnerAsMember() {
+        when(memberMapper.selectList(any())).thenReturn(List.of());
+        service().create(new PortfolioSaveDTO("年度战略", "desc", 9L, null, null));
         verify(portfolioMapper).insert(any(PmPortfolio.class));
+        // 创建人(9)默认成为成员
+        verify(memberMapper).insert(any(com.mido.pm.project.entity.PmPortfolioMember.class));
     }
 
     @Test

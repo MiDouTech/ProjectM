@@ -46,6 +46,10 @@ export const portfolioApi = {
   overview: (id) => request.get(`/portfolios/${id}/overview`),
   addProjects: (id, projectIds) => request.post(`/portfolios/${id}/projects`, projectIds),
   removeProject: (id, projectId) => request.delete(`/portfolios/${id}/projects/${projectId}`),
+  // 可加入的项目：创建人负责∪参与的项目
+  candidateProjects: (id) => request.get(`/portfolios/${id}/candidate-projects`),
+  members: (id) => request.get(`/portfolios/${id}/members`),
+  setMembers: (id, userIds) => request.put(`/portfolios/${id}/members`, userIds),
 }
 
 /** 组件库 + 项目组件安装（阶段5：项目顶栏由已安装组件动态生成；无安装记录回落默认 Tab） */
@@ -59,6 +63,10 @@ export const componentApi = {
 export const templateApi = {
   list: (category) => request.get('/project-templates', { params: category ? { category } : {} }),
   get: (id) => request.get(`/project-templates/${id}`),
+  detail: (id) => request.get(`/project-templates/${id}/detail`),
+  create: (data) => request.post('/project-templates', data),
+  update: (id, data) => request.put(`/project-templates/${id}`, data),
+  remove: (id) => request.delete(`/project-templates/${id}`),
 }
 
 /** 通用审批引擎（Step 3） */

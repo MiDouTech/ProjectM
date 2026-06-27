@@ -8,6 +8,8 @@ import com.mido.pm.common.exception.ErrorCode;
 import com.mido.pm.project.dto.CreateFromTemplateDTO;
 import com.mido.pm.project.dto.ProjectCreateDTO;
 import com.mido.pm.project.dto.ProjectFromTemplateVO;
+import com.mido.pm.project.dto.TemplateDetailVO;
+import com.mido.pm.project.dto.TemplateSaveDTO;
 import com.mido.pm.project.dto.TemplateVO;
 import com.mido.pm.project.entity.PmProjectTemplate;
 import com.mido.pm.project.mapper.PmProjectTemplateMapper;
@@ -46,6 +48,67 @@ public class ProjectTemplateService {
 
     public TemplateVO get(Long id) {
         return toVO(requireExists(id));
+    }
+
+    /** 模板详情（含 config，编辑回显）。 */
+    public TemplateDetailVO detail(Long id) {
+        PmProjectTemplate t = requireExists(id);
+        return new TemplateDetailVO(t.getId(), t.getName(), t.getCategory(), t.getSubCategory(),
+                t.getDescription(), t.getIsBuiltin(), t.getConfig());
+    }
+
+    /** 新建自定义模板（is_builtin=0）。config 须为合法 JSON（可空）。 */
+    @Transactional(rollbackFor = Exception.class)
+    public Long create(TemplateSaveDTO dto) {
+        PmProjectTemplate t = new PmProjectTemplate();
+        applySave(t, dto);
+        t.setIsBuiltin(0);
+        templateMapper.insert(t);
+        return t.getId();
+    }
+
+    /** 编辑模板：内置模板（is_builtin=1）禁止编辑以保种子。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, TemplateSaveDTO dto) {
+        PmProjectTemplate t = requireExists(id);
+        assertCustom(t);
+        applySave(t, dto);
+        templateMapper.updateById(t);
+    }
+
+    /** 删除模板（逻辑删）：内置模板禁止删除。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        PmProjectTemplate t = requireExists(id);
+        assertCustom(t);
+        templateMapper.deleteById(id);
+    }
+
+    private void applySave(PmProjectTemplate t, TemplateSaveDTO dto) {
+        t.setName(dto.name());
+        t.setCategory(dto.category());
+        t.setSubCategory(dto.subCategory());
+        t.setDescription(dto.description());
+        t.setConfig(normalizeConfig(dto.config()));
+    }
+
+    /** 校验 config 为合法 JSON（空则置 null）。 */
+    private String normalizeConfig(String config) {
+        if (StrUtil.isBlank(config)) {
+            return null;
+        }
+        try {
+            objectMapper.readTree(config);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "模板配置不是合法 JSON");
+        }
+        return config;
+    }
+
+    private void assertCustom(PmProjectTemplate t) {
+        if (Integer.valueOf(1).equals(t.getIsBuiltin())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "内置模板不可编辑或删除");
+        }
     }
 
     /** 按模板创建项目：建项目本体 + 同事务供给骨架（任务/干系人/审批延后由各域落地）。 */

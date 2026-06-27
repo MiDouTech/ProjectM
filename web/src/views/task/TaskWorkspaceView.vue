@@ -14,7 +14,11 @@
         </el-select>
         <el-button link type="primary" :icon="Plus" @click="designerOpen = true">新建视图</el-button>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建任务</el-button>
+      <div class="tw__bar-right">
+        <TableColumnSetting v-if="view !== 'board' && view !== 'view'" list-key="tasks"
+          :all-columns="TASK_COLUMNS" :default-columns="TASK_DEFAULT_COLS" @change="onTaskColsChange" />
+        <el-button type="primary" :icon="Plus" @click="openCreate">新建任务</el-button>
+      </div>
     </div>
 
     <el-card shadow="never" v-loading="loading">
@@ -89,36 +93,35 @@
         <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }"
           default-expand-all class="is-clickable" @row-click="(r) => openDetail(r.id)" @selection-change="onSelectionChange">
           <el-table-column type="selection" width="48" />
-          <el-table-column label="标题" min-width="240">
-          <template #default="{ row }">
-            <span class="tc__title">
-              <el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="110">
-          <template #default="{ row }"><StatusTag :status="row.status" :color="statusColor(row.status)" /></template>
-        </el-table-column>
-        <el-table-column label="负责人" width="120">
-          <template #default="{ row }">{{ userName(row.assigneeId) }}</template>
-        </el-table-column>
-        <el-table-column label="优先级" width="90">
-          <template #default="{ row }">{{ priorityLabel(row.priority) }}</template>
-        </el-table-column>
-        <el-table-column label="截止" width="150">
-          <template #default="{ row }">
-            {{ row.dueDate || '—' }}
-            <StatusTag v-if="isOverdue(row)" status="逾期" />
-          </template>
-        </el-table-column>
+          <el-table-column v-for="key in taskCols" :key="key" :label="taskColLabel(key)"
+            :width="taskColWidth(key)" :min-width="taskColMinWidth(key)"
+            :fixed="taskFrozen.includes(key) ? 'left' : false">
+            <template #default="{ row }">
+              <span v-if="key === 'title'" class="tc__title">
+                <el-icon v-if="row.isMilestone"><Flag /></el-icon>{{ row.title }}
+              </span>
+              <StatusTag v-else-if="key === 'status'" :status="row.status" :color="statusColor(row.status)" />
+              <span v-else-if="key === 'assigneeId'">{{ userName(row.assigneeId) }}</span>
+              <span v-else-if="key === 'priority'">{{ priorityLabel(row.priority) }}</span>
+              <template v-else-if="key === 'dueDate'">
+                {{ row.dueDate || '—' }}
+                <StatusTag v-if="isOverdue(row)" status="逾期" />
+              </template>
+              <span v-else-if="key === 'startDate'">{{ row.startDate || '—' }}</span>
+              <span v-else-if="key === 'stage'">{{ row.stage || '—' }}</span>
+              <span v-else>{{ row[key] ?? '—' }}</span>
+            </template>
+          </el-table-column>
           <template #empty><el-empty description="暂无任务，点击右上角新建任务" /></template>
         </el-table>
       </div>
     </el-card>
 
-    <!-- 新建任务 -->
+    <!-- 新建任务（有页面配置走动态表单，否则回落原表单 fail-safe） -->
     <el-dialog v-model="createDialog" title="新建任务" width="var(--mido-login-card-width)">
-      <el-form ref="createRef" :model="createForm" :rules="createRules" :label-width="72">
+      <DynamicForm v-if="usePageConfig" ref="dynRef" :fields="pageFields" :model-value="createForm"
+        :layout="pageLayout" />
+      <el-form v-else ref="createRef" :model="createForm" :rules="createRules" :label-width="72">
         <el-form-item label="标题" prop="title"><el-input v-model="createForm.title" /></el-form-item>
         <el-form-item label="负责人">
           <UserSelect v-model="createForm.assigneeId" placeholder="选择负责人" />
@@ -151,6 +154,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, Flag, ArrowDown } from '@element-plus/icons-vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import KanbanBoard from '@/components/KanbanBoard.vue'
+import TableColumnSetting from '@/components/TableColumnSetting.vue'
+import DynamicForm from '@/components/DynamicForm.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useStatusColors } from '@/composables/useStatusColors'
 import CategoryBadge from '@/components/CategoryBadge.vue'
@@ -158,8 +163,9 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
-import { viewApi } from '@/api/view'
-import { fieldDefApi, isCfRef, cfKey } from '@/api/field'
+import { viewApi, pageConfigApi } from '@/api/view'
+import { fieldDefApi, fieldValueApi, isCfRef, cfKey } from '@/api/field'
+import { parseFieldOptions } from '@/utils/pageConfig'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { isTaskOverdue, userName as nameOf } from '@/utils/display'
@@ -183,6 +189,37 @@ const { statusColor } = useStatusColors()
 const loading = ref(false)
 const saving = ref(false)
 const view = ref('board')
+
+// 任务列表（树形表）表头设置
+const TASK_COLUMNS = [
+  { key: 'title', label: '标题', required: true },
+  { key: 'status', label: '状态' },
+  { key: 'assigneeId', label: '负责人' },
+  { key: 'priority', label: '优先级' },
+  { key: 'dueDate', label: '截止时间' },
+  { key: 'startDate', label: '开始时间' },
+  { key: 'stage', label: '阶段' },
+]
+const TASK_DEFAULT_COLS = ['title', 'status', 'assigneeId', 'priority', 'dueDate']
+const TASK_COL_META = {
+  title: { minWidth: 240 },
+  status: { width: 110 },
+  assigneeId: { width: 120 },
+  priority: { width: 90 },
+  dueDate: { width: 150 },
+  startDate: { width: 120 },
+  stage: { width: 110 },
+}
+const taskCols = ref([...TASK_DEFAULT_COLS])
+const taskFrozen = ref([])
+const taskColLabel = (key) => TASK_COLUMNS.find((c) => c.key === key)?.label || key
+const taskColWidth = (key) => TASK_COL_META[key]?.width
+const taskColMinWidth = (key) => TASK_COL_META[key]?.minWidth
+function onTaskColsChange({ columns: cols, frozen }) {
+  taskCols.value = cols
+  taskFrozen.value = frozen
+}
+
 const project = ref({})
 const tasks = ref([])
 const columns = ref(TASK_STATUSES.map((s) => ({ status: s, tasks: [] })))
@@ -224,6 +261,53 @@ const createDialog = ref(false)
 const createRef = ref()
 const createForm = reactive({ title: '', assigneeId: null, priority: null, dueDate: null, isMilestone: false })
 const createRules = { title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }] }
+
+// L3.1c 可配置建单表单（仅编排可提交的内置字段；无配置回落原表单 fail-safe）
+const dynRef = ref()
+const usePageConfig = ref(false)
+const pageFields = ref([])
+const pageLayout = ref({ columns: 1 })
+const TASK_FORM_BUILTIN = {
+  title: { label: '标题', type: 'text', required: true },
+  assigneeId: { label: '负责人', type: 'user' },
+  priority: { label: '优先级', type: 'select', options: TASK_PRIORITIES },
+  dueDate: { label: '截止', type: 'date' },
+  isMilestone: { label: '里程碑', type: 'checkbox' },
+}
+// 纯组装：cfg/defs 由 onMounted 并发拉取后传入（字段列表与视图自定义列共用一次请求）
+function applyPageConfig(cfg, defs) {
+  try {
+    const byKey = new Map((defs || []).map((d) => [d.fieldKey, d]))
+    const fields = (cfg?.fields || []).map((f) => {
+      if (f.source === 'builtin' && TASK_FORM_BUILTIN[f.fieldKey]) {
+        const b = TASK_FORM_BUILTIN[f.fieldKey]
+        return {
+          fieldKey: f.fieldKey, source: 'builtin', label: b.label, type: b.type, options: b.options,
+          required: f.required ?? b.required ?? false, readonly: !!f.readonly, width: f.width, group: f.group || '',
+        }
+      }
+      if (f.source === 'custom' && byKey.has(f.fieldKey)) {
+        const d = byKey.get(f.fieldKey)
+        return {
+          fieldKey: f.fieldKey, source: 'custom', fieldId: d.id, label: d.name, type: d.type,
+          options: parseFieldOptions(d.options), required: f.required ?? d.required === 1, readonly: !!f.readonly,
+          width: f.width, group: f.group || '',
+        }
+      }
+      return null
+    }).filter(Boolean)
+    // 安全兜底：配置漏掉标题(提交必需)则不启用动态表单，回落原表单
+    if (fields.length && fields.some((f) => f.fieldKey === 'title')) {
+      pageFields.value = fields
+      pageLayout.value = cfg.layout || { columns: 1 }
+      usePageConfig.value = true
+    } else {
+      usePageConfig.value = false
+    }
+  } catch {
+    usePageConfig.value = false
+  }
+}
 
 const userName = (id) => nameOf(users.value, id)
 const priorityLabel = (p) => TASK_PRIORITIES.find((x) => x.value === p)?.label || '—'
@@ -346,22 +430,44 @@ function openDetail(id) {
 }
 function openCreate() {
   Object.assign(createForm, { title: '', assigneeId: null, priority: null, dueDate: null, isMilestone: false })
+  // 动态表单含自定义字段时，初始化其键，确保双绑
+  if (usePageConfig.value) {
+    pageFields.value.filter((f) => f.source === 'custom').forEach((f) => { createForm[f.fieldKey] = null })
+  }
   createDialog.value = true
 }
 async function doCreate() {
-  await createRef.value.validate()
+  await (usePageConfig.value ? dynRef.value.validate() : createRef.value.validate())
   saving.value = true
   try {
-    await taskApi.create({
+    const id = await taskApi.create({
       title: createForm.title, projectId, assigneeId: createForm.assigneeId,
       priority: createForm.priority, dueDate: createForm.dueDate,
       isMilestone: createForm.isMilestone ? 1 : 0,
     })
+    // 自定义字段值落库（仅配置含自定义字段时）；失败仅告警，不影响建单成功
+    await saveCustomFieldValues(id)
     ElMessage.success('已创建')
     createDialog.value = false
     load()
   } finally {
     saving.value = false
+  }
+}
+async function saveCustomFieldValues(taskId) {
+  if (!usePageConfig.value || !taskId) return
+  const values = pageFields.value
+    .filter((f) => f.source === 'custom' && f.fieldId)
+    .map((f) => {
+      const v = createForm[f.fieldKey]
+      return { fieldId: f.fieldId, value: Array.isArray(v) ? JSON.stringify(v) : v }
+    })
+    .filter((v) => v.value != null && v.value !== '')
+  if (!values.length) return
+  try {
+    await fieldValueApi.save({ entityType: 'task', entityId: taskId, values })
+  } catch {
+    ElMessage.warning('任务已创建，但部分自定义字段值未保存，可在详情补填')
   }
 }
 
@@ -371,12 +477,18 @@ onMounted(async () => {
   users.value = members
   load()
   loadViews()
-  try {
-    cfFieldList.value = await fieldDefApi.list('task', true)
-  } catch {
+  // 页面配置 GET 与自定义字段 GET 无依赖：并发拉取；字段列表一次请求同时供视图自定义列与页面配置复用
+  const [cfg, defs] = await Promise.all([
+    pageConfigApi.get('task', 'form').catch(() => null),
+    fieldDefApi.list('task', true).catch(() => null),
+  ])
+  if (defs == null) {
     cfFieldList.value = []
     ElMessage.warning('自定义字段加载失败，视图自定义列可能不显示')
+  } else {
+    cfFieldList.value = defs
   }
+  applyPageConfig(cfg, defs || [])
 })
 </script>
 
@@ -391,6 +503,11 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--mido-space-3);
+}
+.tw__bar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
 }
 .tw__viewsel {
   width: var(--mido-admin-nav-width);
