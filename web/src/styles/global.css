@@ -97,3 +97,10 @@ body {
     transform: none;
   }
 }
+
+/* 抽屉/弹窗内表单标签不换行（design-system：抽屉文本字段不折行；配合 label-width="auto"）。
+   右对齐标签溢出会向左留白方向延展，不会挤压输入框。 */
+.el-drawer .el-form-item__label,
+.el-dialog .el-form-item__label {
+  white-space: nowrap;
+}

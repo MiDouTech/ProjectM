@@ -1,17 +1,47 @@
 <template>
   <div class="ov">
-    <!-- 左：要点 + 关键任务 + 干系人速览 -->
+    <!-- 左：健康概览 + 要点 + 关键任务 + 干系人速览 -->
     <section class="ov__main">
+      <el-card shadow="never" class="ov__card" v-loading="healthLoading">
+        <h3 class="mido-h2">项目健康</h3>
+        <div class="ov__health">
+          <div class="hstat">
+            <div class="hstat__val">{{ health.completionRate }}<span class="hstat__unit">%</span></div>
+            <div class="hstat__label">任务完成率</div>
+            <el-progress :percentage="health.completionRate" :show-text="false" :stroke-width="6" class="hstat__bar" />
+          </div>
+          <div class="hstat">
+            <div class="hstat__val">{{ health.done }}<span class="hstat__sub"> / {{ health.total }}</span></div>
+            <div class="hstat__label">已完成 / 任务总数</div>
+          </div>
+          <div class="hstat">
+            <div class="hstat__val" :class="{ 'is-danger': health.overdue > 0 }">{{ health.overdue }}</div>
+            <div class="hstat__label">逾期任务</div>
+          </div>
+          <div class="hstat">
+            <div class="hstat__val">{{ stakeholderTotal }}</div>
+            <div class="hstat__label">干系人</div>
+          </div>
+          <div class="hstat">
+            <div class="hstat__val">{{ health.goalCount }}</div>
+            <div class="hstat__label">对齐目标</div>
+          </div>
+          <div class="hstat">
+            <div class="hstat__val mido-mono">{{ money(project.actualCost) }}<span class="hstat__sub"> / {{ money(project.budget) }}</span></div>
+            <div class="hstat__label">实际 / 预算</div>
+          </div>
+        </div>
+      </el-card>
+
       <el-card shadow="never" class="ov__card">
         <h3 class="mido-h2">项目要点</h3>
         <DynamicDetail v-if="useDetailConfig" :fields="detailFields" :model-value="detailModel"
           :layout="detailLayout" :user-name="userName" />
+        <!-- 仅列与头部不重复的属性（负责人/周期/状态已在页头呈现） -->
         <el-descriptions v-else :column="2" border size="small">
           <el-descriptions-item label="类型">{{ categoryLabel(project.category) }}</el-descriptions-item>
           <el-descriptions-item label="子类">{{ project.subCategory || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="负责人">{{ userName(project.leaderId) }}</el-descriptions-item>
           <el-descriptions-item label="预算">{{ money(project.budget) }}</el-descriptions-item>
-          <el-descriptions-item label="周期">{{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}</el-descriptions-item>
           <el-descriptions-item label="价值验收(NPSS)">
             <el-tag size="small" :type="requiresNpss ? 'success' : 'info'" effect="plain">
               {{ requiresNpss ? '走 NPSS' : '不走 NPSS' }}
@@ -46,7 +76,7 @@
 
       <el-card shadow="never" class="ov__card" v-loading="stkLoading">
         <div class="ov__card-head">
-          <h3 class="mido-h2">干系人速览（{{ stakeholders.length }}）</h3>
+          <h3 class="mido-h2">干系人速览（{{ stakeholderTotal }}）</h3>
           <el-button link type="primary" @click="$emit('navigate', 'stakeholder')">管理干系人</el-button>
         </div>
         <div v-if="stakeholders.length" class="ov__stk">
@@ -58,10 +88,14 @@
       </el-card>
     </section>
 
-    <!-- 右：生命周期流转引导（立项审批已独立为「立项」tab） -->
+    <!-- 右：当前阶段·下一步（收口阶段入口 + 流转操作） -->
     <aside class="ov__side">
       <el-card shadow="never" class="ov__card">
-        <h3 class="mido-h2">流转操作</h3>
+        <h3 class="mido-h2">当前阶段 · 下一步</h3>
+        <div v-if="stageAction" class="ov__stage">
+          <span class="mido-text-secondary">{{ stageAction.hint }}</span>
+          <el-button type="primary" link @click="$emit('navigate', stageAction.tab)">{{ stageAction.label }} →</el-button>
+        </div>
         <ProjectTransitionPane :project="project" :user-name="userName" @transitioned="$emit('changed')" />
       </el-card>
     </aside>
@@ -69,17 +103,19 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { Flag } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import DynamicDetail from '@/components/DynamicDetail.vue'
 import ProjectTransitionPane from './ProjectTransitionPane.vue'
 import { taskApi } from '@/api/task'
+import { goalApi } from '@/api/goal'
 import { stakeholderApi } from '@/api/stakeholder'
 import { PROJECT_CATEGORIES } from '@/api/project'
 import { pageConfigApi } from '@/api/view'
 import { fieldDefApi } from '@/api/field'
 import { parseFieldOptions } from '@/utils/pageConfig'
+import { todayStr } from '@/utils/display'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -140,6 +176,50 @@ const tasks = ref([])
 const taskTotal = ref(0)
 const stkLoading = ref(false)
 const stakeholders = ref([])
+const stakeholderTotal = ref(0)
+
+// 项目健康指标：前端按既有端点聚合（任务看板含元类别 → 完成/逾期；目标对齐计数）
+const healthLoading = ref(false)
+const health = reactive({ total: 0, done: 0, overdue: 0, inProgress: 0, completionRate: 0, goalCount: 0 })
+async function loadHealth() {
+  healthLoading.value = true
+  try {
+    const [cols, goals] = await Promise.all([
+      taskApi.kanban(props.projectId).catch(() => []),
+      goalApi.byProject(props.projectId).catch(() => []),
+    ])
+    const today = todayStr() // 本地日期；toISOString 会按 UTC 偏移，东八区凌晨误判逾期
+    let total = 0, done = 0, overdue = 0, inProgress = 0
+    ;(cols || []).forEach((col) => {
+      const meta = col.metaCategory
+      ;(col.tasks || []).forEach((t) => {
+        total += 1
+        if (meta === '已完成') {
+          done += 1
+        } else {
+          if (meta === '进行中') inProgress += 1
+          if (t.dueDate && t.dueDate < today) overdue += 1
+        }
+      })
+    })
+    Object.assign(health, {
+      total, done, overdue, inProgress,
+      completionRate: total ? Math.round((done / total) * 100) : 0,
+      goalCount: (goals || []).length,
+    })
+  } finally {
+    healthLoading.value = false
+  }
+}
+
+// 当前阶段快捷入口：把分散的立项/验收入口收口到概览
+const STAGE_ACTIONS = {
+  草稿: { hint: '项目尚未立项', label: '去立项', tab: 'approval' },
+  审批中: { hint: '立项审批进行中', label: '查看立项进度', tab: 'approval' },
+  结果验收: { hint: '待录入结果验收（铁三角）', label: '去验收', tab: 'verify' },
+  价值验收中: { hint: 'NPSS 价值验收进行中', label: '去验收', tab: 'verify' },
+}
+const stageAction = computed(() => STAGE_ACTIONS[props.project?.status] || null)
 
 const requiresNpss = computed(() => props.project.requiresNpss !== 0)
 const categoryLabel = (c) => {
@@ -160,10 +240,12 @@ onMounted(async () => {
   stkLoading.value = true
   try {
     const all = await stakeholderApi.list(props.projectId)
+    stakeholderTotal.value = (all || []).length
     stakeholders.value = (all || []).slice(0, STK_PREVIEW)
   } finally {
     stkLoading.value = false
   }
+  loadHealth()
 })
 </script>
 
@@ -192,6 +274,54 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-3);
+}
+/* 健康指标：自适应小卡网格 */
+.ov__health {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--mido-space-4);
+  margin-top: var(--mido-space-3);
+}
+.hstat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-1);
+}
+.hstat__val {
+  font-size: var(--mido-font-size-h1);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--el-text-color-primary);
+}
+.hstat__val.is-danger {
+  color: var(--el-color-danger);
+}
+.hstat__unit {
+  font-size: var(--mido-font-size-body);
+  margin-left: 2px;
+}
+.hstat__sub {
+  font-size: var(--mido-font-size-secondary);
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+}
+.hstat__label {
+  font-size: var(--mido-font-size-caption);
+  color: var(--el-text-color-secondary);
+}
+.hstat__bar {
+  margin-top: var(--mido-space-1);
+}
+/* 当前阶段快捷入口 */
+.ov__stage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-2) var(--mido-space-3);
+  margin-bottom: var(--mido-space-3);
+  background: var(--el-fill-color-lighter);
+  border-radius: var(--mido-radius-md);
 }
 .ov__task {
   display: inline-flex;

@@ -14,7 +14,10 @@
         </template>
       </el-table-column>
       <el-table-column label="类型" width="90">
-        <template #default="{ row }">{{ row.builtin === 1 ? '内置' : '自定义' }}</template>
+        <template #default="{ row }">
+          <el-tag v-if="row.builtin === 1" size="small" type="info" effect="plain">内置</el-tag>
+          <span v-else class="mido-text-secondary">自定义</span>
+        </template>
       </el-table-column>
       <el-table-column label="操作" width="140">
         <template #default="{ row }">
@@ -34,7 +37,9 @@
             <div v-for="(l, i) in form.levels" :key="i" class="level">
               <el-input v-model="l.name" placeholder="名称" class="level__name" />
               <el-select v-model="l.color" placeholder="色" class="level__color">
-                <el-option v-for="c in COLOR_TOKENS" :key="c" :label="c" :value="c" />
+                <el-option v-for="c in COLOR_OPTIONS" :key="c.value" :label="c.label" :value="c.value">
+                  <ColorDot :color="c.value" />{{ c.label }}
+                </el-option>
               </el-select>
               <el-input-number v-model="l.levelValue" :min="1" :controls="false" class="level__val" placeholder="值" />
               <el-button link type="danger" :icon="Delete" @click="form.levels.splice(i, 1)" />
@@ -55,9 +60,17 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
+import ColorDot from '@/components/ColorDot.vue'
 import { priorityModeApi } from '@/api/task'
 
-const COLOR_TOKENS = ['danger', 'warning', 'primary', 'info', 'success']
+// 档位色：色块 + 中文，不暴露 token 名
+const COLOR_OPTIONS = [
+  { value: 'danger', label: '红' },
+  { value: 'warning', label: '橙' },
+  { value: 'primary', label: '蓝' },
+  { value: 'info', label: '灰' },
+  { value: 'success', label: '绿' },
+]
 
 const loading = ref(false)
 const saving = ref(false)

@@ -41,10 +41,15 @@
         </el-form-item>
         <el-form-item label="选项">
           <div class="opts">
+            <div class="opt opt--head mido-text-secondary">
+              <span class="opt__v">选项值（存储用）</span>
+              <span class="opt__l">显示文案（给用户看）</span>
+              <span class="opt__del" />
+            </div>
             <div v-for="(o, i) in form.options" :key="i" class="opt">
-              <el-input v-model="o.value" placeholder="值" class="opt__v" />
-              <el-input v-model="o.label" placeholder="文案" class="opt__l" />
-              <el-button link type="danger" :icon="Delete" @click="form.options.splice(i, 1)" />
+              <el-input v-model="o.value" placeholder="如 bug" class="opt__v" />
+              <el-input v-model="o.label" placeholder="如 缺陷" class="opt__l" />
+              <el-button link type="danger" :icon="Delete" class="opt__del" @click="form.options.splice(i, 1)" />
             </div>
             <el-button link type="primary" :icon="Plus" @click="form.options.push({ value: '', label: '' })">添加选项</el-button>
           </div>
@@ -140,13 +145,22 @@ onMounted(load)
 }
 .opt {
   display: flex;
+  align-items: center;
   gap: var(--mido-space-2);
   margin-bottom: var(--mido-space-2);
+}
+.opt--head {
+  font-size: var(--mido-font-size-caption);
+  margin-bottom: var(--mido-space-1);
 }
 .opt__v {
   width: 120px;
 }
 .opt__l {
   flex: 1;
+}
+.opt__del {
+  width: var(--mido-space-6);
+  flex: none;
 }
 </style>

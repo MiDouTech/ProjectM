@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page wn">
     <div class="wn__bar">
-      <h1 class="mido-h1">导航配置</h1>
       <div class="wn__bar-actions">
         <el-select v-model="module" class="wn__module" @change="load">
           <el-option v-for="m in MODULES" :key="m.value" :label="m.label" :value="m.value" />
@@ -10,24 +9,37 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </div>
     </div>
-    <p class="mido-text-secondary">配置一级模块「{{ moduleLabel }}」的顶部导航：拖拽排序、改名、显隐。空配置时按内置默认。</p>
+    <p class="mido-text-secondary">
+      配置「{{ moduleLabel }}」模块顶部菜单的<b>顺序、名称与显隐</b>；把某项「归属」到另一项，即成为它的二级菜单。改完点右上「保存」生效。
+    </p>
 
     <el-card shadow="never" v-loading="loading" class="wn__card">
+      <!-- 列头：让每个控件含义自解释，避免交互藏太深 -->
+      <div v-if="rows.length" class="wn__head mido-text-secondary">
+        <span class="wn__h-drag" title="拖拽排序">⠿</span>
+        <span class="wn__h-switch">显示</span>
+        <span class="wn__h-comp">菜单项</span>
+        <span class="wn__h-name">自定义名称</span>
+        <span class="wn__h-parent">归属</span>
+      </div>
       <draggable v-model="rows" item-key="componentCode" handle=".wn__drag" class="wn__list">
         <template #item="{ element }">
           <div class="wn__row">
-            <el-icon class="wn__drag"><Rank /></el-icon>
+            <el-icon class="wn__drag" title="拖拽排序"><Rank /></el-icon>
             <el-switch v-model="element.enabled" />
-            <span class="wn__code mido-mono mido-text-secondary">{{ element.componentCode }}</span>
-            <el-input v-model="element.displayName" :placeholder="element.defaultName" class="wn__name" />
-            <el-select v-model="element.parentCode" clearable placeholder="二级（无父级）" class="wn__parent">
+            <div class="wn__comp">
+              <span>{{ element.defaultName }}</span>
+              <span class="wn__code mido-mono mido-text-secondary">{{ element.componentCode }}</span>
+            </div>
+            <el-input v-model="element.displayName" :placeholder="`默认：${element.defaultName}`" class="wn__name" />
+            <el-select v-model="element.parentCode" clearable placeholder="作为一级菜单" class="wn__parent">
               <el-option v-for="p in parentOptions(element.componentCode)" :key="p.componentCode"
                 :label="p.displayName || p.defaultName" :value="p.componentCode" />
             </el-select>
           </div>
         </template>
       </draggable>
-      <el-empty v-if="!rows.length" description="该模块暂无可配置组件" :image-size="60" />
+      <el-empty v-if="!rows.length" description="该模块暂无可配置菜单项" :image-size="60" />
     </el-card>
   </div>
 </template>
@@ -121,7 +133,7 @@ load()
 .wn__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 .wn__bar-actions {
   display: flex;
@@ -133,6 +145,31 @@ load()
 }
 .wn__card {
   margin-top: var(--mido-space-3);
+}
+.wn__head {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-3);
+  padding-bottom: var(--mido-space-2);
+  font-size: var(--mido-font-size-caption);
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-light);
+}
+.wn__h-drag {
+  width: var(--mido-space-4);
+  text-align: center;
+}
+.wn__h-switch {
+  width: 40px;
+  text-align: center;
+}
+.wn__h-comp {
+  width: 180px;
+}
+.wn__h-name {
+  flex: 1;
+}
+.wn__h-parent {
+  width: 180px;
 }
 .wn__list {
   display: flex;
@@ -149,9 +186,16 @@ load()
 .wn__drag {
   cursor: move;
   color: var(--el-text-color-secondary);
+  width: var(--mido-space-4);
+}
+.wn__comp {
+  display: flex;
+  flex-direction: column;
+  width: 180px;
+  min-width: 0;
 }
 .wn__code {
-  width: 130px;
+  font-size: var(--mido-font-size-caption);
 }
 .wn__name {
   flex: 1;

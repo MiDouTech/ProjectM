@@ -4,7 +4,6 @@
     <!-- 顶部操作条（§7-A：新建 + 视图切换 + 排序 + 筛选 + 搜索） -->
     <div class="pl__bar">
       <div class="pl__bar-left">
-        <h1 class="mido-h1">全部项目</h1>
         <ViewSwitcher v-model="view" :views="VIEWS" />
       </div>
       <div class="pl__bar-right">
@@ -20,10 +19,13 @@
         </el-select>
         <el-input v-model="keyword" placeholder="搜索名称/编码" clearable class="pl__search"
           :prefix-icon="Search" @keyup.enter="load" @clear="load" />
-        <el-select v-model="sortField" placeholder="排序字段" clearable class="pl__quick" @change="resort">
-          <el-option v-for="f in SORT_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
-        </el-select>
-        <el-button :icon="sortOrder === 'asc' ? SortUp : SortDown" aria-label="切换排序方向" @click="toggleOrder" />
+        <!-- 排序统一在表头切（design-system §7-A）；卡片视图无表头，保留精简排序入口作为例外 -->
+        <template v-if="view === 'card'">
+          <el-select v-model="sortField" placeholder="排序" class="pl__quick">
+            <el-option v-for="f in SORT_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+          </el-select>
+          <el-button :icon="sortOrder === 'asc' ? SortUp : SortDown" aria-label="切换排序方向" @click="toggleOrder" />
+        </template>
         <el-popover ref="filterPop" placement="bottom-end" :width="'auto'" trigger="click">
           <template #reference>
             <el-badge :value="activeFilter?.rules?.length || 0" :hidden="!activeFilter?.rules?.length">
@@ -41,8 +43,9 @@
     <!-- 主体视图区 -->
     <el-card shadow="never" v-loading="loading">
       <!-- 列表视图：精简固定列 -->
-      <el-table v-if="view === 'list'" :data="viewRows" stripe class="is-clickable" @row-click="openDetail">
-        <el-table-column label="项目" min-width="220">
+      <el-table v-if="view === 'list'" :data="viewRows" stripe class="is-clickable"
+        :default-sort="defaultSort" @sort-change="onSortChange" @row-click="openDetail">
+        <el-table-column label="项目" prop="name" sortable="custom" min-width="220">
           <template #default="{ row }">
             <div class="pl__name">
               <CategoryBadge :category="row.category" :show-label="false" />
@@ -66,8 +69,10 @@
       </el-table>
 
       <!-- 表格视图：表头可自定义（列/顺序/冻结，每用户持久化） -->
-      <el-table v-else-if="view === 'table'" :data="viewRows" stripe class="is-clickable" @row-click="openDetail">
-        <el-table-column v-for="key in tableCols" :key="key" :label="colLabel(key)"
+      <el-table v-else-if="view === 'table'" :data="viewRows" stripe class="is-clickable"
+        :default-sort="defaultSort" @sort-change="onSortChange" @row-click="openDetail">
+        <el-table-column v-for="key in tableCols" :key="key" :label="colLabel(key)" :prop="key"
+          :sortable="SORTABLE_KEYS.includes(key) ? 'custom' : false"
           :width="colWidth(key)" :min-width="colMinWidth(key)" :align="colAlign(key)"
           :fixed="tableFrozen.includes(key) ? 'left' : false">
           <template #default="{ row }">
@@ -148,6 +153,8 @@ const SORT_FIELDS = [
   { value: 'startDate', label: '开始日期' },
   { value: 'endDate', label: '结束日期' },
 ]
+// 表头可排序的列 key（与列定义对齐）；createTime 无对应列，仅卡片视图下拉可选
+const SORTABLE_KEYS = ['name', 'budget', 'startDate', 'endDate']
 // 高级筛选字段（前端对当前结果集求值，见 utils/filter）
 const FILTER_FIELDS = [
   { value: 'name', label: '名称', type: 'text' },
@@ -215,6 +222,12 @@ function onColsChange({ columns, frozen }) {
   tableFrozen.value = frozen
 }
 
+// 表头当前排序态（el-table default-sort 回显）：order 用 ascending/descending
+const defaultSort = computed(() => ({
+  prop: sortField.value,
+  order: sortOrder.value === 'asc' ? 'ascending' : 'descending',
+}))
+
 // 服务端粗筛（type/status/keyword）→ 前端高级筛选 + 排序精筛
 const viewRows = computed(() => {
   let r = applyFilter(rows.value, activeFilter.value)
@@ -247,7 +260,17 @@ function onArchivedChange() {
   page.value = 1
   load()
 }
-function resort() { /* 计算属性自动重算 */ }
+// 表头点击排序：清空则回落默认（创建时间倒序）；viewRows 计算属性自动重排
+function onSortChange({ prop, order }) {
+  if (!order) {
+    sortField.value = 'createTime'
+    sortOrder.value = 'desc'
+    return
+  }
+  sortField.value = prop
+  sortOrder.value = order === 'ascending' ? 'asc' : 'desc'
+}
+// 卡片视图无表头，保留方向切换
 function toggleOrder() {
   sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
 }

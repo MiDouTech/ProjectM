@@ -30,6 +30,14 @@ jobs:
       - name: Maven test
         run: mvn -B test
 
+  migration:
+    name: 从零迁移校验 (空库 MySQL 8 + Flyway)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 空库跑完全部 Flyway 迁移
+        run: bash scripts/verify-migration.sh
+
   frontend:
     name: 前端构建 (Vite / Node 20)
     runs-on: ubuntu-latest

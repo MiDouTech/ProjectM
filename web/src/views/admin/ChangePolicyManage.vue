@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page">
     <div class="cp__bar">
-      <h1 class="mido-h1">变更策略</h1>
       <span class="mido-text-secondary">配置各变更类型「必审/免审」与绑定审批流；必审须绑流，否则提交变更会被拒。</span>
     </div>
 
@@ -22,7 +21,7 @@
           <template #default="{ row }">
             <el-select v-model="row.flowId" :disabled="!row.requireApproval" clearable
               placeholder="选择审批流" class="cp__flow">
-              <el-option v-for="f in flows" :key="f.id" :label="f.name" :value="f.id" />
+              <el-option v-for="f in flows" :key="f.id" :label="f.displayName || f.name" :value="f.id" />
             </el-select>
           </template>
         </el-table-column>

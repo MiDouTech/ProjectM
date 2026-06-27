@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page wp">
     <div class="wp__bar">
-      <h1 class="mido-h1">页面配置</h1>
       <div class="wp__bar-actions">
         <el-select v-model="target" class="wp__sel" @change="load">
           <el-option v-for="t in TARGETS" :key="t.value" :label="t.label" :value="t.value" />
@@ -177,7 +176,7 @@ load()
 .wp__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 .wp__bar-actions {
   display: flex;

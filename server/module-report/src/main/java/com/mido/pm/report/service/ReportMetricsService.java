@@ -90,7 +90,8 @@ public class ReportMetricsService {
         Map<String, Object> b = scopedProject(() -> reportMapper.projectBudget(projectId));
         BigDecimal budget = big(b, "budget");
         BigDecimal actual = big(b, "actualCost");
-        BigDecimal budgetUsage = (budget == null || budget.signum() == 0) ? null
+        // actual 为空（已立预算但未录实际成本，如早期态）时不算使用率，避免对 null 调 multiply 抛 NPE
+        BigDecimal budgetUsage = (budget == null || budget.signum() == 0 || actual == null) ? null
                 : actual.multiply(BigDecimal.valueOf(100)).divide(budget, 2, RoundingMode.HALF_UP);
 
         HealthLevel level = HealthCalculator.evaluate(completionRate, overdueRate, budgetUsage);

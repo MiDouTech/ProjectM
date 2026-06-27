@@ -9,9 +9,10 @@
         <img v-if="logoOk" class="mido-topbar__logo" src="/logo_竖_蓝色.png"
           alt="米多 · 通用项目管理系统" @error="logoOk = false" />
         <el-icon v-else class="mido-topbar__logo-fallback"><Grid /></el-icon>
-        <span v-show="!collapsed" class="mido-h2">米多项目管理</span>
+        <span v-show="!collapsed" class="mido-h2">项目管理</span>
       </div>
-      <div class="mido-topbar__spacer" />
+      <!-- 二级导航并入顶栏中段（design-system §4）：各模块的 WorkspaceShell 经 Teleport 注入此处 -->
+      <div id="mido-topbar-nav" class="mido-topbar__nav" />
       <div class="mido-topbar__actions">
         <!-- 统一消息入口：系统消息未读 + 未看平台公告，合并角标，点击进消息中心 -->
         <el-badge :value="totalUnread" :max="99" :hidden="!totalUnread" class="mido-topbar__bell">
@@ -52,6 +53,14 @@
             <span>{{ item.title }}</span>
           </el-menu-item>
         </el-menu>
+        <!-- 管理后台：独立全屏布局，新标签打开（不占主应用正文宽度）-->
+        <div class="mido-nav__footer">
+          <button type="button" class="mido-nav__admin" :title="collapsed ? '管理后台（新标签打开）' : ''"
+            @click="openAdmin">
+            <el-icon><Setting /></el-icon>
+            <span v-show="!collapsed">管理后台</span>
+          </button>
+        </div>
       </aside>
 
       <!-- 主内容区（视图容器）-->
@@ -85,7 +94,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Bell, Grid, Fold, Expand } from '@element-plus/icons-vue'
+import { Bell, Grid, Fold, Expand, Setting } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
 import { notificationApi } from '@/api/collab'
@@ -144,6 +153,10 @@ async function loadUnread() {
 }
 function goNotifications() {
   router.push('/notifications')
+}
+// 管理后台在新标签打开独立全屏布局，避免双左导航挤压正文
+function openAdmin() {
+  window.open('/admin', '_blank')
 }
 
 // 当前登录用户头像（顶栏）：有头像取限时 URL，否则回落姓名首字
@@ -306,8 +319,19 @@ function onUserCommand(command) {
   font-size: var(--mido-font-size-h1);
 }
 
-.mido-topbar__spacer {
+/* 顶栏中段：承载当前模块的二级导航（Teleport 目标）。空时不显分隔线，避免裸竖线 */
+.mido-topbar__nav {
   flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  margin-left: var(--mido-space-4);
+}
+.mido-topbar__nav:not(:empty) {
+  padding-left: var(--mido-space-4);
+  border-left: var(--mido-border-width) solid var(--el-border-color-lighter);
 }
 
 .mido-topbar__actions {
@@ -345,9 +369,42 @@ function onUserCommand(command) {
 .mido-nav {
   width: var(--mido-nav-width);
   background-color: var(--mido-nav-bg);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
   transition: width var(--mido-duration) var(--mido-ease);
+}
+/* 主菜单占满、可滚；管理后台入口固定底部 */
+.mido-nav__menu {
+  flex: 1;
+  overflow-y: auto;
+}
+.mido-nav__footer {
+  flex: none;
+  border-top: var(--mido-border-width) solid var(--mido-nav-active-bg);
+}
+.mido-nav__admin {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  width: 100%;
+  height: var(--mido-space-6);
+  padding: 0 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--mido-nav-text);
+  font-size: var(--mido-font-size-body);
+  transition: background-color var(--mido-duration) var(--mido-ease),
+    color var(--mido-duration) var(--mido-ease);
+}
+.mido-nav__admin:hover {
+  background-color: var(--mido-nav-active-bg);
+  color: var(--mido-nav-text-active);
+}
+.mido-nav--collapsed .mido-nav__admin {
+  justify-content: center;
+  padding: 0;
 }
 .mido-nav--collapsed {
   width: var(--mido-nav-width-collapsed);

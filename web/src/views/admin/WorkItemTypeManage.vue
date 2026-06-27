@@ -7,13 +7,17 @@
     <p class="mido-text-secondary">每个工作项类型 = 字段集 + 工作流（状态流转矩阵）。状态流转由矩阵驱动（取代硬编码）。</p>
 
     <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="name" label="类型名" min-width="140" />
-      <el-table-column prop="code" label="编码" width="120" />
+      <el-table-column label="类型名" min-width="180">
+        <template #default="{ row }">
+          <div class="wit-name">
+            <span>{{ row.name }}</span>
+            <el-tag v-if="row.builtin === 1" size="small" type="info" effect="plain">内置</el-tag>
+            <span class="mido-mono mido-text-secondary wit-code">{{ row.code }}</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="groupName" label="分组" width="120">
         <template #default="{ row }">{{ row.groupName || '—' }}</template>
-      </el-table-column>
-      <el-table-column label="类型" width="90">
-        <template #default="{ row }">{{ row.builtin === 1 ? '内置' : '自定义' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="220">
         <template #default="{ row }">
@@ -29,7 +33,10 @@
     <el-drawer v-model="drawer" :title="editing ? '编辑类型' : '新建类型'" size="var(--mido-drawer-width)">
       <el-form ref="formRef" :model="form" :rules="rules" :label-width="80">
         <el-form-item label="类型名" prop="name"><el-input v-model="form.name" placeholder="如 缺陷" /></el-form-item>
-        <el-form-item label="编码" prop="code"><el-input v-model="form.code" :disabled="editing" placeholder="如 bug" /></el-form-item>
+        <el-form-item label="类型标识" prop="code">
+          <el-input v-model="form.code" :disabled="editing" placeholder="仅英文/数字，如 bug" />
+          <span v-if="editing" class="mido-text-secondary wit-hint">系统内部使用，创建后不可更改</span>
+        </el-form-item>
         <el-form-item label="分组"><el-input v-model="form.groupName" placeholder="如 IT" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" /></el-form-item>
         <el-form-item label="状态">
@@ -211,6 +218,17 @@ onMounted(load)
 }
 .full {
   width: 100%;
+}
+.wit-name {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.wit-code {
+  font-size: var(--mido-font-size-caption);
+}
+.wit-hint {
+  margin-left: var(--mido-space-2);
 }
 .matrix {
   margin-top: var(--mido-space-2);
