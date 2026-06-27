@@ -107,12 +107,21 @@ public class PlatformAdminService {
             throw new BizException(ErrorCode.CONFLICT, "必须保留至少一名启用的超级管理员");
         }
 
+        // 记录前值用于审计追溯
+        String statusFrom = admin.getStatus();
+        List<Long> rolesFrom = roleIdsOf(id);
+
         admin.setName(dto.name());
         admin.setStatus(dto.status());
         adminMapper.updateById(admin);
         replaceRoles(id, dto.roleIds());
-        auditService.record(PlatformAuditActions.ADMIN_UPDATED, PlatformAuditActions.TARGET_ADMIN, id,
-                Map.of("name", dto.name(), "status", dto.status()));
+        Map<String, Object> detail = new java.util.HashMap<>();
+        detail.put("name", dto.name());
+        detail.put("statusFrom", statusFrom);
+        detail.put("statusTo", dto.status());
+        detail.put("rolesFrom", rolesFrom);
+        detail.put("rolesTo", dto.roleIds() == null ? List.of() : dto.roleIds());
+        auditService.record(PlatformAuditActions.ADMIN_UPDATED, PlatformAuditActions.TARGET_ADMIN, id, detail);
     }
 
     @Transactional(rollbackFor = Exception.class)

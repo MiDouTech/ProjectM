@@ -74,6 +74,8 @@ public class PlatformAuthService {
         admin.setLockedUntil(null);
         admin.setLastLoginAt(now);
         adminMapper.updateById(admin);
+        auditService.record(admin.getId(), PlatformAuditActions.ADMIN_LOGIN,
+                PlatformAuditActions.TARGET_ADMIN, admin.getId(), java.util.Map.of("username", username));
         return admin;
     }
 
@@ -82,10 +84,14 @@ public class PlatformAuthService {
         if (fails >= MAX_FAIL_BEFORE_LOCK) {
             admin.setFailCount(0);
             admin.setLockedUntil(now.plusMinutes(LOCK_MINUTES));
+            adminMapper.updateById(admin);
+            auditService.record(admin.getId(), PlatformAuditActions.ADMIN_LOGIN_LOCKED,
+                    PlatformAuditActions.TARGET_ADMIN, admin.getId(),
+                    java.util.Map.of("username", admin.getUsername(), "lockMinutes", LOCK_MINUTES));
         } else {
             admin.setFailCount(fails);
+            adminMapper.updateById(admin);
         }
-        adminMapper.updateById(admin);
     }
 
     /** 当前账号自助改密（含首登强制改密）：校验原密码、写新密码并清除强制改密标记。 */

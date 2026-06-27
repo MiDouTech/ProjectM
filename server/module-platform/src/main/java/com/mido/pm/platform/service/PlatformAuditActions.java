@@ -21,6 +21,8 @@ public final class PlatformAuditActions {
     public static final String ADMIN_UPDATED = "admin_updated";
     public static final String ADMIN_PASSWORD_RESET = "admin_password_reset";
     public static final String ADMIN_PASSWORD_CHANGED = "admin_password_changed";
+    public static final String ADMIN_LOGIN = "admin_login";
+    public static final String ADMIN_LOGIN_LOCKED = "admin_login_locked";
     public static final String REVENUE_SAVED = "revenue_saved";
     public static final String REVENUE_DELETED = "revenue_deleted";
     public static final String ANNOUNCEMENT_SAVED = "announcement_saved";
