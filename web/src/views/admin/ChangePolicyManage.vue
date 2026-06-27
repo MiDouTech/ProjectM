@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page">
     <div class="cp__bar">
-      <h1 class="mido-h1">变更策略</h1>
       <span class="mido-text-secondary">配置各变更类型「必审/免审」与绑定审批流；必审须绑流，否则提交变更会被拒。</span>
     </div>
 

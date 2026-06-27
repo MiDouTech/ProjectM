@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page ptpl">
     <div class="ptpl__bar">
-      <h1 class="mido-h1">项目模板</h1>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建模板</el-button>
     </div>
     <p class="mido-text-secondary">内置 5 套不可改/删（保种子）；自定义模板可增删改。config 为阶段/任务骨架/默认权重/审批流的 JSON。</p>
@@ -135,7 +134,7 @@ load()
 .ptpl__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 .full {
   width: 100%;

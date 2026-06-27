@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page">
     <div class="fd__bar">
-      <h1 class="mido-h1">自定义字段</h1>
       <span class="mido-text-secondary">按作用域配置任务/项目的自定义字段；单选/多选需维护选项。停用后详情不再显示，存量值保留。</span>
     </div>
 

@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page wn">
     <div class="wn__bar">
-      <h1 class="mido-h1">导航配置</h1>
       <div class="wn__bar-actions">
         <el-select v-model="module" class="wn__module" @change="load">
           <el-option v-for="m in MODULES" :key="m.value" :label="m.label" :value="m.value" />
@@ -121,7 +120,7 @@ load()
 .wn__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 .wn__bar-actions {
   display: flex;

@@ -1,7 +1,6 @@
 <template>
   <div class="mido-page">
     <div class="wb__bar">
-      <h1 class="mido-h1">工作台</h1>
       <el-button type="primary" :icon="Plus" @click="addDialog = true">添加卡片</el-button>
     </div>
 
@@ -139,7 +138,7 @@ function removeCard(id) {
 .wb__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: var(--mido-space-4);
 }
 .wb__grid {
