@@ -97,4 +97,15 @@ public class PlatformUsageService {
         }
         return result;
     }
+
+    /** 当前快照下已超出生效配额上限的资源列表（供降级时存量超额检测）。 */
+    public List<String> overQuotaResources(Long tenantId) {
+        List<String> over = new ArrayList<>();
+        for (TenantUsageVO vo : usageOf(tenantId)) {
+            if (vo.exceeded()) {
+                over.add(vo.resource());
+            }
+        }
+        return over;
+    }
 }

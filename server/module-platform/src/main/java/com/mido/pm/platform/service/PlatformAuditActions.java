@@ -14,6 +14,7 @@ public final class PlatformAuditActions {
     public static final String TENANT_PURGED = "tenant_purged";
     public static final String TENANT_PURGE_SKIPPED = "tenant_purge_skipped";
     public static final String SUBSCRIPTION_SAVED = "subscription_saved";
+    public static final String SUBSCRIPTION_OVERQUOTA = "subscription_overquota";
     public static final String PLAN_SAVED = "plan_saved";
     public static final String PLAN_DELETED = "plan_deleted";
     public static final String ADMIN_CREATED = "admin_created";

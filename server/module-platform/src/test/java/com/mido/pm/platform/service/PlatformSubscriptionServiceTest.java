@@ -17,10 +17,13 @@ import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,9 +39,11 @@ class PlatformSubscriptionServiceTest {
     private SysPlanMapper planMapper;
     @Mock
     private PlatformAuditService auditService;
+    @Mock
+    private PlatformUsageService usageService;
 
     private PlatformSubscriptionService service() {
-        return new PlatformSubscriptionService(subscriptionMapper, tenantMapper, planMapper, auditService);
+        return new PlatformSubscriptionService(subscriptionMapper, tenantMapper, planMapper, auditService, usageService);
     }
 
     @Test
@@ -84,5 +89,23 @@ class PlatformSubscriptionServiceTest {
 
         assertThrows(BizException.class,
                 () -> service().bind(1L, new SubscriptionSaveDTO(3L, null, null, null)));
+    }
+
+    @Test
+    void bindWithExistingOverQuotaRecordsWarning() {
+        SysTenant tenant = new SysTenant();
+        tenant.setId(1L);
+        tenant.setStatus("active");
+        when(tenantMapper.selectById(1L)).thenReturn(tenant);
+        SysPlan plan = new SysPlan();
+        plan.setId(2L);
+        plan.setName("标准版");
+        when(planMapper.selectById(2L)).thenReturn(plan);
+        // 降级后存量超额
+        when(usageService.overQuotaResources(1L)).thenReturn(List.of("user"));
+
+        service().bind(1L, new SubscriptionSaveDTO(2L, null, null, null));
+
+        verify(auditService).record(eq(PlatformAuditActions.SUBSCRIPTION_OVERQUOTA), any(), eq(1L), any());
     }
 }
