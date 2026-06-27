@@ -165,6 +165,7 @@ import UserSelect from '@/components/UserSelect.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi, pageConfigApi } from '@/api/view'
 import { fieldDefApi, fieldValueApi, isCfRef, cfKey } from '@/api/field'
+import { parseFieldOptions } from '@/utils/pageConfig'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { isTaskOverdue, userName as nameOf } from '@/utils/display'
@@ -273,16 +274,12 @@ const TASK_FORM_BUILTIN = {
   dueDate: { label: '截止', type: 'date' },
   isMilestone: { label: '里程碑', type: 'checkbox' },
 }
-function parseCfOptions(json) {
-  try { return json ? JSON.parse(json) : [] } catch { return [] }
-}
-async function loadPageConfig() {
+async function loadPageConfig(customDefs) {
   try {
-    const [cfg, customDefs] = await Promise.all([
-      pageConfigApi.get('task', 'form'),
-      fieldDefApi.list('task', true).catch(() => []),
-    ])
-    const byKey = new Map((customDefs || []).map((d) => [d.fieldKey, d]))
+    // customDefs 由 onMounted 预取（与视图自定义列共用一次请求）；未传则自取，避免重复拉取
+    const cfg = await pageConfigApi.get('task', 'form')
+    const defs = customDefs ?? await fieldDefApi.list('task', true).catch(() => [])
+    const byKey = new Map((defs || []).map((d) => [d.fieldKey, d]))
     const fields = (cfg?.fields || []).map((f) => {
       if (f.source === 'builtin' && TASK_FORM_BUILTIN[f.fieldKey]) {
         const b = TASK_FORM_BUILTIN[f.fieldKey]
@@ -295,7 +292,7 @@ async function loadPageConfig() {
         const d = byKey.get(f.fieldKey)
         return {
           fieldKey: f.fieldKey, source: 'custom', fieldId: d.id, label: d.name, type: d.type,
-          options: parseCfOptions(d.options), required: f.required ?? d.required === 1, readonly: !!f.readonly,
+          options: parseFieldOptions(d.options), required: f.required ?? d.required === 1, readonly: !!f.readonly,
           width: f.width, group: f.group || '',
         }
       }
@@ -482,13 +479,14 @@ onMounted(async () => {
   users.value = members
   load()
   loadViews()
-  loadPageConfig()
   try {
     cfFieldList.value = await fieldDefApi.list('task', true)
   } catch {
     cfFieldList.value = []
     ElMessage.warning('自定义字段加载失败，视图自定义列可能不显示')
   }
+  // 复用上面已取的自定义字段列表，避免页面配置再发一次相同请求
+  loadPageConfig(cfFieldList.value)
 })
 </script>
 

@@ -92,6 +92,7 @@ import { projectApi, templateApi, PROJECT_CATEGORIES, O_SUB_CATEGORIES } from '@
 import { pageConfigApi } from '@/api/view'
 import { fieldDefApi, fieldValueApi } from '@/api/field'
 import { fetchMembers } from '@/api/org'
+import { parseFieldOptions } from '@/utils/pageConfig'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -132,9 +133,6 @@ const PROJECT_FORM_BUILTIN = {
   startDate: { label: '开始时间', type: 'date' },
   endDate: { label: '截止时间', type: 'date' },
 }
-function parseCfOptions(json) {
-  try { return json ? JSON.parse(json) : [] } catch { return [] }
-}
 async function loadPageConfig() {
   try {
     const [cfg, customDefs] = await Promise.all([
@@ -155,7 +153,7 @@ async function loadPageConfig() {
         const d = byKey.get(f.fieldKey)
         return {
           fieldKey: f.fieldKey, source: 'custom', fieldId: d.id, label: d.name, type: d.type,
-          options: parseCfOptions(d.options), required: f.required ?? d.required === 1, readonly: !!f.readonly,
+          options: parseFieldOptions(d.options), required: f.required ?? d.required === 1, readonly: !!f.readonly,
           width: f.width, group: f.group || '',
         }
       }

@@ -79,6 +79,7 @@ import { stakeholderApi } from '@/api/stakeholder'
 import { PROJECT_CATEGORIES } from '@/api/project'
 import { pageConfigApi } from '@/api/view'
 import { fieldDefApi } from '@/api/field'
+import { parseFieldOptions } from '@/utils/pageConfig'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -113,9 +114,7 @@ async function loadDetailConfig() {
       }
       if (f.source === 'custom' && byKey.has(f.fieldKey)) {
         const d = byKey.get(f.fieldKey)
-        let options = []
-        try { options = d.options ? JSON.parse(d.options) : [] } catch { options = [] }
-        return { fieldKey: f.fieldKey, label: d.name, type: d.type, options, group: f.group || '' }
+        return { fieldKey: f.fieldKey, label: d.name, type: d.type, options: parseFieldOptions(d.options), group: f.group || '' }
       }
       return null
     }).filter(Boolean)

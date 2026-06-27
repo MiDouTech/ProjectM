@@ -72,6 +72,7 @@ import DynamicForm from '@/components/DynamicForm.vue'
 import DynamicDetail from '@/components/DynamicDetail.vue'
 import { pageConfigApi } from '@/api/view'
 import { fieldDefApi } from '@/api/field'
+import { parseFieldOptions } from '@/utils/pageConfig'
 
 const TARGETS = [
   { value: 'task', label: '任务' },
@@ -92,13 +93,6 @@ const selected = ref([])
 const previewModel = reactive({})
 const targetLabel = computed(() => TARGETS.find((t) => t.value === target.value)?.label || target.value)
 
-function parseOptions(json) {
-  try {
-    return json ? JSON.parse(json) : []
-  } catch {
-    return []
-  }
-}
 const isSelected = (f) => selected.value.some((s) => s.fieldKey === f.fieldKey && s.source === f.source)
 const findAvail = (fieldKey, source) =>
   available.value.find((f) => f.fieldKey === fieldKey && f.source === source)
@@ -128,7 +122,7 @@ async function loadAvailable() {
   }))
   ;(custom || []).forEach((c) => a.push({
     fieldKey: c.fieldKey, source: 'custom', label: c.name, type: c.type,
-    options: parseOptions(c.options), requiredDefault: c.required === 1,
+    options: parseFieldOptions(c.options), requiredDefault: c.required === 1,
   }))
   available.value = a
 }
