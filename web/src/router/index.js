@@ -66,6 +66,7 @@ export const adminNavGroups = [
 export const opsNavItems = [
   { path: '/ops/dashboard', title: '运营概览', icon: 'DataLine' },
   { path: '/ops/tenants', title: '租户管理', icon: 'OfficeBuilding' },
+  { path: '/ops/usage', title: '用量监控', icon: 'Odometer' },
   { path: '/ops/plans', title: '套餐管理', icon: 'Goods' },
   { path: '/ops/revenue', title: '收入台账', icon: 'Coin' },
   { path: '/ops/announcements', title: '公告', icon: 'Bell' },
@@ -85,6 +86,7 @@ const routes = [
     children: [
       { path: 'dashboard', component: () => import('@/views/ops/DashboardView.vue') },
       { path: 'tenants', component: () => import('@/views/ops/TenantManage.vue') },
+      { path: 'usage', component: () => import('@/views/ops/UsageMonitorView.vue') },
       { path: 'plans', component: () => import('@/views/ops/PlanManage.vue') },
       { path: 'revenue', component: () => import('@/views/ops/RevenueView.vue') },
       { path: 'announcements', component: () => import('@/views/ops/AnnouncementManage.vue') },

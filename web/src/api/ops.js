@@ -51,9 +51,11 @@ export const EXPORT_STATUS = [
   { value: 'failed', label: '失败' },
 ]
 
-/** 用量快照（手动触发全量，返回处理租户数）*/
+/** 用量监控 */
 export const usageApi = {
   snapshot: () => request.post('/platform/usage/snapshot'),
+  // 跨租户用量监控：{page,size,onlyExceeded} → PageResult<{tenantId,tenantCode,tenantName,status,usage[],anyExceeded}>
+  monitorQuery: (data) => request.post('/platform/usage/tenants/query', data),
 }
 
 /** 套餐管理 */

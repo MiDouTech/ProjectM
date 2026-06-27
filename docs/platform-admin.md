@@ -76,6 +76,7 @@ erDiagram
 | 账号 | GET `/admins`、GET `/roles` | `platform:admin:query` |
 | 账号 | POST `/admins`、PUT `/admins/{id}`、PUT `/admins/{id}/password` | `platform:admin:manage` |
 | 审计 | POST `/audit/query` | `platform:audit:query` |
+| 用量 | POST `/usage/tenants/query`（跨租户用量监控，可仅看超限） | `platform:tenant:query` |
 
 ## 4. 关键设计约束
 

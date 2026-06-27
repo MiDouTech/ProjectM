@@ -2,9 +2,12 @@ package com.mido.pm.platform.service;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.quota.QuotaResources;
 import com.mido.pm.common.quota.UsageContributor;
+import com.mido.pm.platform.dto.TenantUsageOverviewVO;
 import com.mido.pm.platform.dto.TenantUsageVO;
+import com.mido.pm.platform.dto.UsageMonitorQueryDTO;
 import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.entity.SysTenantQuotaUsage;
 import com.mido.pm.platform.mapper.SysTenantMapper;
@@ -96,6 +99,33 @@ public class PlatformUsageService {
                     row == null ? null : row.getSnapshotTime()));
         }
         return result;
+    }
+
+    /**
+     * 跨租户用量监控：列出未注销租户的用量/配额概览，可仅看超限租户。
+     * 阶段一租户规模小，按全量计算后内存分页；规模化后再下沉聚合查询。
+     */
+    public PageResult<TenantUsageOverviewVO> pageTenantUsage(UsageMonitorQueryDTO query) {
+        long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
+        long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), 100L);
+        boolean onlyExceeded = Boolean.TRUE.equals(query.onlyExceeded());
+
+        List<SysTenant> tenants = tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
+                .ne(SysTenant::getStatus, "closed")
+                .orderByDesc(SysTenant::getId));
+        List<TenantUsageOverviewVO> all = new ArrayList<>();
+        for (SysTenant t : tenants) {
+            List<TenantUsageVO> usage = usageOf(t.getId());
+            boolean anyExceeded = usage.stream().anyMatch(TenantUsageVO::exceeded);
+            if (onlyExceeded && !anyExceeded) {
+                continue;
+            }
+            all.add(new TenantUsageOverviewVO(t.getId(), t.getCode(), t.getName(), t.getStatus(), usage, anyExceeded));
+        }
+        long total = all.size();
+        int from = (int) Math.min((pageNo - 1) * size, total);
+        int to = (int) Math.min(from + size, total);
+        return PageResult.of(all.subList(from, to), total, pageNo, size);
     }
 
     /** 当前快照下已超出生效配额上限的资源列表（供降级时存量超额检测）。 */
