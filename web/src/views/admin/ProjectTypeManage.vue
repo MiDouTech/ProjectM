@@ -78,7 +78,12 @@
         </el-form-item>
         <el-form-item label="绑定审批流">
           <el-select v-model="form.defaultFlowId" clearable placeholder="选择立项审批流" class="full">
-            <el-option v-for="f in flows" :key="f.id" :label="f.name" :value="f.id" />
+            <el-option v-for="f in flows" :key="f.id" :label="f.displayName || f.name" :value="f.id">
+              <span class="flow-opt">
+                <span>{{ f.displayName || f.name }}</span>
+                <span v-if="f.displayName" class="mido-mono mido-text-secondary flow-opt__code">{{ f.name }}</span>
+              </span>
+            </el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="排序">
@@ -219,6 +224,15 @@ onMounted(load)
   height: var(--mido-space-3);
   border-radius: 50%;
   flex: none;
+}
+.flow-opt {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mido-space-3);
+}
+.flow-opt__code {
+  font-size: var(--mido-font-size-caption);
 }
 .hint {
   margin-left: var(--mido-space-2);

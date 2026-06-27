@@ -21,7 +21,7 @@
           <template #default="{ row }">
             <el-select v-model="row.flowId" :disabled="!row.requireApproval" clearable
               placeholder="选择审批流" class="cp__flow">
-              <el-option v-for="f in flows" :key="f.id" :label="f.name" :value="f.id" />
+              <el-option v-for="f in flows" :key="f.id" :label="f.displayName || f.name" :value="f.id" />
             </el-select>
           </template>
         </el-table-column>
