@@ -10,12 +10,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 文档/附件域清除单测：先删对象存储文件再删表行，单个文件失败不阻断。 */
+/** 文档/附件域清除单测：先删对象存储文件再删表行；OSS 失败则中止保留数据。 */
 @ExtendWith(MockitoExtension.class)
 class DocPurgerTest {
 
@@ -46,15 +48,12 @@ class DocPurgerTest {
     }
 
     @Test
-    void singleObjectRemovalFailureDoesNotAbort() {
+    void objectRemovalFailureAbortsPurge() {
         when(mapper.selectOssKeys(2L)).thenReturn(List.of("bad", "ok"));
         doThrow(new RuntimeException("oss down")).when(storageProvider).remove("bad");
 
-        long n = purger.purge(2L);
-
-        // 仍继续删表行（mapper 各方法默认返回 0），不抛异常
-        assertEquals(0, n);
-        verify(storageProvider).remove("ok");
-        verify(mapper).purgeAttachments(2L);
+        // OSS 删除失败 → 抛错中止，保留 DB 行（不删表）待重试
+        assertThrows(IllegalStateException.class, () -> purger.purge(2L));
+        verify(mapper, never()).purgeAttachments(2L);
     }
 }

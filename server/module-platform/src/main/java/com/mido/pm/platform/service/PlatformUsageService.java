@@ -2,6 +2,7 @@ package com.mido.pm.platform.service;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mido.pm.common.api.PageResult;
 import com.mido.pm.common.quota.QuotaResources;
 import com.mido.pm.common.quota.UsageContributor;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 租户用量统计：按租户切上下文聚合各业务域 {@link UsageContributor} 的实时数量，upsert 快照；
@@ -88,6 +90,11 @@ public class PlatformUsageService {
         Map<String, Long> limits = quotaService.effectiveLimits(tenantId);
         List<SysTenantQuotaUsage> rows = usageMapper.selectList(Wrappers.<SysTenantQuotaUsage>lambdaQuery()
                 .eq(SysTenantQuotaUsage::getTenantId, tenantId));
+        return toUsageVOs(limits, rows);
+    }
+
+    /** 由生效上限 + 该租户快照行装配各资源用量视图（按 QuotaResources.ALL 顺序补齐缺省 0）。 */
+    private List<TenantUsageVO> toUsageVOs(Map<String, Long> limits, List<SysTenantQuotaUsage> rows) {
         List<TenantUsageVO> result = new ArrayList<>();
         for (String resource : QuotaResources.ALL) {
             SysTenantQuotaUsage row = rows.stream()
@@ -103,29 +110,50 @@ public class PlatformUsageService {
 
     /**
      * 跨租户用量监控：列出未注销租户的用量/配额概览，可仅看超限租户。
-     * 阶段一租户规模小，按全量计算后内存分页；规模化后再下沉聚合查询。
+     * 不筛超限时直接 DB 分页、仅对本页租户算用量；筛超限时须全量计算后内存分页（超限与否依赖快照、无法下推 SQL）。
+     * 两条路径均一次性批量拉取用量快照，避免逐租户 N+1。
      */
     public PageResult<TenantUsageOverviewVO> pageTenantUsage(UsageMonitorQueryDTO query) {
         long pageNo = query.page() == null || query.page() < 1 ? 1 : query.page();
         long size = query.size() == null || query.size() < 1 ? 20 : Math.min(query.size(), 100L);
         boolean onlyExceeded = Boolean.TRUE.equals(query.onlyExceeded());
 
+        if (!onlyExceeded) {
+            Page<SysTenant> page = tenantMapper.selectPage(new Page<>(pageNo, size),
+                    Wrappers.<SysTenant>lambdaQuery()
+                            .ne(SysTenant::getStatus, "closed")
+                            .orderByDesc(SysTenant::getId));
+            return PageResult.of(buildOverview(page.getRecords()), page.getTotal(), pageNo, size);
+        }
+
         List<SysTenant> tenants = tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
                 .ne(SysTenant::getStatus, "closed")
                 .orderByDesc(SysTenant::getId));
-        List<TenantUsageOverviewVO> all = new ArrayList<>();
-        for (SysTenant t : tenants) {
-            List<TenantUsageVO> usage = usageOf(t.getId());
-            boolean anyExceeded = usage.stream().anyMatch(TenantUsageVO::exceeded);
-            if (onlyExceeded && !anyExceeded) {
-                continue;
-            }
-            all.add(new TenantUsageOverviewVO(t.getId(), t.getCode(), t.getName(), t.getStatus(), usage, anyExceeded));
-        }
+        List<TenantUsageOverviewVO> all = buildOverview(tenants).stream()
+                .filter(TenantUsageOverviewVO::anyExceeded).toList();
         long total = all.size();
         int from = (int) Math.min((pageNo - 1) * size, total);
         int to = (int) Math.min(from + size, total);
         return PageResult.of(all.subList(from, to), total, pageNo, size);
+    }
+
+    /** 为给定租户集批量装配用量概览：一次拉取全部快照行并按租户分组，逐租户解析生效上限。 */
+    private List<TenantUsageOverviewVO> buildOverview(List<SysTenant> tenants) {
+        if (tenants.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = tenants.stream().map(SysTenant::getId).toList();
+        Map<Long, List<SysTenantQuotaUsage>> usageByTenant = usageMapper.selectList(
+                        Wrappers.<SysTenantQuotaUsage>lambdaQuery().in(SysTenantQuotaUsage::getTenantId, ids))
+                .stream().collect(Collectors.groupingBy(SysTenantQuotaUsage::getTenantId));
+        List<TenantUsageOverviewVO> result = new ArrayList<>();
+        for (SysTenant t : tenants) {
+            Map<String, Long> limits = quotaService.effectiveLimits(t.getId());
+            List<TenantUsageVO> usage = toUsageVOs(limits, usageByTenant.getOrDefault(t.getId(), List.of()));
+            boolean anyExceeded = usage.stream().anyMatch(TenantUsageVO::exceeded);
+            result.add(new TenantUsageOverviewVO(t.getId(), t.getCode(), t.getName(), t.getStatus(), usage, anyExceeded));
+        }
+        return result;
     }
 
     /** 当前快照下已超出生效配额上限的资源列表（供降级时存量超额检测）。 */

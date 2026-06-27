@@ -100,11 +100,15 @@ public class PlatformRevenueService {
                 Map.of("op", "update", "amount", dto.amount()));
     }
 
-    /** 退款不得超过该租户已收净额（排除被编辑记录自身），防止产生负净额。 */
+    /**
+     * 退款不得超过该租户【同币种】已收净额（排除被编辑记录自身），防止产生负净额。
+     * 必须按币种隔离累计：不同币种金额不可直接加减（summary 的全币种汇总仅作展示，不能复用于此校验）。
+     */
     private void guardRefundNotExceedCollected(RevenueRecordDTO dto, Long excludeId) {
         if (!TYPE_REFUND.equals(dto.type())) {
             return;
         }
+        String currency = dto.currency() == null || dto.currency().isBlank() ? DEFAULT_CURRENCY : dto.currency();
         List<SysRevenueRecord> rows = revenueMapper.selectList(Wrappers.<SysRevenueRecord>lambdaQuery()
                 .eq(SysRevenueRecord::getTenantId, dto.tenantId()));
         BigDecimal net = BigDecimal.ZERO;
@@ -112,11 +116,16 @@ public class PlatformRevenueService {
             if (excludeId != null && excludeId.equals(r.getId())) {
                 continue;
             }
+            // 仅累计同币种记录（历史记录 currency 可能为空，按默认币种处理）
+            String rc = r.getCurrency() == null || r.getCurrency().isBlank() ? DEFAULT_CURRENCY : r.getCurrency();
+            if (!currency.equals(rc)) {
+                continue;
+            }
             BigDecimal amt = r.getAmount() == null ? BigDecimal.ZERO : r.getAmount();
             net = TYPE_REFUND.equals(r.getType()) ? net.subtract(amt) : net.add(amt);
         }
         if (dto.amount().compareTo(net) > 0) {
-            throw new BizException(ErrorCode.CONFLICT, "退款金额不能超过该租户已收净额：" + net);
+            throw new BizException(ErrorCode.CONFLICT, "退款金额不能超过该租户已收净额（" + currency + "）：" + net);
         }
     }
 

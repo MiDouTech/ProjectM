@@ -36,11 +36,14 @@ class TenantAdminServiceTest {
     private PlatformAuditService auditService;
     @Mock
     private com.mido.pm.common.outbox.DomainEventPublisher eventPublisher;
+    @Mock
+    private org.springframework.transaction.PlatformTransactionManager txManager;
 
     private TenantAdminService service() {
         // 播种器列表传空：本单测聚焦租户行写入与审计，播种各域已由各自单测/联调覆盖。
+        // 注入 mock 事务管理器：TransactionTemplate 会同步执行回调（mock getTransaction 返回 null 状态即可）。
         return new TenantAdminService(tenantMapper, subscriptionService, planService, auditService,
-                eventPublisher, java.util.List.of());
+                eventPublisher, java.util.List.of(), txManager);
     }
 
     @Test

@@ -29,16 +29,23 @@ public class DocPurger implements TenantDataPurger {
 
     @Override
     public long purge(Long tenantId) {
-        // 先删对象存储文件（单个失败不阻断整体，记日志便于补偿）
+        // 先删对象存储文件；任一失败则中止本租户清除（抛错使 purgeTenant 事务回滚、不记 purged），
+        // 保留 DB 行待下次调度重试，避免"DB 已删但 OSS 残留孤儿文件 + 误判已清除"。
         List<String> ossKeys = mapper.selectOssKeys(tenantId);
         int removed = 0;
+        int failed = 0;
         for (String key : ossKeys) {
             try {
                 storageProvider.remove(key);
                 removed++;
             } catch (Exception e) {
+                failed++;
                 log.warn("清除对象存储文件失败 tenantId={} key={}", tenantId, key, e);
             }
+        }
+        if (failed > 0) {
+            throw new IllegalStateException(
+                    "对象存储清除未完成(" + failed + "/" + ossKeys.size() + ")，已保留数据待重试 tenantId=" + tenantId);
         }
         if (!ossKeys.isEmpty()) {
             log.info("清除对象存储文件 tenantId={} 成功={}/{}", tenantId, removed, ossKeys.size());

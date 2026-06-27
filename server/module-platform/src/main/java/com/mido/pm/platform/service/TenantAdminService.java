@@ -20,8 +20,12 @@ import com.mido.pm.common.tenant.TenantProvisionContext;
 import com.mido.pm.common.tenant.TenantProvisioner;
 import com.mido.pm.platform.entity.SysTenant;
 import com.mido.pm.platform.mapper.SysTenantMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.util.Comparator;
@@ -35,6 +39,8 @@ import java.util.Set;
  */
 @Service
 public class TenantAdminService {
+
+    private static final Logger log = LoggerFactory.getLogger(TenantAdminService.class);
 
     private static final long MAX_PAGE_SIZE = 100L;
     /** 允许的状态流转目标值（运营手动设置） */
@@ -51,19 +57,23 @@ public class TenantAdminService {
     private final DomainEventPublisher eventPublisher;
     /** 各业务域租户播种器（org/approval/task/project…），Spring 注入全部实现，按 order 升序执行。 */
     private final List<TenantProvisioner> provisioners;
+    /** 逐条独立事务模板：批量/到期流转按单租户提交，单条失败不连累其余。 */
+    private final TransactionTemplate tx;
 
     public TenantAdminService(SysTenantMapper tenantMapper,
                               PlatformSubscriptionService subscriptionService,
                               PlatformPlanService planService,
                               PlatformAuditService auditService,
                               DomainEventPublisher eventPublisher,
-                              List<TenantProvisioner> provisioners) {
+                              List<TenantProvisioner> provisioners,
+                              PlatformTransactionManager txManager) {
         this.tenantMapper = tenantMapper;
         this.subscriptionService = subscriptionService;
         this.planService = planService;
         this.auditService = auditService;
         this.eventPublisher = eventPublisher;
         this.provisioners = provisioners;
+        this.tx = new TransactionTemplate(txManager);
     }
 
     public PageResult<TenantVO> page(TenantQueryDTO query) {
@@ -163,13 +173,21 @@ public class TenantAdminService {
         doChangeStatus(id, dto);
     }
 
-    /** 批量状态流转（同事务，全成或全回滚）。返回处理数量。 */
-    @Transactional(rollbackFor = Exception.class)
+    /**
+     * 批量状态流转：每个租户独立事务提交，单条失败仅跳过该条、不回滚其余（避免一条非法状态/并发冲突
+     * 拖垮整批）。返回成功处理数量。
+     */
     public int batchChangeStatus(TenantBatchStatusDTO dto) {
+        int ok = 0;
         for (Long id : dto.ids()) {
-            doChangeStatus(id, new TenantStatusDTO(dto.status(), dto.reason()));
+            try {
+                tx.executeWithoutResult(s -> doChangeStatus(id, new TenantStatusDTO(dto.status(), dto.reason())));
+                ok++;
+            } catch (RuntimeException e) {
+                log.warn("批量状态流转单条失败 tenantId={} target={}", id, dto.status(), e);
+            }
         }
-        return dto.ids().size();
+        return ok;
     }
 
     private void doChangeStatus(Long id, TenantStatusDTO dto) {
@@ -188,24 +206,34 @@ public class TenantAdminService {
 
     /**
      * 到期自动流转：把 trial/active 且已过 expire_at 的租户置为 expired（系统动作）。
-     * 自用租户(expire_at 为空)天然不在范围。返回流转数量。供 {@link PlatformMaintenanceScheduler} 每日调用。
+     * 自用租户(expire_at 为空)天然不在范围。每个租户独立事务提交，单条失败不影响其余。
+     * 返回成功流转数量。供 {@link PlatformMaintenanceScheduler} 每日调用。
      */
-    @Transactional(rollbackFor = Exception.class)
     public int expireOverdue() {
         List<SysTenant> due = tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
                 .in(SysTenant::getStatus, "trial", "active")
                 .isNotNull(SysTenant::getExpireAt)
                 .lt(SysTenant::getExpireAt, java.time.LocalDateTime.now()));
+        int ok = 0;
         for (SysTenant t : due) {
-            String from = t.getStatus();
-            t.setStatus("expired");
-            tenantMapper.updateById(t);
-            auditService.record(PlatformAuditActions.TENANT_EXPIRED, PlatformAuditActions.TARGET_TENANT, t.getId(),
-                    Map.of("from", from, "to", "expired", "expireAt", String.valueOf(t.getExpireAt())));
-            eventPublisher.publish(PlatformEvents.TENANT_EXPIRED, t.getId(),
-                    Map.of("tenantId", t.getId(), "expireAt", String.valueOf(t.getExpireAt())));
+            try {
+                tx.executeWithoutResult(s -> doExpire(t));
+                ok++;
+            } catch (RuntimeException e) {
+                log.warn("到期流转单条失败 tenantId={}", t.getId(), e);
+            }
         }
-        return due.size();
+        return ok;
+    }
+
+    private void doExpire(SysTenant t) {
+        String from = t.getStatus();
+        t.setStatus("expired");
+        tenantMapper.updateById(t);
+        auditService.record(PlatformAuditActions.TENANT_EXPIRED, PlatformAuditActions.TARGET_TENANT, t.getId(),
+                Map.of("from", from, "to", "expired", "expireAt", String.valueOf(t.getExpireAt())));
+        eventPublisher.publish(PlatformEvents.TENANT_EXPIRED, t.getId(),
+                Map.of("tenantId", t.getId(), "expireAt", String.valueOf(t.getExpireAt())));
     }
 
     private TenantVO toListVO(SysTenant t) {
