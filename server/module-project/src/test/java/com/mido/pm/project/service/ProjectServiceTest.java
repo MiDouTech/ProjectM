@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -217,6 +218,21 @@ class ProjectServiceTest {
         assertEquals("已结案", p.getStatus());
         org.junit.jupiter.api.Assertions.assertNull(p.getValueReviewDueDate(),
                 "非 NPSS 项目结案不应安排价值验收日");
+    }
+
+    @Test
+    void closeBlockedWhenResultVerifyGateRejects() {
+        PmProject p = project("结果验收", "S", 1L);
+        when(projectMapper.selectById(1L)).thenReturn(p);
+        // 结果验收闸门未达标：assertClosable 抛异常应阻断结案
+        doThrow(new BizException(com.mido.pm.common.exception.ErrorCode.FORBIDDEN, "未通过结果验收"))
+                .when(resultVerifyGate).assertClosable(1L);
+
+        assertThrows(BizException.class,
+                () -> service.transition(1L, new ProjectTransitionDTO("已结案", null)));
+
+        assertEquals("结果验收", p.getStatus(), "被闸门拦截，状态不应流转为已结案");
+        verify(projectMapper, never()).updateById(any(PmProject.class));
     }
 
     @Test
