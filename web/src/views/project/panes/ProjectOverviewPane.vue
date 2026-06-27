@@ -88,10 +88,14 @@
       </el-card>
     </section>
 
-    <!-- 右：生命周期流转引导（立项审批已独立为「立项」tab） -->
+    <!-- 右：当前阶段·下一步（收口阶段入口 + 流转操作） -->
     <aside class="ov__side">
       <el-card shadow="never" class="ov__card">
-        <h3 class="mido-h2">流转操作</h3>
+        <h3 class="mido-h2">当前阶段 · 下一步</h3>
+        <div v-if="stageAction" class="ov__stage">
+          <span class="mido-text-secondary">{{ stageAction.hint }}</span>
+          <el-button type="primary" link @click="$emit('navigate', stageAction.tab)">{{ stageAction.label }} →</el-button>
+        </div>
         <ProjectTransitionPane :project="project" :user-name="userName" @transitioned="$emit('changed')" />
       </el-card>
     </aside>
@@ -207,6 +211,15 @@ async function loadHealth() {
   }
 }
 
+// 当前阶段快捷入口：把分散的立项/验收入口收口到概览
+const STAGE_ACTIONS = {
+  草稿: { hint: '项目尚未立项', label: '去立项', tab: 'approval' },
+  审批中: { hint: '立项审批进行中', label: '查看立项进度', tab: 'approval' },
+  结果验收: { hint: '待录入结果验收（铁三角）', label: '去验收', tab: 'verify' },
+  价值验收中: { hint: 'NPSS 价值验收进行中', label: '去验收', tab: 'verify' },
+}
+const stageAction = computed(() => STAGE_ACTIONS[props.project?.status] || null)
+
 const requiresNpss = computed(() => props.project.requiresNpss !== 0)
 const categoryLabel = (c) => {
   const hit = PROJECT_CATEGORIES.find((x) => x.value === c)
@@ -297,6 +310,17 @@ onMounted(async () => {
 }
 .hstat__bar {
   margin-top: var(--mido-space-1);
+}
+/* 当前阶段快捷入口 */
+.ov__stage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-2) var(--mido-space-3);
+  margin-bottom: var(--mido-space-3);
+  background: var(--el-fill-color-lighter);
+  border-radius: var(--mido-radius-md);
 }
 .ov__task {
   display: inline-flex;
