@@ -31,27 +31,33 @@ public class PlatformDeletionService {
     private final SysTenantMapper tenantMapper;
     private final List<TenantDataPurger> purgers;
     private final PlatformAuditService auditService;
+    private final PlatformExportService exportService;
     private final int defaultGraceDays;
 
     public PlatformDeletionService(SysTenantMapper tenantMapper, List<TenantDataPurger> purgers,
                                    PlatformAuditService auditService,
+                                   PlatformExportService exportService,
                                    @Value("${mido.platform.purge.grace-days:30}") int defaultGraceDays) {
         this.tenantMapper = tenantMapper;
         this.purgers = purgers;
         this.auditService = auditService;
+        this.exportService = exportService;
         this.defaultGraceDays = defaultGraceDays;
     }
 
-    /** 发起注销：标记 closed，安排 graceDays 后清除。 */
+    /** 发起注销：标记 closed，安排 graceDays(至少1天) 后清除，并自动发起一次数据导出作为清除前备份。 */
     @Transactional(rollbackFor = Exception.class)
     public void requestDeletion(Long tenantId, Integer graceDays) {
         guardNotSelfUse(tenantId);
         SysTenant tenant = requireExists(tenantId);
-        int grace = graceDays == null || graceDays < 0 ? defaultGraceDays : graceDays;
+        // 宽限期至少 1 天，确保导出有时间完成、客户有缓冲
+        int grace = graceDays == null || graceDays < 1 ? defaultGraceDays : graceDays;
         LocalDateTime purgeAt = LocalDateTime.now().plusDays(grace);
         tenant.setStatus("closed");
         tenant.setPurgeScheduledAt(purgeAt);
         tenantMapper.updateById(tenant);
+        // 自动发起导出，作为物理清除前的合规备份（清除时强校验已完成导出）
+        exportService.requestExport(tenantId);
         auditService.record(PlatformAuditActions.TENANT_DELETION_REQUESTED,
                 PlatformAuditActions.TARGET_TENANT, tenantId, Map.of("purgeAt", purgeAt.toString()));
     }
@@ -90,6 +96,13 @@ public class PlatformDeletionService {
     @Transactional(rollbackFor = Exception.class)
     public void purgeTenant(SysTenant tenant) {
         if (tenant.getId() != null && tenant.getId() == TenantContext.DEFAULT_TENANT_ID) {
+            return;
+        }
+        // 合规护栏：无已完成导出不得物理清除（保留数据，待下次调度重试），避免无备份的不可逆删除
+        if (!exportService.hasCompletedExport(tenant.getId())) {
+            auditService.record(PlatformAuditActions.TENANT_PURGE_SKIPPED,
+                    PlatformAuditActions.TARGET_TENANT, tenant.getId(), Map.of("reason", "no_completed_export"));
+            log.warn("跳过清除：租户无已完成导出 tenantId={}", tenant.getId());
             return;
         }
         Map<String, Object> detail = new HashMap<>();

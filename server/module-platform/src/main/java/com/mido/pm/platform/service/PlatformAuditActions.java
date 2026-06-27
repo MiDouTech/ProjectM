@@ -12,6 +12,7 @@ public final class PlatformAuditActions {
     public static final String TENANT_DELETION_REQUESTED = "tenant_deletion_requested";
     public static final String TENANT_DELETION_CANCELLED = "tenant_deletion_cancelled";
     public static final String TENANT_PURGED = "tenant_purged";
+    public static final String TENANT_PURGE_SKIPPED = "tenant_purge_skipped";
     public static final String SUBSCRIPTION_SAVED = "subscription_saved";
     public static final String PLAN_SAVED = "plan_saved";
     public static final String PLAN_DELETED = "plan_deleted";

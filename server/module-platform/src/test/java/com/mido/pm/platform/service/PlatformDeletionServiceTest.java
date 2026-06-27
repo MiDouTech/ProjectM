@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,9 +32,11 @@ class PlatformDeletionServiceTest {
     private TenantDataPurger purger;
     @Mock
     private PlatformAuditService auditService;
+    @Mock
+    private PlatformExportService exportService;
 
     private PlatformDeletionService service() {
-        return new PlatformDeletionService(tenantMapper, List.of(purger), auditService, 30);
+        return new PlatformDeletionService(tenantMapper, List.of(purger), auditService, exportService, 30);
     }
 
     private SysTenant tenant(Long id, LocalDateTime purgeAt) {
@@ -58,6 +62,8 @@ class PlatformDeletionServiceTest {
         assertEquals("closed", t.getStatus());
         assertNotNull(t.getPurgeScheduledAt());
         verify(tenantMapper).updateById(t);
+        // 注销自动发起一次导出作为清除前备份
+        verify(exportService).requestExport(2L);
         verify(auditService).record(any(), any(), any(), any());
     }
 
@@ -82,6 +88,7 @@ class PlatformDeletionServiceTest {
     void purgeTenantInvokesPurgersAndMarksPurged() {
         SysTenant t = tenant(2L, LocalDateTime.now());
         t.setStatus("closed");
+        when(exportService.hasCompletedExport(2L)).thenReturn(true);
         when(purger.domain()).thenReturn("org");
         when(purger.purge(2L)).thenReturn(7L);
 
@@ -92,5 +99,19 @@ class PlatformDeletionServiceTest {
         verify(purger).purge(2L);
         verify(tenantMapper).updateById(t);
         verify(auditService).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void purgeSkippedWhenNoCompletedExport() {
+        SysTenant t = tenant(2L, LocalDateTime.now());
+        t.setStatus("closed");
+        when(exportService.hasCompletedExport(2L)).thenReturn(false);
+
+        service().purgeTenant(t);
+
+        // 无已完成导出：不清除、不改状态，仅记跳过审计
+        assertEquals("closed", t.getStatus());
+        verify(purger, never()).purge(any());
+        verify(auditService).record(eq(PlatformAuditActions.TENANT_PURGE_SKIPPED), any(), eq(2L), any());
     }
 }
