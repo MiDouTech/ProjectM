@@ -267,3 +267,31 @@
 5. 能用 Element Plus 就不自研；自研件必须进 `components/` 且复用 token。
 6. 列表页必须含空状态、加载态、错误态三态。
 7. 任何金额/编号/分数用等宽字体。
+8. **禁用 emoji 当图标**（导航/状态/按钮等结构性图标一律用 Element/SVG 图标，emoji 跨端不一致、不可 token 化）。
+
+---
+
+## 11. 运营后台 ops 层（operator console，专属同源）
+
+> 平台运营总后台（`OpsLayout` + `/ops/**`）与租户端**分而不裂**：底层 100% 复用上方 `--mido-*` token，叠加一层 `--mido-ops-*` 与 compact 密度档，形成 data-dense 气质。完整方案见 `docs/reviews/platform-admin-design-system.md`。
+> **治理铁律**：任何 `--mido-ops-*` 必须可追溯到一个既有 `--mido-*`/`--el-*` 源（别名或 `color-mix` 派生），**不另立色板**，以保 token 唯一性；将来若租户端收敛，可整体「晋级」为全局基座。
+
+### 11.1 风格定位
+- 主风格 **Data-Dense Dashboard**（数据密集、最小内边距、栅格化、信息优先）＋ 辅 **Swiss/Minimalism**（栅格秩序、低装饰、强类型层级）。
+- 深色侧导航（`--mido-ops-nav-bg`）＋ 浅色工作区（`--mido-ops-canvas`），operator console 经典范式。
+
+### 11.2 ops token 叠加层（定义见 `tokens.css`）
+`--mido-ops-nav-bg/-nav-active/-canvas/-surface/-accent/-data/-neutral/-row-hover/-border`（颜色，均派生）；
+`--mido-ops-line-height-compact` 及 `--mido-ops-space-section/-card/-cell/-control`（密度，映射既有 `--mido-space-*`）。
+
+### 11.3 密度档（compact）
+- 由 `OpsLayout` 注入：`<el-config-provider :size="small">`（全 Element 组件紧凑）＋ 根节点 `data-density="compact"`（CSS 钩子）。
+- 默认正文 13/14、表格行高 1.4、表格 small；金额/配额/用量/ID/IP 用 `.mido-mono` + tabular 右对齐。
+
+### 11.4 ops 专属约定（继承上方全部硬约束，叠加）
+1. 运营列表默认 compact；筛选/搜索常驻；多选批量浮于表上方；表头排序。
+2. 状态 → `StatusTag`；类型/级别/分类 → `el-tag info plain`（不借状态色表意）。
+3. 强调色 `--mido-ops-accent` 仅用于一屏唯一主操作 + 导航激活 + 链接，禁大面积铺。
+4. 危险操作（停用/注销/清除/重置密码/模拟登录）danger 色 + 图标 + 二次确认 + 与常规操作隔离；无权限置灰 + tooltip 不隐藏。
+5. 导航按权限过滤 + L1/L2 分组（租户运营/商业化/平台治理）。
+6. 图表克制：用量 vs 配额用 Bullet/Progress，趋势用 Line，分布用 Bar（>5 类禁饼），色 + 图标/线型双编码。
