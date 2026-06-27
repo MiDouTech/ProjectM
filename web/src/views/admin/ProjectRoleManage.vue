@@ -6,10 +6,14 @@
     </div>
 
     <el-table v-loading="loading" :data="rows" stripe>
-      <el-table-column prop="name" label="角色名" />
-      <el-table-column prop="code" label="编码" />
-      <el-table-column label="类型" width="100">
-        <template #default="{ row }">{{ row.builtin === 1 ? '内置' : '自定义' }}</template>
+      <el-table-column label="角色名" min-width="180">
+        <template #default="{ row }">
+          <div class="pr-name">
+            <span>{{ row.name }}</span>
+            <el-tag v-if="row.builtin === 1" size="small" type="info" effect="plain">内置</el-tag>
+            <span class="mido-mono mido-text-secondary pr-code">{{ row.code }}</span>
+          </div>
+        </template>
       </el-table-column>
       <el-table-column prop="sort" label="排序" width="80" />
       <el-table-column label="状态" width="100">
@@ -26,8 +30,11 @@
 
     <el-drawer v-model="drawer" :title="editing ? '编辑项目角色' : '新建项目角色'" size="var(--mido-drawer-width)">
       <el-form ref="formRef" :model="form" :rules="rules" :label-width="80">
-        <el-form-item label="角色名" prop="name"><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="编码" prop="code"><el-input v-model="form.code" :disabled="editing" placeholder="如 开发/测试" /></el-form-item>
+        <el-form-item label="角色名" prop="name"><el-input v-model="form.name" placeholder="如 开发/测试" /></el-form-item>
+        <el-form-item label="角色标识" prop="code">
+          <el-input v-model="form.code" :disabled="editing" placeholder="仅英文/数字，如 dev" />
+          <span v-if="editing" class="mido-text-secondary pr-hint">系统内部使用，创建后不可更改</span>
+        </el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" class="full">
@@ -114,5 +121,16 @@ onMounted(load)
 }
 .full {
   width: 100%;
+}
+.pr-name {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+}
+.pr-code {
+  font-size: var(--mido-font-size-caption);
+}
+.pr-hint {
+  margin-left: var(--mido-space-2);
 }
 </style>
