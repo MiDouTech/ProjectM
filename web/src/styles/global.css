@@ -98,6 +98,26 @@ body {
   }
 }
 
+/* 二级横向文字 Tab（L2）当前态全局统一：主色字+加粗+底部主色下划线（design-system §3）。
+   各 Shell 共用此类，避免 active 规范在多处复制漂移。 */
+.mido-l2-tab {
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+  font-size: var(--mido-font-size-secondary);
+  padding-bottom: var(--mido-space-1);
+  border-bottom: var(--mido-tab-underline-width) solid transparent;
+  transition: color var(--mido-duration) var(--mido-ease),
+    border-color var(--mido-duration) var(--mido-ease);
+}
+.mido-l2-tab:hover {
+  color: var(--el-color-primary);
+}
+.mido-l2-tab.is-active {
+  color: var(--el-color-primary);
+  font-weight: var(--mido-font-weight-bold);
+  border-bottom-color: var(--el-color-primary);
+}
+
 /* 抽屉/弹窗内表单标签不换行（design-system：抽屉文本字段不折行；配合 label-width="auto"）。
    右对齐标签溢出会向左留白方向延展，不会挤压输入框。 */
 .el-drawer .el-form-item__label,

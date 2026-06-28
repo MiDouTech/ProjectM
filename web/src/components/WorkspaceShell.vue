@@ -12,7 +12,7 @@
   </Teleport>
   <div v-if="$slots.actions || subNav.length" class="wsh-sub-wrap">
     <nav v-if="subNav.length" class="wsh-sub">
-      <a v-for="c in subNav" :key="c.code" class="wsh-sub__tab"
+      <a v-for="c in subNav" :key="c.code" class="mido-l2-tab"
         :class="{ 'is-active': matches(c) }" @click="go(c)">{{ c.name }}</a>
     </nav>
     <span v-if="$slots.actions" class="wsh__actions"><slot name="actions" /></span>
@@ -94,20 +94,5 @@ load()
   gap: var(--mido-space-4);
   padding: var(--mido-space-2) 0;
 }
-/* 二级横向文字 Tab：active 与 AdminShell 统一为「主色字 + 加粗 + 底部主色下划线」 */
-.wsh-sub__tab {
-  cursor: pointer;
-  color: var(--el-text-color-regular);
-  font-size: var(--mido-font-size-secondary);
-  padding-bottom: var(--mido-space-1);
-  border-bottom: 2px solid transparent;
-}
-.wsh-sub__tab:hover {
-  color: var(--el-color-primary);
-}
-.wsh-sub__tab.is-active {
-  color: var(--el-color-primary);
-  font-weight: 600;
-  border-bottom-color: var(--el-color-primary);
-}
+/* 二级横向文字 Tab 当前态统一走全局 .mido-l2-tab（见 global.css），此处不再重复样式 */
 </style>

@@ -6,7 +6,7 @@
         <span class="wb__hello">{{ greeting }}{{ myName ? '，' + myName : '' }}</span>
         <span class="wb__date">{{ todayText }}</span>
       </div>
-      <el-button class="wb__cta" type="primary" text :icon="Plus" @click="openAddDialog">添加卡片</el-button>
+      <el-button class="wb__cta" :icon="Plus" @click="openAddDialog">添加卡片</el-button>
     </div>
 
     <!-- 可拖拽排序的卡片网格 -->
@@ -24,7 +24,7 @@
     </el-empty>
 
     <!-- 卡片磁贴选择：分组陈列、整块可点选，一次批量加入（改进 Worktile 逐个添加） -->
-    <el-dialog v-model="addDialog" title="添加卡片" width="var(--mido-add-card-width)" class="wb__dialog">
+    <el-dialog v-model="addDialog" title="添加卡片" width="calc(var(--mido-drawer-width) * 1.2)" class="wb__dialog">
       <div v-for="(cards, group) in grouped" :key="group" class="wb__group">
         <div class="wb__group-head">
           <span class="wb__group-title">{{ group }}</span>
@@ -34,15 +34,15 @@
         </div>
         <div class="wb__tiles">
           <button v-for="c in cards" :key="c.id" type="button" class="wb__tile"
-            :class="{ 'is-selected': pending.includes(c.id), 'is-added': enabled.includes(c.id) }"
-            :disabled="enabled.includes(c.id)" @click="toggleCard(c.id)">
+            :class="{ 'is-selected': pending.includes(c.id), 'is-added': isAdded(c.id) }"
+            :disabled="isAdded(c.id)" @click="toggleCard(c.id)">
             <el-icon class="wb__tile-icon"><component :is="c.icon" /></el-icon>
             <span class="wb__tile-text">
               <span class="wb__tile-title">{{ c.title }}</span>
               <span class="wb__tile-desc">{{ c.desc }}</span>
             </span>
             <el-icon v-if="pending.includes(c.id)" class="wb__tile-check"><Select /></el-icon>
-            <span v-else-if="enabled.includes(c.id)" class="wb__tile-added">已添加</span>
+            <span v-else-if="isAdded(c.id)" class="wb__tile-added">已添加</span>
           </button>
         </div>
       </div>
@@ -143,7 +143,9 @@ async function persist() {
 
 const addDialog = ref(false)
 const pending = ref([])
-const addable = computed(() => pending.value.filter((id) => !enabled.value.includes(id)))
+// 「卡片是否已加入工作台」唯一判定，模板与各处复用，避免谓词散落
+const isAdded = (id) => enabled.value.includes(id)
+const addable = computed(() => pending.value.filter((id) => !isAdded(id)))
 
 // 每次打开都从空选开始，避免上次取消遗留的选中态
 function openAddDialog() {
@@ -153,17 +155,17 @@ function openAddDialog() {
 
 // 整块磁贴点选：已添加的卡片不可再选；其余在选中态间切换
 function toggleCard(id) {
-  if (enabled.value.includes(id)) return
+  if (isAdded(id)) return
   pending.value = pending.value.includes(id)
     ? pending.value.filter((x) => x !== id)
     : [...pending.value, id]
 }
 // 本组是否已全部加入（用于禁用「全选本组」）
 function groupAllAdded(cards) {
-  return cards.every((c) => enabled.value.includes(c.id))
+  return cards.every((c) => isAdded(c.id))
 }
 function selectGroup(cards) {
-  const ids = cards.filter((c) => !enabled.value.includes(c.id)).map((c) => c.id)
+  const ids = cards.filter((c) => !isAdded(c.id)).map((c) => c.id)
   pending.value = Array.from(new Set([...pending.value, ...ids]))
 }
 function confirmAdd() {
@@ -247,6 +249,8 @@ function removeCard(id) {
   gap: var(--mido-space-3);
   padding: var(--mido-space-3);
   text-align: left;
+  /* 原生 button 不继承字体，需显式继承，避免磁贴文字落到 UA 控件字体 */
+  font: inherit;
   background: var(--el-bg-color);
   border: var(--mido-border-width) solid var(--el-border-color);
   border-radius: var(--mido-radius-md);

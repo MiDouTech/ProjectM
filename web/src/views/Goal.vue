@@ -425,13 +425,13 @@ onMounted(async () => {
 .goal__title {
   margin-left: var(--mido-space-2);
 }
-/* 指标列单行排齐、不换行：起/目标弱化为灰字，当前值输入框为主视觉 */
+/* 指标列：常规数据单行排齐（起/目标弱化为灰字，当前值输入框为主视觉）；
+   极端大数值/长单位时允许换行兜底，避免在表格单元格内被裁切 */
 .goal__metric-cell {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--mido-space-1);
-  flex-wrap: nowrap;
-  white-space: nowrap;
 }
 .goal__metric-side {
   color: var(--el-text-color-secondary);

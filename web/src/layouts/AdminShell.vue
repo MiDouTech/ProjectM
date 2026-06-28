@@ -32,7 +32,7 @@
 
     <!-- L2 当前分组子项横向菜单 -->
     <nav class="ash__sub">
-      <a v-for="it in subItems" :key="it.path" class="ash__tab"
+      <a v-for="it in subItems" :key="it.path" class="mido-l2-tab"
         :class="{ 'is-active': route.path === it.path }" @click="go(it.path)">{{ it.name }}</a>
     </nav>
 
@@ -175,21 +175,6 @@ onMounted(() => {
   padding: var(--mido-space-3) var(--mido-space-5);
   background-color: var(--el-bg-color);
   border-bottom: var(--mido-border-width) solid var(--el-border-color-light);
-}
-.ash__tab {
-  cursor: pointer;
-  color: var(--el-text-color-regular);
-  font-size: var(--mido-font-size-secondary);
-  padding-bottom: var(--mido-space-1);
-  border-bottom: 2px solid transparent;
-}
-.ash__tab:hover {
-  color: var(--el-color-primary);
-}
-.ash__tab.is-active {
-  color: var(--el-color-primary);
-  font-weight: 600;
-  border-bottom-color: var(--el-color-primary);
 }
 
 .ash__content {
