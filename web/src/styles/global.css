@@ -110,4 +110,5 @@ body {
    租户端数据密集视图按需切换）。此处补表级钩子：数据表等宽数字，金额/计数/ID 列对齐不跳动。 */
 [data-density="compact"] .el-table {
   font-variant-numeric: tabular-nums;
+  line-height: var(--mido-density-line-height);
 }

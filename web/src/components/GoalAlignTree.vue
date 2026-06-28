@@ -6,17 +6,13 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { Graph } from '@antv/g6'
 import { goalApi, GOAL_TYPES } from '@/api/goal'
+import { cssVar } from '@/utils/chartTheme'
 
 const el = ref(null)
 const loading = ref(false)
 const graph = shallowRef(null)
 
-// 取 design-system token 实际色值（不裸写 hex）
-function token(name, fallback) {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
-}
-
+// 取 design-system token 实际色值（不裸写 hex）：复用共享 cssVar
 const typeLabel = (t) => GOAL_TYPES.find((x) => x.value === t)?.label || t
 
 async function build() {
@@ -24,13 +20,13 @@ async function build() {
   try {
     const { goals, alignments } = await goalApi.alignGraph()
     const colors = {
-      objective: token('--el-color-primary'),
-      kr: token('--el-color-success'),
-      project: token('--mido-cat-s'),
-      task: token('--el-color-info'),
+      objective: cssVar('--el-color-primary'),
+      kr: cssVar('--el-color-success'),
+      project: cssVar('--mido-cat-s'),
+      task: cssVar('--el-color-info'),
     }
-    const text = token('--el-bg-color')
-    const edgeColor = token('--el-border-color')
+    const text = cssVar('--el-bg-color')
+    const edgeColor = cssVar('--el-border-color')
 
     const nodes = []
     const edges = []

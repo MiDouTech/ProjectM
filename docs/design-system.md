@@ -94,7 +94,7 @@
 
 | Token | 取值来源（派生） | 用途 |
 |---|---|---|
-| `--mido-brand-gradient` | `linear-gradient(135°, --el-color-primary → --el-color-primary-light-3)` | 品牌渐变页头 / 欢迎态 / 空项目引导 |
+| `--mido-brand-gradient` | `linear-gradient(135°, --el-color-primary-dark-2 → --el-color-primary)`（深底，保白字对比度 §9） | 品牌渐变页头 / 欢迎态 / 空项目引导 |
 | `--mido-brand-surface` | = `--el-color-primary-light-9` | 引导卡 / 高亮区浅底 |
 
 > 温度边界：渐变上的文字一律白字并独立校验对比度（§9，正文级用 `--mido-nav-text-active` 取最高对比）；彩底页头的主操作用**白底按钮**（仍是一屏唯一 CTA，§5.1 规则的彩底例外）；动效仅表达因果、尊重 `prefers-reduced-motion`；禁 emoji 当图标（§10-8）。已落地：工作台欢迎页头（`Workbench` `.wb__hero`）。
@@ -144,6 +144,8 @@
 | `compact` | 数据密集视图、运营后台 ops | `small` | 1.4 | space-4 / 3 / 2 / 2 |
 
 - **机制**：布局根节点注入 `data-density` + `<el-config-provider :size>`（联动 Element 组件尺寸）。租户端 `MainLayout` 默认 `comfortable`，顶栏提供切换并持久化（`localStorage: mido_density`）；ops `OpsLayout` 固定 `compact`。
+- **已落地（compact 当前生效项）**：① Element 组件 `small` 尺寸；② 表格数字 `tabular-nums` 防跳列；③ 表格行高取 `--mido-density-line-height`（1.4）。
+- **opt-in 契约（尚未全局强制）**：`--mido-density-space-section/-card/-cell/-control` 间距与 `--mido-density-line-height` 是供**数据密集组件按需消费**的密度契约；正文行高仍走全局 `--mido-line-height-body`，不随密度变化。**新建数据密集组件应引用这些 token**，以便密度切换时自动收紧——而非由本档全局改写所有间距。
 - **治理**：`compact` 档数值 = 原 `--mido-ops-*` 密度值，ops 零回归；密度 token 已由 ops 专属上移为全局 `--mido-density-*`，不再设 `--mido-ops-*` 密度 token。
 - **回归线**：`compact` 下控件点击热区 ≥32px；切换不引起布局抖动；金额/计数/ID 列 tabular 防跳列（§2）。
 

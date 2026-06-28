@@ -18,9 +18,16 @@ export function cssVar(name, fallback = '') {
   return v || fallback
 }
 
+// token 运行时恒定，记忆化一次即可：图表 option 多在 computed 内调用本helpers，
+// 不缓存会每次重算触发多次 getComputedStyle（强制 style recalc）。仅在 token 解析成功后缓存，
+// 避免 mount 前拿到空值被永久缓存。
+let _colors = null
+let _range = null
+
 /** 常用图表色（语义 + 坐标轴/网格），均派生自 token。 */
 export function chartColors() {
-  return {
+  if (_colors) return _colors
+  const c = {
     primary: cssVar('--el-color-primary'),
     success: cssVar('--el-color-success'),
     warning: cssVar('--el-color-warning'),
@@ -29,6 +36,8 @@ export function chartColors() {
     axis: cssVar('--el-text-color-secondary'),
     grid: cssVar('--el-border-color-lighter'),
   }
+  if (c.primary) _colors = c
+  return c
 }
 
 /**
@@ -36,11 +45,14 @@ export function chartColors() {
  * 类别多于色数时 G2 自动循环；分类对比仍以位置 + 数值为主、色为辅。
  */
 export function categoricalRange() {
-  return [
+  if (_range) return _range
+  const r = [
     cssVar('--mido-cat-s'),
     cssVar('--mido-cat-i'),
     cssVar('--mido-cat-o'),
     cssVar('--el-color-primary'),
     cssVar('--el-color-info'),
   ].filter(Boolean)
+  if (r.length) _range = r
+  return r
 }
