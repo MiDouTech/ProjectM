@@ -95,9 +95,9 @@
 | Token | 取值来源（派生） | 用途 |
 |---|---|---|
 | `--mido-brand-gradient` | `linear-gradient(135°, --el-color-primary-dark-2 → --el-color-primary)`（深底，保白字对比度 §9） | 品牌渐变页头 / 欢迎态 / 空项目引导 |
-| `--mido-brand-surface` | = `--el-color-primary-light-9` | 引导卡 / 高亮区浅底 |
+| `--mido-brand-surface` | = `--el-color-primary-light-9` | 引导卡 / 高亮区浅底 / 工作台欢迎页头 |
 
-> 温度边界：渐变上的文字一律白字并独立校验对比度（§9，正文级用 `--mido-nav-text-active` 取最高对比）；彩底页头的主操作用**白底按钮**（仍是一屏唯一 CTA，§5.1 规则的彩底例外）；动效仅表达因果、尊重 `prefers-reduced-motion`；禁 emoji 当图标（§10-8）。已落地：工作台欢迎页头（`Workbench` `.wb__hero`）。
+> 温度边界：渐变上的文字一律白字并独立校验对比度（§9，正文级用 `--mido-nav-text-active` 取最高对比）；彩底页头的主操作用**白底按钮**（仍是一屏唯一 CTA，§5.1 规则的彩底例外）；动效仅表达因果、尊重 `prefers-reduced-motion`；禁 emoji 当图标（§10-8）。已落地：工作台欢迎页头（`Workbench` `.wb__hero`）改用 `--mido-brand-surface` 浅色淡底 + 深色文字（克制弱化，不铺高饱和深底），主操作为主色文字按钮。
 
 ---
 

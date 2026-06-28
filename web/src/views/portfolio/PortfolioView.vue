@@ -258,6 +258,10 @@ onMounted(async () => {
   width: 260px;
   flex-shrink: 0;
 }
+/* 去掉 el-menu 默认右侧竖线（侧栏已是卡片容器，竖线多余且割裂视觉）*/
+.pf__side :deep(.el-menu) {
+  border-right: none;
+}
 .pf__main {
   flex: 1;
   min-width: 0;
