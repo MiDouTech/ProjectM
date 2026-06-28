@@ -10,9 +10,11 @@
         <div class="node">
           <span>{{ node.label }}</span>
           <span class="node__actions">
-            <el-button link type="primary" @click.stop="openCreate(data.id)">加子部门</el-button>
-            <el-button link type="primary" @click.stop="openEdit(data)">编辑</el-button>
-            <el-button link type="danger" @click.stop="remove(data)">删除</el-button>
+            <RowActions>
+              <el-button link type="primary" @click.stop="openCreate(data.id)">加子部门</el-button>
+              <el-button link type="primary" @click.stop="openEdit(data)">编辑</el-button>
+              <el-button link type="danger" @click.stop="remove(data)">删除</el-button>
+            </RowActions>
           </span>
         </div>
       </template>
@@ -38,6 +40,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import RowActions from '@/components/RowActions.vue'
 import { deptApi } from '@/api/org'
 
 const loading = ref(false)

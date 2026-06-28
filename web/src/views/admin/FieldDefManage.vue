@@ -36,8 +36,10 @@
         </el-table-column>
         <el-table-column label="操作" width="130">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="remove(row)">删除</el-button>
+            <RowActions>
+              <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" @click="remove(row)">删除</el-button>
+            </RowActions>
           </template>
         </el-table-column>
         <template #empty><el-empty description="暂无字段，点击「新建字段」添加" /></template>
@@ -88,6 +90,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { fieldDefApi, dataSourceApi, FIELD_TYPES } from '@/api/field'
 import StatusTag from '@/components/StatusTag.vue'
+import RowActions from '@/components/RowActions.vue'
 
 const loading = ref(false)
 const saving = ref(false)
