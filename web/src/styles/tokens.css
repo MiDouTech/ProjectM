@@ -120,7 +120,7 @@
   --mido-brand-surface: var(--el-color-primary-light-9);
 
   /* ===== 运营后台 ops 层（operator console，派生自上方 token，不另立色板）=====
-     治理：所有 --mido-ops-* 必须可追溯到一个既有 --mido-*/--el-* 源（别名或 color-mix 派生）。
+     治理：所有 --mido-ops-* 必须可追溯到一个既有 --mido-* / --el-* 源（别名或 color-mix 派生）。
      密度档已上移为全局 --mido-density-*（由 data-density 驱动），ops 仅保留气质皮肤别名。 */
   --mido-ops-nav-bg: var(--mido-nav-bg);
   --mido-ops-nav-active: var(--mido-nav-active-bg);
