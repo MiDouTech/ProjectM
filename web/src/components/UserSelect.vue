@@ -307,7 +307,7 @@ watch(() => props.modelValue, ensureCache)
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--el-color-white);
   font-size: var(--mido-font-size-caption);
   flex: none;
 }
