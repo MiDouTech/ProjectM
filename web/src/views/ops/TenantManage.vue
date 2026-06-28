@@ -58,11 +58,13 @@
       </el-table-column>
       <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-          <el-button link type="primary" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status === 'suspended'" link type="success" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'active')">启用</el-button>
-          <el-button v-else-if="row.status !== 'closed'" link type="warning" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'suspended')">停用</el-button>
-          <el-button v-if="row.status !== 'closed'" link type="danger" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'closed')">注销</el-button>
+          <RowActions>
+            <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+            <el-button link type="primary" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="row.status === 'suspended'" link type="success" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'active')">启用</el-button>
+            <el-button v-else-if="row.status !== 'closed'" link type="warning" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'suspended')">停用</el-button>
+            <el-button v-if="row.status !== 'closed'" link type="danger" :disabled="!ops.hasPerm('platform:tenant:manage')" @click="changeStatus(row, 'closed')">注销</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无租户，点击开通" /></template>
@@ -272,6 +274,7 @@ import { Plus, Refresh, Switch, Download, Setting } from '@element-plus/icons-vu
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import BatchBar from '@/components/BatchBar.vue'
+import RowActions from '@/components/RowActions.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
 import { useOpsUserStore } from '@/store/opsUser'
