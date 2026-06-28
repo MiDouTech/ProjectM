@@ -59,7 +59,9 @@
       <el-table-column prop="projectRole" label="项目角色" />
       <el-table-column label="操作" width="80">
         <template #default="{ row }">
-          <el-button link type="danger" @click="removeMember(row)">移除</el-button>
+          <RowActions>
+            <el-button link type="danger" @click="removeMember(row)">移除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无成员" :image-size="60" /></template>
@@ -91,6 +93,7 @@ import { Edit, Plus } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
+import RowActions from '@/components/RowActions.vue'
 import { projectApi, projectRoleApi, O_SUB_CATEGORIES } from '@/api/project'
 import { onMounted } from 'vue'
 

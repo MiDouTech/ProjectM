@@ -53,7 +53,9 @@
           </el-table-column>
           <el-table-column label="操作" width="90">
             <template #default="{ row }">
-              <el-button link type="danger" @click="removeProject(row)">移出</el-button>
+              <RowActions>
+                <el-button link type="danger" @click="removeProject(row)">移出</el-button>
+              </RowActions>
             </template>
           </el-table-column>
           <template #empty><el-empty description="该项目集暂无可见项目" :image-size="60" /></template>
@@ -101,6 +103,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import TableColumnSetting from '@/components/TableColumnSetting.vue'
+import RowActions from '@/components/RowActions.vue'
 import { portfolioApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
 import { userName as nameOf } from '@/utils/display'

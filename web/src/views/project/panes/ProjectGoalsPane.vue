@@ -38,7 +38,9 @@
         </el-table-column>
         <el-table-column label="操作" width="90" align="right">
           <template #default="{ row }">
-            <el-button link type="danger" @click="unalign(row)">解除</el-button>
+            <RowActions>
+              <el-button link type="danger" @click="unalign(row)">解除</el-button>
+            </RowActions>
           </template>
         </el-table-column>
       </el-table>
@@ -63,6 +65,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Connection, Refresh } from '@element-plus/icons-vue'
+import RowActions from '@/components/RowActions.vue'
 import { goalApi, GOAL_TYPES } from '@/api/goal'
 import { reportApi } from '@/api/npss'
 
