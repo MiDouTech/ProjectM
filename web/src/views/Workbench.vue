@@ -6,25 +6,29 @@
         <span class="wb__hello">{{ greeting }}{{ myName ? '，' + myName : '' }}</span>
         <span class="wb__date">{{ todayText }}</span>
       </div>
-      <el-button class="wb__cta" :icon="Plus" @click="openAddDialog">添加卡片</el-button>
+      <div class="wb__actions">
+        <ViewSwitcher v-model="viewMode" :views="VIEWS" />
+        <el-button :icon="Refresh" :loading="refreshing" @click="refreshAll">刷新</el-button>
+        <el-button class="wb__cta" :icon="Setting" @click="openAddDialog">管理卡片</el-button>
+      </div>
     </div>
 
-    <!-- 可拖拽排序的卡片网格 -->
+    <!-- 可拖拽排序的卡片网格；列表态为单列分区块（紧凑） -->
     <draggable v-model="enabled" :item-key="(el) => el" handle=".wc__drag" :animation="150"
-      class="wb__grid" @end="persist">
+      class="wb__grid" :class="{ 'wb__grid--list': viewMode === 'list' }" @end="persist">
       <template #item="{ element }">
         <div class="wb__cell">
-          <WorkbenchCard :card="catalogMap[element]" @remove="removeCard" />
+          <WorkbenchCard :card="catalogMap[element]" :refresh-signal="refreshSignal" @remove="removeCard" />
         </div>
       </template>
     </draggable>
 
-    <el-empty v-if="!enabled.length" description="工作台为空，点击「添加卡片」从分组中批量添加">
-      <el-button type="primary" @click="openAddDialog">添加卡片</el-button>
+    <el-empty v-if="!enabled.length" description="工作台为空，点击「管理卡片」从分组中批量添加">
+      <el-button type="primary" @click="openAddDialog">管理卡片</el-button>
     </el-empty>
 
-    <!-- 卡片磁贴选择：分组陈列、整块可点选，一次批量加入（改进 Worktile 逐个添加） -->
-    <el-dialog v-model="addDialog" title="添加卡片" width="calc(var(--mido-drawer-width) * 1.2)" class="wb__dialog">
+    <!-- 管理卡片：分组陈列、整块可点选批量加入；已加入的可在此直接移除（基础卡片禁移） -->
+    <el-dialog v-model="addDialog" title="管理卡片" width="calc(var(--mido-drawer-width) * 1.2)" class="wb__dialog">
       <div v-for="(cards, group) in grouped" :key="group" class="wb__group">
         <div class="wb__group-head">
           <span class="wb__group-title">{{ group }}</span>
@@ -35,14 +39,15 @@
         <div class="wb__tiles">
           <button v-for="c in cards" :key="c.id" type="button" class="wb__tile"
             :class="{ 'is-selected': pending.includes(c.id), 'is-added': isAdded(c.id) }"
-            :disabled="isAdded(c.id)" @click="toggleCard(c.id)">
+            :disabled="isBasic(c.id)" @click="onTileClick(c.id)">
             <el-icon class="wb__tile-icon"><component :is="c.icon" /></el-icon>
             <span class="wb__tile-text">
               <span class="wb__tile-title">{{ c.title }}</span>
               <span class="wb__tile-desc">{{ c.desc }}</span>
             </span>
             <el-icon v-if="pending.includes(c.id)" class="wb__tile-check"><Select /></el-icon>
-            <span v-else-if="isAdded(c.id)" class="wb__tile-added">已添加</span>
+            <span v-else-if="isBasic(c.id)" class="wb__tile-added">基础</span>
+            <span v-else-if="isAdded(c.id)" class="wb__tile-remove">点击移除</span>
           </button>
         </div>
       </div>
@@ -56,15 +61,35 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import {
-  Plus, Select, Folder, CircleCheck, Stamp, List, Warning, Bell,
+  Setting, Refresh, Select, Folder, CircleCheck, Stamp, List, Warning, Bell,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import WorkbenchCard from './workbench/WorkbenchCard.vue'
+import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import { workbenchApi } from '@/api/workbench'
 import { useMe } from '@/composables/useMe'
+
+// 视图模式：卡片(多列网格) / 列表(单列分区块，紧凑)；纯 UI 偏好，存 localStorage
+const VIEWS = [
+  { value: 'cards', label: '卡片' },
+  { value: 'list', label: '列表' },
+]
+const VIEW_KEY = 'mido.workbench.viewMode'
+const viewMode = ref(localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'cards')
+watch(viewMode, (v) => localStorage.setItem(VIEW_KEY, v))
+
+// 手动刷新：自增信号，传给每个 WorkbenchCard，卡片 watch 到即重新拉数据
+const refreshSignal = ref(0)
+const refreshing = ref(false)
+async function refreshAll() {
+  refreshing.value = true
+  refreshSignal.value += 1
+  // 卡片各自异步加载，这里给一个短暂的按钮反馈即可（不阻塞卡片各自的 loading 态）
+  setTimeout(() => { refreshing.value = false }, 600)
+}
 
 // 顶部问候条：时段问候 + 当前用户名 + 日期，给工作台身份感、不浪费顶部空间
 const { name: myName } = useMe()
@@ -153,6 +178,17 @@ function openAddDialog() {
   addDialog.value = true
 }
 
+// 基础卡片（始终存在、不可移除）
+const isBasic = (id) => BASIC_IDS.includes(id)
+// 磁贴点击：基础卡禁操作；已加入(非基础)即时移除；未加入则切换待添加选中态
+function onTileClick(id) {
+  if (isBasic(id)) return
+  if (isAdded(id)) {
+    removeCard(id)
+    return
+  }
+  toggleCard(id)
+}
 // 整块磁贴点选：已添加的卡片不可再选；其余在选中态间切换
 function toggleCard(id) {
   if (isAdded(id)) return
@@ -208,7 +244,12 @@ function removeCard(id) {
   font-size: var(--mido-font-size-secondary);
   color: var(--el-text-color-secondary);
 }
-/* 浅底上的主操作：主色文字按钮，弱化为点睛而非抢眼色块 */
+.wb__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-2);
+  flex-shrink: 0;
+}
 .wb__cta {
   flex-shrink: 0;
 }
@@ -216,6 +257,10 @@ function removeCard(id) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(calc(var(--mido-drawer-width) * 0.8), 1fr));
   gap: var(--mido-space-4);
+}
+/* 列表态：单列分区块（紧凑），每模块占整行 */
+.wb__grid--list {
+  grid-template-columns: 1fr;
 }
 .wb__group {
   margin-bottom: var(--mido-space-5);
@@ -274,6 +319,10 @@ function removeCard(id) {
   cursor: not-allowed;
   background: var(--el-fill-color-light);
 }
+/* 已加入(非基础)在「管理卡片」内可点击移除 → 恢复可点光标 */
+.wb__tile.is-added:not(:disabled) {
+  cursor: pointer;
+}
 .wb__tile-icon {
   flex-shrink: 0;
   font-size: var(--mido-font-size-h2);
@@ -314,6 +363,15 @@ function removeCard(id) {
   margin-left: auto;
   font-size: var(--mido-font-size-caption);
   color: var(--el-text-color-placeholder);
+}
+.wb__tile-remove {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: var(--mido-font-size-caption);
+  color: var(--el-color-primary);
+}
+.wb__tile.is-added:hover .wb__tile-remove {
+  color: var(--el-color-danger);
 }
 .wb__footer-count {
   margin-right: auto;
