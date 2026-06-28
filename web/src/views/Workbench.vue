@@ -1,11 +1,12 @@
 <template>
   <div class="mido-page">
-    <div class="wb__bar">
+    <!-- 品牌渐变欢迎页头（design-system §1.6 品牌温度层）：仅工作台首页用，克制点睛、不铺满 -->
+    <div class="wb__hero">
       <div class="wb__greeting">
         <span class="wb__hello">{{ greeting }}{{ myName ? '，' + myName : '' }}</span>
-        <span class="wb__date mido-text-secondary">{{ todayText }}</span>
+        <span class="wb__date">{{ todayText }}</span>
       </div>
-      <el-button type="primary" :icon="Plus" @click="addDialog = true">添加卡片</el-button>
+      <el-button class="wb__cta" :icon="Plus" @click="addDialog = true">添加卡片</el-button>
     </div>
 
     <!-- 可拖拽排序的卡片网格 -->
@@ -154,24 +155,44 @@ function removeCard(id) {
 </script>
 
 <style scoped>
-.wb__bar {
+/* 品牌渐变欢迎页头：白字置于品牌深底（文字色复用「深底文字」token，零裸 hex；§9 对比度自检）*/
+.wb__hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--mido-space-4);
+  gap: var(--mido-space-4);
+  padding: var(--mido-space-4) var(--mido-space-5);
+  margin-bottom: var(--mido-space-5);
+  background: var(--mido-brand-gradient);
+  border-radius: var(--mido-radius-lg);
+  box-shadow: var(--mido-shadow-card);
 }
 .wb__greeting {
   display: flex;
-  align-items: baseline;
-  gap: var(--mido-space-3);
+  flex-direction: column;
+  gap: var(--mido-space-1);
 }
 .wb__hello {
   font-size: var(--mido-font-size-h1);
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+  line-height: var(--mido-line-height-h1);
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--mido-nav-text-active);
 }
 .wb__date {
   font-size: var(--mido-font-size-secondary);
+  color: var(--mido-nav-text-active);
+}
+/* 渐变彩底上的主操作：白底按钮（彩底页头惯例），仍是一屏唯一 CTA */
+.wb__cta {
+  background-color: var(--el-bg-color);
+  border-color: var(--el-bg-color);
+  color: var(--el-color-primary);
+}
+.wb__cta:hover,
+.wb__cta:focus {
+  background-color: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 .wb__grid {
   display: grid;

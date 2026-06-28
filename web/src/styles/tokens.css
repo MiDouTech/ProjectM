@@ -111,7 +111,7 @@
 
   /* ===== 品牌温度层（租户专属，全部派生；仅租户布局引用，ops 不用；design-system §1.6）=====
      克制点睛：仅用于页头/欢迎态/空态引导/主 CTA，不铺满工作区、不进数据密集区。 */
-  --mido-brand-gradient: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
+  --mido-brand-gradient: linear-gradient(135deg, var(--el-color-primary-dark-2), var(--el-color-primary));
   --mido-brand-surface: var(--el-color-primary-light-9);
 
   /* ===== 运营后台 ops 层（operator console，派生自上方 token，不另立色板）=====
