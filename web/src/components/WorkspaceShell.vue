@@ -12,7 +12,7 @@
   </Teleport>
   <div v-if="$slots.actions || subNav.length" class="wsh-sub-wrap">
     <nav v-if="subNav.length" class="wsh-sub">
-      <a v-for="c in subNav" :key="c.code" class="wsh-sub__tab"
+      <a v-for="c in subNav" :key="c.code" class="mido-l2-tab"
         :class="{ 'is-active': matches(c) }" @click="go(c)">{{ c.name }}</a>
     </nav>
     <span v-if="$slots.actions" class="wsh__actions"><slot name="actions" /></span>
@@ -94,13 +94,5 @@ load()
   gap: var(--mido-space-4);
   padding: var(--mido-space-2) 0;
 }
-.wsh-sub__tab {
-  cursor: pointer;
-  color: var(--el-text-color-regular);
-  font-size: var(--mido-font-size-secondary);
-}
-.wsh-sub__tab.is-active {
-  color: var(--el-color-primary);
-  font-weight: 600;
-}
+/* 二级横向文字 Tab 当前态统一走全局 .mido-l2-tab（见 global.css），此处不再重复样式 */
 </style>

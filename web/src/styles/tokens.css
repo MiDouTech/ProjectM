@@ -34,6 +34,9 @@
   --mido-nav-text: #C9D1E0;
   --mido-nav-text-active: #FFFFFF;
   --mido-nav-active-bg: #2A3B5C;
+  /* 中性 hover 唯一源：列表行/菜单项/可点项鼠标移过统一底色（= Element 列表行 hover）。
+     选中态品牌浅蓝、深色导航 hover 属不同语义，不收口于此。 */
+  --mido-hover-bg: var(--el-fill-color-light);
 
   /* ===== §1.4 项目类型色 S/I/O ===== */
   --mido-cat-s: #7C5CFF;
@@ -98,6 +101,8 @@
   --mido-border-width: 1px;
   --mido-login-card-width: 360px;
   --mido-admin-nav-width: 180px;
+  /* 二级横向 Tab 当前态下划线宽度（唯一源，禁页面再写裸 px；design-system §3）*/
+  --mido-tab-underline-width: 2px;
 
   /* ===== 密度档（全局基座，从 ops 上移；design-system §3）=====
      两档：comfortable（租户默认，留白，= 现有观感零变化）/ compact（数据密集视图、ops 默认）。

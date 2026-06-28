@@ -32,7 +32,7 @@
 
     <!-- L2 当前分组子项横向菜单 -->
     <nav class="ash__sub">
-      <a v-for="it in subItems" :key="it.path" class="ash__tab"
+      <a v-for="it in subItems" :key="it.path" class="mido-l2-tab"
         :class="{ 'is-active': route.path === it.path }" @click="go(it.path)">{{ it.name }}</a>
     </nav>
 
@@ -139,6 +139,17 @@ onMounted(() => {
   height: var(--mido-topbar-height);
   line-height: var(--mido-topbar-height);
 }
+/* hover 底色收口到全局中性 hover token，与全站列表行 hover 一致 */
+.ash__menu :deep(.el-menu-item):not(.is-disabled):hover,
+.ash__menu :deep(.el-menu-item):not(.is-disabled):focus {
+  background-color: var(--mido-hover-bg);
+}
+/* 选中态：深底改为品牌浅蓝点睛，配合主色文字+底部主色描边，柔和不抢眼 */
+.ash__menu :deep(.el-menu-item.is-active),
+.ash__menu :deep(.el-menu-item.is-active):hover,
+.ash__menu :deep(.el-menu-item.is-active):focus {
+  background-color: var(--el-color-primary-light-9);
+}
 
 .mido-topbar__actions {
   display: flex;
@@ -164,21 +175,6 @@ onMounted(() => {
   padding: var(--mido-space-3) var(--mido-space-5);
   background-color: var(--el-bg-color);
   border-bottom: var(--mido-border-width) solid var(--el-border-color-light);
-}
-.ash__tab {
-  cursor: pointer;
-  color: var(--el-text-color-regular);
-  font-size: var(--mido-font-size-secondary);
-  padding-bottom: var(--mido-space-1);
-  border-bottom: 2px solid transparent;
-}
-.ash__tab:hover {
-  color: var(--el-color-primary);
-}
-.ash__tab.is-active {
-  color: var(--el-color-primary);
-  font-weight: 600;
-  border-bottom-color: var(--el-color-primary);
 }
 
 .ash__content {

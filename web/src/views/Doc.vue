@@ -692,7 +692,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .doc__result:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--mido-hover-bg);
 }
 .doc__result-main {
   display: flex;

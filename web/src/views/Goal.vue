@@ -27,13 +27,17 @@
           <template #default="{ row }">{{ userName(row.ownerId) }}</template>
         </el-table-column>
         <el-table-column label="周期" width="100" prop="period" />
-        <el-table-column label="指标(起→当前/目标)" width="240">
+        <el-table-column label="指标(起→当前/目标)" width="300">
           <template #default="{ row }">
-            <span class="mido-mono">{{ num(row.metricStart) }} → </span>
-            <el-input-number v-model="row.metricCurrent" :precision="2" :controls="false" size="small"
-              class="goal__cur" @click.stop @change="(v) => saveMetric(row, v)" />
-            <span class="mido-mono"> / {{ num(row.metricTarget) }}</span>
-            <span class="mido-text-secondary"> {{ row.metricUnit }}</span>
+            <div class="goal__metric-cell">
+              <span class="goal__metric-side mido-mono">{{ num(row.metricStart) }}</span>
+              <span class="goal__metric-arrow">→</span>
+              <el-input-number v-model="row.metricCurrent" :precision="2" :controls="false" size="small"
+                class="goal__cur" @click.stop @change="(v) => saveMetric(row, v)" />
+              <span class="goal__metric-sep mido-mono">/</span>
+              <span class="goal__metric-side mido-mono">{{ num(row.metricTarget) }}</span>
+              <span v-if="row.metricUnit" class="goal__metric-unit mido-text-secondary">{{ row.metricUnit }}</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="进度" width="160">
@@ -421,8 +425,27 @@ onMounted(async () => {
 .goal__title {
   margin-left: var(--mido-space-2);
 }
+/* 指标列：常规数据单行排齐（起/目标弱化为灰字，当前值输入框为主视觉）；
+   极端大数值/长单位时允许换行兜底，避免在表格单元格内被裁切 */
+.goal__metric-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--mido-space-1);
+}
+.goal__metric-side {
+  color: var(--el-text-color-secondary);
+}
+.goal__metric-arrow,
+.goal__metric-sep {
+  color: var(--el-text-color-placeholder);
+}
+.goal__metric-unit {
+  font-size: var(--mido-font-size-secondary);
+}
 .goal__cur {
-  width: var(--mido-admin-nav-width);
+  flex-shrink: 0;
+  width: calc(var(--mido-admin-nav-width) * 0.6);
 }
 .goal__metric {
   display: flex;

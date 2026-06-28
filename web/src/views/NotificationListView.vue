@@ -217,7 +217,7 @@ onMounted(() => {
   transition: background-color var(--mido-duration) var(--mido-ease);
 }
 .nl__row:hover {
-  background: var(--el-fill-color-light);
+  background: var(--mido-hover-bg);
 }
 .nl__row.is-unread .nl__title {
   font-weight: var(--mido-font-weight-bold);

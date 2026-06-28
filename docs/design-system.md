@@ -59,6 +59,7 @@
 | `--mido-nav-text` | `#C9D1E0` | 深色导航项文字 |
 | `--mido-nav-text-active` | `#FFFFFF` | 深色导航选中项文字 |
 | `--mido-nav-active-bg` | `#2A3B5C` | 深色导航选中/hover 底色（active 另加 3px 主色左强调条）|
+| `--mido-hover-bg` | = `--el-fill-color-light` | 中性 hover 唯一源：列表行/菜单项/可点项鼠标移过底色（详见 §3） |
 
 ### 1.4 项目类型色（S/I/O 业务专用，强识别）
 
@@ -95,9 +96,9 @@
 | Token | 取值来源（派生） | 用途 |
 |---|---|---|
 | `--mido-brand-gradient` | `linear-gradient(135°, --el-color-primary-dark-2 → --el-color-primary)`（深底，保白字对比度 §9） | 品牌渐变页头 / 欢迎态 / 空项目引导 |
-| `--mido-brand-surface` | = `--el-color-primary-light-9` | 引导卡 / 高亮区浅底 |
+| `--mido-brand-surface` | = `--el-color-primary-light-9` | 引导卡 / 高亮区浅底 / 工作台欢迎页头 |
 
-> 温度边界：渐变上的文字一律白字并独立校验对比度（§9，正文级用 `--mido-nav-text-active` 取最高对比）；彩底页头的主操作用**白底按钮**（仍是一屏唯一 CTA，§5.1 规则的彩底例外）；动效仅表达因果、尊重 `prefers-reduced-motion`；禁 emoji 当图标（§10-8）。已落地：工作台欢迎页头（`Workbench` `.wb__hero`）。
+> 温度边界：渐变上的文字一律白字并独立校验对比度（§9，正文级用 `--mido-nav-text-active` 取最高对比）；彩底页头的主操作用**白底按钮**（仍是一屏唯一 CTA，§5.1 规则的彩底例外）；动效仅表达因果、尊重 `prefers-reduced-motion`；禁 emoji 当图标（§10-8）。已落地：工作台欢迎页头（`Workbench` `.wb__hero`）改用 `--mido-brand-surface` 浅色淡底 + 深色文字（克制弱化，不铺高饱和深底），主操作为主色文字按钮。
 
 ---
 
@@ -133,6 +134,10 @@
 | 层级 z-index | nav 1000 / 抽屉 2000 / 弹窗 2100 / 全局通知 3000 | 固定，禁随意取值 |
 
 > 交互元素（按钮/卡片/导航/行）状态切换统一走 `--mido-duration` + `--mido-ease`；可点击卡片加 `.mido-hoverable`（hover 抬升，自动尊重 `prefers-reduced-motion`）。
+>
+> **中性 hover 全局统一**：列表行 / 菜单项 / 可点项的鼠标移过底色一律用 `--mido-hover-bg`（= `--el-fill-color-light`，唯一源在 tokens.css），禁各页另取深浅。选中态品牌浅蓝（`--el-color-primary-light-9`）与深色左导航 hover（`--mido-nav-active-bg`）属不同语义，不收口于此。
+>
+> **二级横向文字 Tab 当前态全局统一**：`AdminShell` / `WorkspaceShell` 等横向二级导航的 active 一律为「主色字 + 加粗 + 底部 2px 主色下划线」；纵向 / 块状菜单（如简报侧栏、L1 分组 `el-menu`）的当前态用品牌浅蓝底块，形态不同不混用。
 
 ### 3.1 密度档（全局基座，两端共享）
 

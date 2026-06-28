@@ -346,8 +346,11 @@ watch(() => props.modelValue, ensureCache)
   cursor: pointer;
   margin-bottom: var(--mido-space-1);
 }
-.us-tree-all.is-active,
+/* 非选中态 hover 用中性灰（与全站统一）；选中态保留品牌浅蓝，hover 不覆盖选中 */
 .us-tree-all:hover {
+  background: var(--mido-hover-bg);
+}
+.us-tree-all.is-active {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
 }
@@ -371,7 +374,7 @@ watch(() => props.modelValue, ensureCache)
   cursor: pointer;
 }
 .us-row:hover {
-  background: var(--el-fill-color-light);
+  background: var(--mido-hover-bg);
 }
 .us-row.is-picked {
   background: var(--el-color-primary-light-9);
