@@ -26,13 +26,12 @@
     <ErrorState v-if="loadError" @retry="load" />
     <el-skeleton v-else-if="loading && !rows.length" :rows="6" animated :throttle="300" />
     <template v-else>
-    <div v-if="selectedIds.length" class="batchbar">
-      <span class="batchbar__info">已选 {{ selectedIds.length }} 个租户</span>
+    <BatchBar :count="selectedIds.length" unit="个租户">
       <el-button size="small" type="success" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
         @click="batchStatus('active')">批量启用</el-button>
       <el-button size="small" type="warning" plain :disabled="!ops.hasPerm('platform:tenant:manage')"
         @click="batchStatus('suspended')">批量停用</el-button>
-    </div>
+    </BatchBar>
     <el-table v-loading="loading" :data="rows" stripe border
       @header-dragend="pref.onHeaderResize" @selection-change="onSelectionChange">
       <el-table-column type="selection" width="46" />
@@ -272,6 +271,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Plus, Refresh, Switch, Download, Setting } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import BatchBar from '@/components/BatchBar.vue'
 import { tenantApi, planApi, usageApi, TENANT_STATUS, QUOTA_RESOURCE } from '@/api/ops'
 import { TOKEN_KEY } from '@/store/user'
 import { useOpsUserStore } from '@/store/opsUser'
@@ -614,20 +614,6 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--mido-space-4);
-}
-.batchbar {
-  display: flex;
-  align-items: center;
-  gap: var(--mido-space-2);
-  padding: var(--mido-space-2) var(--mido-space-3);
-  margin-bottom: var(--mido-space-3);
-  background-color: var(--el-fill-color-light);
-  border-radius: var(--mido-radius-md);
-}
-.batchbar__info {
-  margin-right: auto;
-  font-size: var(--mido-font-size-secondary);
-  color: var(--el-text-color-regular);
 }
 .bar__right {
   display: flex;

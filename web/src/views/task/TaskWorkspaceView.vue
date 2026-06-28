@@ -76,8 +76,7 @@
 
       <!-- 列表（可展开子任务 + 多选批量操作） -->
       <div v-else>
-        <div v-if="selectedIds.length" class="tw__batch">
-          <span class="mido-text-secondary">已选 {{ selectedIds.length }} 项</span>
+        <BatchBar :count="selectedIds.length" unit="项">
           <el-dropdown :disabled="batching" @command="batchSetStatus">
             <el-button :loading="batching">批量改状态<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
             <template #dropdown>
@@ -89,7 +88,7 @@
           <UserSelect v-model="batchAssignee" placeholder="批量改负责人"
             class="tw__batch-sel" :disabled="batching" @change="batchSetAssignee" />
           <el-button type="danger" plain :loading="batching" @click="batchRemove">批量删除</el-button>
-        </div>
+        </BatchBar>
         <el-table :data="tree" row-key="id" :tree-props="{ children: 'children' }"
           default-expand-all class="is-clickable" @row-click="(r) => openDetail(r.id)" @selection-change="onSelectionChange">
           <el-table-column type="selection" width="48" />
@@ -162,6 +161,7 @@ import CategoryBadge from '@/components/CategoryBadge.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
+import BatchBar from '@/components/BatchBar.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi, pageConfigApi } from '@/api/view'
 import { fieldDefApi, fieldValueApi, isCfRef, cfKey } from '@/api/field'
@@ -535,12 +535,6 @@ onMounted(async () => {
 }
 .full {
   width: 100%;
-}
-.tw__batch {
-  display: flex;
-  align-items: center;
-  gap: var(--mido-space-2);
-  margin-bottom: var(--mido-space-3);
 }
 .tw__batch-sel {
   width: var(--mido-admin-nav-width);
