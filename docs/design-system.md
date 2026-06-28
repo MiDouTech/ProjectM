@@ -59,6 +59,7 @@
 | `--mido-nav-text` | `#C9D1E0` | 深色导航项文字 |
 | `--mido-nav-text-active` | `#FFFFFF` | 深色导航选中项文字 |
 | `--mido-nav-active-bg` | `#2A3B5C` | 深色导航选中/hover 底色（active 另加 3px 主色左强调条）|
+| `--mido-hover-bg` | = `--el-fill-color-light` | 中性 hover 唯一源：列表行/菜单项/可点项鼠标移过底色（详见 §3） |
 
 ### 1.4 项目类型色（S/I/O 业务专用，强识别）
 
@@ -133,6 +134,10 @@
 | 层级 z-index | nav 1000 / 抽屉 2000 / 弹窗 2100 / 全局通知 3000 | 固定，禁随意取值 |
 
 > 交互元素（按钮/卡片/导航/行）状态切换统一走 `--mido-duration` + `--mido-ease`；可点击卡片加 `.mido-hoverable`（hover 抬升，自动尊重 `prefers-reduced-motion`）。
+>
+> **中性 hover 全局统一**：列表行 / 菜单项 / 可点项的鼠标移过底色一律用 `--mido-hover-bg`（= `--el-fill-color-light`，唯一源在 tokens.css），禁各页另取深浅。选中态品牌浅蓝（`--el-color-primary-light-9`）与深色左导航 hover（`--mido-nav-active-bg`）属不同语义，不收口于此。
+>
+> **二级横向文字 Tab 当前态全局统一**：`AdminShell` / `WorkspaceShell` 等横向二级导航的 active 一律为「主色字 + 加粗 + 底部 2px 主色下划线」；纵向 / 块状菜单（如简报侧栏、L1 分组 `el-menu`）的当前态用品牌浅蓝底块，形态不同不混用。
 
 ### 3.1 密度档（全局基座，两端共享）
 

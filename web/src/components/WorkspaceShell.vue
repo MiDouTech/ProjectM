@@ -94,13 +94,20 @@ load()
   gap: var(--mido-space-4);
   padding: var(--mido-space-2) 0;
 }
+/* 二级横向文字 Tab：active 与 AdminShell 统一为「主色字 + 加粗 + 底部主色下划线」 */
 .wsh-sub__tab {
   cursor: pointer;
   color: var(--el-text-color-regular);
   font-size: var(--mido-font-size-secondary);
+  padding-bottom: var(--mido-space-1);
+  border-bottom: 2px solid transparent;
+}
+.wsh-sub__tab:hover {
+  color: var(--el-color-primary);
 }
 .wsh-sub__tab.is-active {
   color: var(--el-color-primary);
   font-weight: 600;
+  border-bottom-color: var(--el-color-primary);
 }
 </style>
