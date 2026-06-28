@@ -13,12 +13,13 @@
     <el-tabs v-model="activeTab" class="apv__tabs apv__tabs--headless">
       <!-- 全部：与我相关的审批（我发起 ∪ 待我处理 ∪ 我已处理）单列表 + 筛选，点行右抽屉看详情 -->
       <el-tab-pane label="全部" name="all">
-        <!-- 顶部操作条（对齐项目模块：角色 + 类型 + 状态 + 搜索） -->
+        <!-- 顶部操作条（对齐项目模块：视图切换 + 角色/类型/状态 + 搜索） -->
         <div class="apv__bar">
-          <el-radio-group v-model="roleFilter">
-            <el-radio-button v-for="r in ROLE_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</el-radio-button>
-          </el-radio-group>
+          <ViewSwitcher v-model="view" :views="VIEWS" />
           <div class="apv__bar-right">
+            <el-select v-model="roleFilter" placeholder="全部角色" class="apv__quick">
+              <el-option v-for="r in ROLE_OPTIONS" :key="r.value" :label="r.label" :value="r.value" />
+            </el-select>
             <el-select v-model="bizFilter" clearable placeholder="全部类型" class="apv__quick">
               <el-option v-for="b in bizFilterOptions" :key="b.value" :label="b.label" :value="b.value" />
             </el-select>
@@ -31,7 +32,9 @@
         </div>
 
         <el-card shadow="never" v-loading="allLoading">
-          <el-table :data="filteredAll" stripe class="is-clickable" @row-click="openDetail">
+          <!-- 列表视图：表头可排序（提交时间/状态，客户端排序后再分页） -->
+          <el-table v-if="view === 'list'" :data="pagedAll" stripe class="is-clickable"
+            :default-sort="{ prop: sortProp, order: sortOrder }" @sort-change="onSortChange" @row-click="openDetail">
             <el-table-column label="审批对象" min-width="220">
               <template #default="{ row }">
                 <div class="apv__obj">{{ row.title || bizTypeLabel(row.bizType) }}</div>
@@ -41,7 +44,7 @@
             <el-table-column label="类型" width="120">
               <template #default="{ row }">{{ bizTypeLabel(row.bizType) }}</template>
             </el-table-column>
-            <el-table-column label="状态" width="100">
+            <el-table-column label="状态" width="110" prop="status" sortable="custom">
               <template #default="{ row }"><StatusTag :status="statusZh(row.status)" /></template>
             </el-table-column>
             <el-table-column label="我的角色" width="150">
@@ -56,13 +59,41 @@
             <el-table-column label="申请人" width="110">
               <template #default="{ row }">{{ userName(members, row.applicantId) }}</template>
             </el-table-column>
-            <el-table-column label="提交时间" width="120">
+            <el-table-column label="提交时间" width="140" prop="submittedAt" sortable="custom">
               <template #default="{ row }">{{ fmtDate(row.submittedAt) }}</template>
             </el-table-column>
             <template #empty>
               <EmptyState :description="all.length ? '无符合筛选的审批' : '暂无与我相关的审批'" :image-size="60" />
             </template>
           </el-table>
+
+          <!-- 卡片视图 -->
+          <div v-else class="apv__cards">
+            <div v-for="row in pagedAll" :key="row.instanceId" class="apv__card" @click="openDetail(row)">
+              <div class="apv__card-top">
+                <StatusTag :status="statusZh(row.status)" />
+                <span class="mido-mono mido-text-secondary">#{{ row.instanceId }}</span>
+              </div>
+              <div class="apv__card-title">{{ row.title || bizTypeLabel(row.bizType) }}</div>
+              <div class="mido-text-secondary">{{ bizTypeLabel(row.bizType) }}</div>
+              <div class="apv__roles apv__card-roles">
+                <el-tag v-if="row.mineToAct" size="small" type="warning" disable-transitions>待我审批</el-tag>
+                <el-tag v-if="row.iInitiated" size="small" type="primary" disable-transitions>我发起</el-tag>
+                <el-tag v-if="row.processedByMe" size="small" type="info" disable-transitions>我已处理</el-tag>
+              </div>
+              <div class="apv__card-foot mido-text-secondary">
+                <span>{{ userName(members, row.applicantId) }}</span>
+                <span>{{ fmtDate(row.submittedAt) }}</span>
+              </div>
+            </div>
+            <EmptyState v-if="!pagedAll.length"
+              :description="all.length ? '无符合筛选的审批' : '暂无与我相关的审批'" :image-size="60" />
+          </div>
+
+          <div class="apv__pager">
+            <el-pagination layout="total, prev, pager, next" :total="total"
+              :current-page="page" :page-size="size" @current-change="(p) => (page = p)" />
+          </div>
         </el-card>
       </el-tab-pane>
 
@@ -145,6 +176,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import ApprovalSteps from '@/components/ApprovalSteps.vue'
 import UserSelect from '@/components/UserSelect.vue'
+import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ChangeCenter from '@/views/ChangeCenter.vue'
 import { approvalApi, projectApi, PROJECT_CATEGORIES } from '@/api/project'
@@ -178,6 +210,17 @@ const STATUS_OPTIONS = [
   { value: 'withdrawn', label: '已撤回' },
 ]
 
+// 视图：列表 / 卡片（数据量 ≤ MINE_LIMIT，分页与排序均在客户端完成）
+const VIEWS = [
+  { value: 'list', label: '列表' },
+  { value: 'card', label: '卡片' },
+]
+const view = ref('list')
+const page = ref(1)
+const size = ref(20)
+const sortProp = ref('submittedAt')
+const sortOrder = ref('descending')
+
 // 全部列表：一次拉取，角色/类型/状态/关键字均在客户端筛选（数据带角色标记，无需多次请求）
 const all = ref([])
 const allLoading = ref(false)
@@ -197,6 +240,31 @@ const filteredAll = computed(() => {
     return true
   })
 })
+const total = computed(() => filteredAll.value.length)
+// 客户端排序：先按表头排序整份筛选结果，再切片分页（避免内置排序只作用于当页）
+const sortedAll = computed(() => {
+  const arr = [...filteredAll.value]
+  if (!sortProp.value) return arr
+  const dir = sortOrder.value === 'ascending' ? 1 : -1
+  return arr.sort((a, b) => compareBy(a, b, sortProp.value) * dir)
+})
+const pagedAll = computed(() => sortedAll.value.slice((page.value - 1) * size.value, page.value * size.value))
+function compareBy(a, b, prop) {
+  const va = a[prop]
+  const vb = b[prop]
+  if (va == null && vb == null) return 0
+  if (va == null) return -1
+  if (vb == null) return 1
+  if (typeof va === 'number' && typeof vb === 'number') return va - vb
+  return String(va).localeCompare(String(vb)) // submittedAt 为 ISO 串、status 为码，字典序即可
+}
+function onSortChange({ prop, order }) {
+  sortProp.value = order ? prop : 'submittedAt'
+  sortOrder.value = order || 'descending'
+  page.value = 1
+}
+// 筛选变化回到第一页，避免停留在越界的空页
+watch([roleFilter, bizFilter, statusFilter, keyword], () => { page.value = 1 })
 
 // change 功能码关闭时：回退到「全部」tab，并清理残留为「变更审批」的类型筛选
 watch(showChange, (v) => {
@@ -385,6 +453,48 @@ async function doWithdraw() {
   display: flex;
   flex-wrap: wrap;
   gap: var(--mido-space-1);
+}
+/* 卡片视图：自适应网格，与项目模块卡片一致的层次（顶部状态 + 标题 + 角色 + 页脚） */
+.apv__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--mido-space-3);
+}
+.apv__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-4);
+  border: var(--mido-border-width) solid var(--el-border-color-light);
+  border-radius: var(--mido-radius-md);
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.apv__card:hover {
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
+}
+.apv__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.apv__card-title {
+  font-weight: var(--mido-font-weight-bold);
+  color: var(--el-text-color-primary);
+}
+.apv__card-roles {
+  margin-top: auto;
+}
+.apv__card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.apv__pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
 }
 .apv__head {
   margin-bottom: var(--mido-space-4);
