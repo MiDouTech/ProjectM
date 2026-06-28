@@ -44,7 +44,9 @@
             <el-button link type="danger" @click.stop="remove(row)">删除</el-button>
           </template>
         </el-table-column>
-        <template #empty><el-empty description="暂无目标，点击右上角新建目标" /></template>
+        <template #empty>
+          <EmptyState description="暂无目标" action-text="新建目标" :action-icon="Plus" @action="openCreate" />
+        </template>
       </el-table>
     </el-card>
 
@@ -221,6 +223,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, EditPen } from '@element-plus/icons-vue'
 import GoalAlignTree from '@/components/GoalAlignTree.vue'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import G2Chart from '@/components/G2Chart.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'

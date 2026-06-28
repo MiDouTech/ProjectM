@@ -111,7 +111,9 @@
               <span v-else>{{ row[key] ?? '—' }}</span>
             </template>
           </el-table-column>
-          <template #empty><el-empty description="暂无任务，点击右上角新建任务" /></template>
+          <template #empty>
+            <EmptyState description="暂无任务" action-text="新建任务" :action-icon="Plus" @action="openCreate" />
+          </template>
         </el-table>
       </div>
     </el-card>
@@ -162,6 +164,7 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import ViewDesigner from '@/components/ViewDesigner.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import BatchBar from '@/components/BatchBar.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { taskApi, TASK_STATUSES, TASK_PRIORITIES, TASK_TRANSITIONS } from '@/api/task'
 import { viewApi, pageConfigApi } from '@/api/view'
 import { fieldDefApi, fieldValueApi, isCfRef, cfKey } from '@/api/field'
