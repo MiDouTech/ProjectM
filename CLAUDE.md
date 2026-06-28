@@ -70,6 +70,21 @@ server/
 - 每完成一个模块跑一次构建与测试；每 2–3 模块 `/compact` 压上下文、`/review` 审变更。
 - 不确定就停下问人，不要猜架构。
 
+## 8. AI 高频错误与预防（自检清单）
+
+> 本节为历次协作中反复出现的操作性错误固化，**每次执行命令/工具/提交前对照自检**。标记：✅=本仓库实测发生过；⚠️=高价值通用预防。格式＝错误 → 预防 → 补救。
+
+1. ✅ **调用 deferred 工具未先加载 schema**（如 TaskCreate 直接调用报 InputValidationError）→ 预防：调用前先 `ToolSearch "select:<工具名>"` 加载 schema → 补救：按报错回传的 schema 修正参数重试。
+2. ✅ **Bash 复合命令里 `cd` 不持久 / 用相对路径**（出现 "module-view not found in reactor"、`pom.xml` 找不到）→ 预防：一律用绝对路径，Maven 用 `mvn -f /abs/server/pom.xml …` → 补救：改绝对路径重跑。
+3. ✅ **Maven 单模块测试漏 `-am`**（依赖 `common` 未本地安装而构建失败）→ 预防：固定 `mvn -f server/pom.xml -pl <模块> -am test` → 补救：补 `-am` 重跑。
+4. ✅ **`-Dtest=X` 命中其他模块报"无匹配测试"导致 BUILD FAILURE** → 预防：跨模块跑指定测试时加 `-Dsurefire.failIfNoSpecifiedTests=false` → 补救：补该参数。
+5. ✅ **命令输出被代理 banner/`-q` 淹没看不到结果**（JAVA_TOOL_OPTIONS 刷屏、反复重跑）→ 预防：`… 2>&1 | grep -E "Tests run|BUILD|ERROR"` 过滤关键行 → 补救：去掉 `-q`、grep 结果行再判读。
+6. ✅ **构建前未确认 `node_modules`**（`vite: not found`）→ 预防：前端先 `ls node_modules >/dev/null 2>&1 || npm install` → 补救：装依赖再 build。
+7. ⚠️ **改默认行为/默认值前未确认数据来源**（DB 种子 vs 代码内置，关乎是否需追加 Flyway migration）→ 预防：动默认值先 Grep 迁移/种子定位真源 → 补救：补 migration 或改对真正的源。
+8. ⚠️ **大文件直接整读、未先 Grep 定位** → 预防：大文件先 Grep（命中可能多先 `output_mode=count`），Read 用 offset/limit 分段 → 补救：放弃整读、改按命中行分段读。
+9. ⚠️ **删除/重命名 组件码、枚举、接口前未全仓查引用** → 预防：删改前先 Grep 引用与测试评估影响 → 补救：一次性补齐遗漏调用方与测试再提交。
+10. ⚠️ **把"已构建/单测过"说成"已验证"**（环境无运行实例时混淆构建≠端到端）→ 预防：如实区分「已构建/单测通过」与「未手动验收」并标注 → 补救：补跑验证或在交付清单明确列为未验证。
+
 ## Agent skills
 
 > 供 mattpocock 系列工程 skill（`to-prd` / `triage` / `improve-codebase-architecture` 等）读取的本仓库配置。详见 `docs/agents/*`。
