@@ -67,6 +67,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import G2Chart from '@/components/G2Chart.vue'
 import { dashboardApi, TENANT_STATUS } from '@/api/ops'
+import { chartColors } from '@/utils/chartTheme'
 
 const router = useRouter()
 const loading = ref(false)
@@ -76,7 +77,7 @@ const trend = ref([])
 
 const hasTrend = computed(() => trend.value.some((p) => Number(p.value) > 0))
 const trendOption = computed(() => {
-  const primary = getComputedStyle(document.documentElement).getPropertyValue('--el-color-primary').trim()
+  const primary = chartColors().primary
   return {
     type: 'view',
     data: trend.value.map((p) => ({ month: p.month, value: Number(p.value || 0) })),
