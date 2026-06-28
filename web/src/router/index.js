@@ -117,7 +117,9 @@ const routes = [
       // 变更中心已并入「审批中心」的变更台账 Tab；保留旧路径重定向兼容书签/深链
       { path: 'change', redirect: { path: '/approval', query: { tab: 'change' } } },
       { path: 'report', component: () => import('@/views/Report.vue') },
-      { path: 'doc', component: () => import('@/views/Doc.vue') },
+      // 文档中心：/doc 为「全部文档」跨项目列表；下钻进 /doc/kb?projectId=&doc= 打开项目知识库工作区
+      { path: 'doc', component: () => import('@/views/DocCenter.vue') },
+      { path: 'doc/kb', component: () => import('@/views/Doc.vue') },
       { path: 'calendar', component: () => import('@/views/calendar/CalendarView.vue') },
       { path: 'briefing', component: () => import('@/views/briefing/BriefingView.vue') },
     ],

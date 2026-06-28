@@ -4,6 +4,10 @@ import request from './request'
  * 项目知识库文档（在线文档 + 版本）。正文为 Tiptap JSON，经版本表留痕。
  */
 export const docApi = {
+  // 全局文档列表（文档中心首页「全部文档」）：跨项目扁平、ACL 过滤。projectIds 为我参与的项目 id 数组
+  list: (projectIds, params = {}) => request.get('/docs/list', {
+    params: { projectIds: (projectIds || []).join(','), ...params },
+  }),
   // 目录树
   tree: (projectId) => request.get('/docs/tree', { params: { projectId } }),
   // 文档详情（含当前版本正文）
