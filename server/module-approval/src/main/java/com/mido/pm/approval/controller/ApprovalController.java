@@ -5,6 +5,7 @@ import com.mido.pm.approval.dto.ApprovalBizTypeVO;
 import com.mido.pm.approval.dto.InitiatedApprovalVO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
+import com.mido.pm.approval.dto.RelatedApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
@@ -81,5 +82,11 @@ public class ApprovalController {
     @GetMapping("/mine-initiated")
     public R<List<InitiatedApprovalVO>> mineInitiated() {
         return R.ok(approvalService.myInitiated());
+    }
+
+    /** 与我相关的全部审批（审批中心「全部」列表）：我发起 ∪ 待我处理 ∪ 我已处理，跨 bizType、任意状态。 */
+    @GetMapping("/mine-all")
+    public R<List<RelatedApprovalVO>> mineAll() {
+        return R.ok(approvalService.myRelated());
     }
 }

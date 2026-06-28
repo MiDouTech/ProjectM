@@ -13,6 +13,7 @@ import com.mido.pm.approval.dto.ActDTO;
 import com.mido.pm.approval.dto.InstanceVO;
 import com.mido.pm.approval.dto.InitiatedApprovalVO;
 import com.mido.pm.approval.dto.PendingApprovalVO;
+import com.mido.pm.approval.dto.RelatedApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
@@ -333,6 +334,44 @@ public class ApprovalService {
                 .map(i -> new InitiatedApprovalVO(i.getId(), i.getBizType(), i.getBizId(),
                         i.getStatus(), bizTitle(i), i.getCreateTime()))
                 .toList();
+    }
+
+    /**
+     * 与我相关的全部审批（审批中心「全部」列表）：我发起的 ∪ 我有审批任务的实例，跨 bizType、任意状态，
+     * 按实例新→旧，上限 MINE_LIMIT。每条带 mineToAct/iInitiated/processedByMe 角色标记供前端筛选。
+     * tenant 由 MyBatis-Plus 拦截器统一注入，不手写租户条件。
+     */
+    public List<RelatedApprovalVO> myRelated() {
+        Long me = currentUserId();
+        if (me == null) {
+            return List.of();
+        }
+        // 我名下的审批任务（区分未办/已办）
+        Map<Long, List<ApprovalTask>> tasksByInstance = taskMapper.selectList(
+                        Wrappers.<ApprovalTask>lambdaQuery().eq(ApprovalTask::getApproverId, me))
+                .stream()
+                .collect(Collectors.groupingBy(ApprovalTask::getInstanceId));
+        // 我发起的实例 id
+        Set<Long> ids = new HashSet<>(tasksByInstance.keySet());
+        instanceMapper.selectList(Wrappers.<ApprovalInstance>lambdaQuery()
+                        .eq(ApprovalInstance::getApplicantId, me))
+                .forEach(i -> ids.add(i.getId()));
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<RelatedApprovalVO> result = new ArrayList<>();
+        for (ApprovalInstance inst : instanceMapper.selectBatchIds(ids)) {
+            List<ApprovalTask> ts = tasksByInstance.getOrDefault(inst.getId(), List.of());
+            boolean mineToAct = ApprovalInstance.STATUS_PENDING.equals(inst.getStatus())
+                    && ts.stream().anyMatch(t -> t.getAction() == null);
+            boolean processedByMe = ts.stream().anyMatch(t -> t.getAction() != null);
+            result.add(new RelatedApprovalVO(inst.getId(), inst.getBizType(), inst.getBizId(),
+                    inst.getStatus(), inst.getApplicantId(), bizTitle(inst), inst.getCreateTime(),
+                    mineToAct, me.equals(inst.getApplicantId()), processedByMe));
+        }
+        // 新→旧（实例 id 自增，等价提交时间倒序）
+        result.sort((a, b) -> Long.compare(b.instanceId(), a.instanceId()));
+        return result.size() > MINE_LIMIT ? result.subList(0, MINE_LIMIT) : result;
     }
 
     public InstanceVO getInstance(Long id) {

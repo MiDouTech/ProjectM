@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.mido.pm.approval.dto.ActDTO;
+import com.mido.pm.approval.dto.RelatedApprovalVO;
 import com.mido.pm.approval.dto.SubmitDTO;
 import com.mido.pm.approval.dto.TransferDTO;
 import com.mido.pm.approval.dto.WithdrawDTO;
@@ -33,8 +34,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -323,6 +326,54 @@ class ApprovalServiceTest {
     }
 
     @Test
+    void myRelatedMergesInitiatedToActAndProcessedWithRoleFlags() {
+        login(100);
+        // 我名下任务：实例10未办(待我处理)、实例20已办(我已处理)、实例40未办(同时也是我发起→去重)
+        when(taskMapper.selectList(any())).thenReturn(List.of(
+                relatedTask(10L, null), relatedTask(20L, ApprovalTask.ACTION_APPROVE), relatedTask(40L, null)));
+        // 我发起的实例：30、40
+        when(instanceMapper.selectList(any())).thenReturn(List.of(
+                relatedInst(30L, ApprovalInstance.STATUS_PENDING, 100L),
+                relatedInst(40L, ApprovalInstance.STATUS_PENDING, 100L)));
+        // 合并去重后批量回填全部实例（10/20 申请人为他人，30/40 为本人）
+        when(instanceMapper.selectBatchIds(any())).thenReturn(List.of(
+                relatedInst(10L, ApprovalInstance.STATUS_PENDING, 7L),
+                relatedInst(20L, ApprovalInstance.STATUS_APPROVED, 7L),
+                relatedInst(30L, ApprovalInstance.STATUS_PENDING, 100L),
+                relatedInst(40L, ApprovalInstance.STATUS_PENDING, 100L)));
+
+        var result = service.myRelated();
+
+        // 四实例各一条且按 id 倒序（新→旧）
+        assertEquals(4, result.size());
+        assertEquals(40L, result.get(0).instanceId());
+        assertEquals(10L, result.get(3).instanceId());
+        var byId = result.stream().collect(Collectors.toMap(RelatedApprovalVO::instanceId, v -> v));
+        // 实例10：待我处理
+        assertTrue(byId.get(10L).mineToAct());
+        assertFalse(byId.get(10L).iInitiated());
+        assertFalse(byId.get(10L).processedByMe());
+        // 实例20：我已处理（已结案，非待我处理）
+        assertFalse(byId.get(20L).mineToAct());
+        assertTrue(byId.get(20L).processedByMe());
+        // 实例30：仅我发起
+        assertTrue(byId.get(30L).iInitiated());
+        assertFalse(byId.get(30L).mineToAct());
+        // 实例40：我发起 + 待我处理（既在 task 又在 initiated，去重为一条且双标记）
+        assertTrue(byId.get(40L).iInitiated());
+        assertTrue(byId.get(40L).mineToAct());
+    }
+
+    @Test
+    void myRelatedReturnsEmptyWhenNotLoggedIn() {
+        var result = service.myRelated();
+
+        assertEquals(0, result.size());
+        verify(taskMapper, never()).selectList(any());
+        verify(instanceMapper, never()).selectList(any());
+    }
+
+    @Test
     void withdrawByApplicantMarksWithdrawnAndCarriesApprovers() {
         login(7);
         ApprovalInstance inst = pendingInstance();
@@ -448,6 +499,18 @@ class ApprovalServiceTest {
         t.setNode("n1");
         t.setApproverId(100L);
         return t;
+    }
+
+    private ApprovalTask relatedTask(long instanceId, String action) {
+        ApprovalTask t = pendingTask(instanceId);
+        t.setAction(action);
+        return t;
+    }
+
+    private ApprovalInstance relatedInst(long id, String status, long applicantId) {
+        ApprovalInstance i = instanceWithStatus(id, status);
+        i.setApplicantId(applicantId);
+        return i;
     }
 
     private ApprovalInstance instanceWithStatus(long id, String status) {

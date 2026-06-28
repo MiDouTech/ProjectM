@@ -68,7 +68,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Rank, Refresh, Close } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -85,6 +85,8 @@ const { statusColor } = useStatusColors()
 
 const props = defineProps({
   card: { type: Object, required: true },
+  // 全局刷新信号：父级自增即触发本卡重新拉数据（手动刷新）
+  refreshSignal: { type: Number, default: 0 },
 })
 defineEmits(['remove'])
 
@@ -145,6 +147,9 @@ async function markAll() {
   await notificationApi.markAllRead()
   load()
 }
+
+// 父级「刷新」按钮：refreshSignal 自增 → 本卡重新拉数据
+watch(() => props.refreshSignal, () => load())
 
 onMounted(load)
 </script>

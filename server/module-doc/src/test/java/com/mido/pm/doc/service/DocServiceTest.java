@@ -21,9 +21,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -111,6 +114,36 @@ class DocServiceTest {
         assertEquals("{\"old\":true}", vo.content());
         verify(versionMapper).insert(any(PmDocVersion.class));
         verify(eventPublisher).publish(eq("doc.version.created"), any());
+    }
+
+    @Test
+    void listAcrossProjectsFiltersFoldersUnreadableAndMarksFavorite() {
+        PmDoc d1 = doc(1L, PmDoc.TYPE_DOC);
+        PmDoc folder = doc(2L, PmDoc.TYPE_FOLDER);
+        PmDoc file = doc(3L, PmDoc.TYPE_FILE);
+        PmDoc hidden = doc(4L, PmDoc.TYPE_DOC); // ACL 不可读
+        when(docMapper.selectList(any())).thenReturn(List.of(d1, folder, file, hidden));
+        when(aclService.readableDocIds(any())).thenReturn(java.util.Set.of(1L, 3L));
+        com.mido.pm.doc.entity.PmDocFavorite fav = new com.mido.pm.doc.entity.PmDocFavorite();
+        fav.setDocId(1L);
+        when(favoriteMapper.selectList(any())).thenReturn(List.of(fav));
+
+        var result = service.listAcrossProjects(List.of(7L, 8L), null, null);
+
+        // 目录(2)默认剔除、不可读(4)剔除 → 仅文档1 与 文件3；1 标记收藏
+        assertEquals(2, result.size());
+        assertEquals(1L, result.get(0).id());
+        assertTrue(result.get(0).favorited());
+        assertEquals(3L, result.get(1).id());
+        assertFalse(result.get(1).favorited());
+    }
+
+    @Test
+    void listAcrossProjectsEmptyWhenNoProjects() {
+        var result = service.listAcrossProjects(List.of(), null, null);
+
+        assertEquals(0, result.size());
+        verify(docMapper, never()).selectList(any());
     }
 
     @Test

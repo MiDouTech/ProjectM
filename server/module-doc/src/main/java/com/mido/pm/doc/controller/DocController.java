@@ -3,6 +3,7 @@ package com.mido.pm.doc.controller;
 import com.mido.pm.common.api.R;
 import com.mido.pm.doc.dto.DocCreateDTO;
 import com.mido.pm.doc.dto.DocDetailVO;
+import com.mido.pm.doc.dto.DocListVO;
 import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
@@ -52,6 +53,17 @@ public class DocController {
     @GetMapping("/tree")
     public R<List<DocNodeVO>> tree(@RequestParam Long projectId) {
         return R.ok(docService.tree(projectId));
+    }
+
+    /**
+     * 全局文档列表（文档中心首页「全部文档」）：跨 projectIds（前端传我参与的项目）扁平列出未回收文档。
+     * type 选填（doc/file/folder）；keyword 选填（标题包含）。经 ACL 过滤、按更新时间倒序。
+     */
+    @GetMapping("/list")
+    public R<List<DocListVO>> list(@RequestParam(required = false) List<Long> projectIds,
+                                   @RequestParam(required = false) String type,
+                                   @RequestParam(required = false) String keyword) {
+        return R.ok(docService.listAcrossProjects(projectIds, type, keyword));
     }
 
     /** 文档详情（含当前版本正文）。 */

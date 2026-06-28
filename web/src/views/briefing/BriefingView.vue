@@ -1,43 +1,91 @@
 <template>
-  <div class="mido-briefing-page">
-    <WorkspaceShell module="briefing" />
-    <div class="mido-briefing">
-    <!-- 左栏 -->
-    <div class="mido-briefing__side">
-      <div
-        v-for="m in menus"
-        :key="m.key"
-        class="mido-briefing__menu"
-        :class="{ 'is-active': active === m.key }"
-        @click="selectMenu(m.key)"
-      >
-        {{ m.label }}
-      </div>
-    </div>
+  <div class="mido-page">
+    <WorkspaceShell module="briefing">
+      <template #actions>
+        <!-- 全部：写简报（选模板新建）；提交简报：添加模板 -->
+        <el-dropdown v-if="activeTab === 'all'" trigger="click" @command="openNewById">
+          <el-button type="primary" :icon="Plus">写简报<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="t in templates" :key="t.id" :command="t.id">{{ t.name }}</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button v-else-if="activeTab === 'submit'" type="primary" :icon="Plus" @click="openTemplateDialog">添加模板</el-button>
+      </template>
+    </WorkspaceShell>
 
-    <!-- 主区 -->
-    <div class="mido-briefing__main" v-loading="loading">
-      <!-- 提交简报：模板卡片 -->
-      <template v-if="active === 'submit'">
-        <div class="mido-briefing__headrow">
-          <div class="mido-briefing__head">提交简报</div>
-          <el-button type="primary" :icon="Plus" @click="openTemplateDialog">添加模板</el-button>
+    <el-tabs v-model="activeTab" class="bf__tabs bf__tabs--headless">
+      <!-- 全部：我的简报（日/周/月合一），类型/状态/关键字筛选 + 视图切换/分页/排序 -->
+      <el-tab-pane label="全部" name="all">
+        <div class="bf__bar">
+          <ViewSwitcher v-model="view" :views="VIEWS" />
+          <div class="bf__bar-right">
+            <el-select v-model="typeFilter" clearable placeholder="全部类型" class="bf__quick">
+              <el-option v-for="t in TYPE_OPTIONS" :key="t.value" :label="t.label" :value="t.value" />
+            </el-select>
+            <el-select v-model="statusFilter" clearable placeholder="全部状态" class="bf__quick">
+              <el-option v-for="s in STATUS_OPTIONS" :key="s.value" :label="s.label" :value="s.value" />
+            </el-select>
+            <el-input v-model="keyword" placeholder="搜索周期" clearable class="bf__search" :prefix-icon="Search" />
+          </div>
         </div>
-        <div class="mido-briefing__cards">
-          <div
-            v-for="t in templates"
-            :key="t.id"
-            class="mido-card"
-            @click="openNew(t)"
-          >
+
+        <el-card shadow="never" v-loading="loading">
+          <el-table v-if="view === 'list'" :data="pagedMine" stripe class="is-clickable"
+            :default-sort="{ prop: sortProp, order: sortOrder }" @sort-change="onSortChange" @row-click="openExisting">
+            <el-table-column label="类型" width="90">
+              <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+            </el-table-column>
+            <el-table-column label="周期" prop="periodKey" sortable="custom" min-width="160" />
+            <el-table-column label="状态" width="100">
+              <template #default="{ row }"><StatusTag :status="row.status" /></template>
+            </el-table-column>
+            <el-table-column label="提交时间" width="170" prop="submittedAt" sortable="custom">
+              <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="90">
+              <template #default="{ row }">
+                <el-button link type="primary" @click.stop="openExisting(row)">
+                  {{ row.status === 'submitted' ? '查看' : '编辑' }}
+                </el-button>
+              </template>
+            </el-table-column>
+            <template #empty>
+              <EmptyState :description="mineRows.length ? '无符合筛选的简报' : '暂无简报，点右上「写简报」'" :image-size="60" />
+            </template>
+          </el-table>
+
+          <div v-else class="bf__cards">
+            <div v-for="row in pagedMine" :key="row.id" class="bf__card" @click="openExisting(row)">
+              <div class="bf__card-top">
+                <span class="bf__card-icon" :class="'is-' + row.type">{{ typeShort(row.type) }}</span>
+                <StatusTag :status="row.status" />
+              </div>
+              <div class="bf__card-period">{{ row.periodKey }}</div>
+              <div class="bf__card-foot mido-text-secondary">
+                <span>{{ typeLabel(row.type) }}</span>
+                <span>{{ row.submittedAt ? fmt(row.submittedAt) : '草稿' }}</span>
+              </div>
+            </div>
+            <EmptyState v-if="!pagedMine.length"
+              :description="mineRows.length ? '无符合筛选的简报' : '暂无简报，点右上「写简报」'" :image-size="60" />
+          </div>
+
+          <div class="bf__pager">
+            <el-pagination layout="total, prev, pager, next" :total="total"
+              :current-page="page" :page-size="size" @current-change="(p) => (page = p)" />
+          </div>
+        </el-card>
+      </el-tab-pane>
+
+      <!-- 提交简报：模板卡（写入口 + 模板管理） -->
+      <el-tab-pane label="提交简报" name="submit" lazy>
+        <div class="bf__cards">
+          <div v-for="t in templates" :key="t.id" class="mido-card" @click="openNew(t)">
             <div class="mido-card__icon" :class="'is-' + t.type">{{ typeShort(t.type) }}</div>
             <div class="mido-card__name">{{ t.name }}</div>
-            <el-dropdown
-              v-if="!t.isBuiltin"
-              trigger="click"
-              @click.stop
-              @command="(cmd) => onTemplateCmd(cmd, t)"
-            >
+            <el-dropdown v-if="!t.isBuiltin" trigger="click" @click.stop @command="(cmd) => onTemplateCmd(cmd, t)">
               <el-icon class="mido-card__more" @click.stop><MoreFilled /></el-icon>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -48,105 +96,106 @@
             </el-dropdown>
           </div>
         </div>
-      </template>
+      </el-tab-pane>
 
-      <!-- 我的日/周/月报：列表 -->
-      <template v-else-if="isMine">
-        <div class="mido-briefing__head">{{ menuLabel }}</div>
-        <el-table :data="myList" style="width: 100%">
-          <el-table-column prop="periodKey" label="周期" width="160" />
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <StatusTag :status="row.status" />
-            </template>
-          </el-table-column>
-          <el-table-column label="提交时间" width="180">
-            <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
-          </el-table-column>
-          <el-table-column label="操作">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openExisting(row)">
-                {{ row.status === 'submitted' ? '查看' : '编辑' }}
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!myList.length" :description="'暂无' + menuLabel" />
-      </template>
+      <!-- 我评审的 -->
+      <el-tab-pane label="我评审的" name="review" lazy>
+        <el-card shadow="never" v-loading="loading">
+          <el-table :data="reviewList" stripe>
+            <el-table-column label="成员" width="120">
+              <template #default="{ row }">{{ memberName(row.authorId) }}</template>
+            </el-table-column>
+            <el-table-column label="类型" width="80">
+              <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+            </el-table-column>
+            <el-table-column prop="periodKey" label="周期" width="150" />
+            <el-table-column label="提交时间" width="170">
+              <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="操作">
+              <template #default="{ row }"><el-button link type="primary" @click="openReviewItem(row)">评阅</el-button></template>
+            </el-table-column>
+            <template #empty><el-empty description="暂无待我评审的简报" :image-size="60" /></template>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
 
-      <!-- 简报统计 -->
-      <template v-else-if="active === 'stats'">
-        <div class="mido-briefing__head">简报统计</div>
-        <el-radio-group v-model="statsType" @change="loadStats" style="margin-bottom: 16px">
-          <el-radio-button value="daily">日报</el-radio-button>
-          <el-radio-button value="weekly">周报</el-radio-button>
-          <el-radio-button value="monthly">月报</el-radio-button>
-        </el-radio-group>
-        <div v-if="stats" class="mido-stats__total">已提交合计：<b>{{ stats.total }}</b> 份</div>
-        <el-table v-if="stats" :data="stats.members" style="width: 100%; margin-top: 12px">
-          <el-table-column label="成员">
-            <template #default="{ row }">{{ memberName(row.authorId) }}</template>
-          </el-table-column>
-          <el-table-column prop="submittedCount" label="已提交份数" width="160" />
-        </el-table>
-        <el-empty v-if="stats && !stats.members.length" description="暂无提交" />
-      </template>
+      <!-- 成员简报 -->
+      <el-tab-pane label="成员简报" name="members" lazy>
+        <div class="bf__bar">
+          <div class="bf__bar-right">
+            <el-select v-model="memberFilter.authorId" placeholder="全部成员" clearable class="bf__quick" @change="loadMembersTab">
+              <el-option v-for="m in revieweeMembers" :key="m.id" :label="m.name || m.username" :value="m.id" />
+            </el-select>
+            <el-select v-model="memberFilter.type" placeholder="全部类型" clearable class="bf__quick" @change="loadMembersTab">
+              <el-option v-for="t in TYPE_OPTIONS" :key="t.value" :label="t.label" :value="t.value" />
+            </el-select>
+          </div>
+        </div>
+        <el-card shadow="never" v-loading="loading">
+          <el-table :data="memberList" stripe>
+            <el-table-column label="成员" width="120">
+              <template #default="{ row }">{{ memberName(row.authorId) }}</template>
+            </el-table-column>
+            <el-table-column label="类型" width="80">
+              <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+            </el-table-column>
+            <el-table-column prop="periodKey" label="周期" width="150" />
+            <el-table-column label="提交时间" width="170">
+              <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="操作">
+              <template #default="{ row }"><el-button link type="primary" @click="openReviewItem(row)">评阅</el-button></template>
+            </el-table-column>
+            <template #empty><el-empty description="暂无成员简报" :image-size="60" /></template>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
 
       <!-- 跟进的问题 -->
-      <template v-else-if="active === 'issues'">
-        <div class="mido-briefing__head">跟进的问题</div>
-        <el-table :data="issueList" style="width: 100%">
-          <el-table-column prop="content" label="问题" min-width="200" />
-          <el-table-column label="负责人" width="120">
-            <template #default="{ row }">{{ memberName(row.ownerId) }}</template>
-          </el-table-column>
-          <el-table-column label="截止" width="120">
-            <template #default="{ row }">{{ row.dueDate || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="140">
-            <template #default="{ row }">
-              <el-select :model-value="row.status" size="small" @change="(s) => changeIssueStatus(row, s)">
-                <el-option v-for="(label, val) in ISSUE_STATUS" :key="val" :label="label" :value="val" />
-              </el-select>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!issueList.length" description="暂无跟进的问题" />
-      </template>
+      <el-tab-pane label="跟进的问题" name="issues" lazy>
+        <el-card shadow="never" v-loading="loading">
+          <el-table :data="issueList" stripe>
+            <el-table-column prop="content" label="问题" min-width="200" />
+            <el-table-column label="负责人" width="120">
+              <template #default="{ row }">{{ memberName(row.ownerId) }}</template>
+            </el-table-column>
+            <el-table-column label="截止" width="120">
+              <template #default="{ row }">{{ row.dueDate || '—' }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="140">
+              <template #default="{ row }">
+                <el-select :model-value="row.status" size="small" @change="(s) => changeIssueStatus(row, s)">
+                  <el-option v-for="(label, val) in ISSUE_STATUS" :key="val" :label="label" :value="val" />
+                </el-select>
+              </template>
+            </el-table-column>
+            <template #empty><el-empty description="暂无跟进的问题" :image-size="60" /></template>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
 
-      <!-- 我评审的 / 成员简报 -->
-      <template v-else>
-        <div class="mido-briefing__head">{{ menuLabel }}</div>
-        <div v-if="active === 'members'" class="mido-briefing__filter">
-          <el-select v-model="memberFilter.authorId" placeholder="选择成员" clearable @change="loadReviewList">
-            <el-option v-for="m in revieweeMembers" :key="m.id" :label="m.name || m.username" :value="m.id" />
-          </el-select>
-          <el-select v-model="memberFilter.type" placeholder="类型" clearable @change="loadReviewList">
-            <el-option label="日报" value="daily" />
-            <el-option label="周报" value="weekly" />
-            <el-option label="月报" value="monthly" />
-          </el-select>
+      <!-- 简报统计 -->
+      <el-tab-pane label="简报统计" name="stats" lazy>
+        <div class="bf__bar">
+          <el-radio-group v-model="statsType" @change="loadStats">
+            <el-radio-button value="daily">日报</el-radio-button>
+            <el-radio-button value="weekly">周报</el-radio-button>
+            <el-radio-button value="monthly">月报</el-radio-button>
+          </el-radio-group>
         </div>
-        <el-table :data="reviewList" style="width: 100%">
-          <el-table-column label="成员" width="120">
-            <template #default="{ row }">{{ memberName(row.authorId) }}</template>
-          </el-table-column>
-          <el-table-column label="类型" width="80">
-            <template #default="{ row }">{{ typeLabel(row.type) }}</template>
-          </el-table-column>
-          <el-table-column prop="periodKey" label="周期" width="150" />
-          <el-table-column label="提交时间" width="170">
-            <template #default="{ row }">{{ row.submittedAt ? fmt(row.submittedAt) : '—' }}</template>
-          </el-table-column>
-          <el-table-column label="操作">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openReviewItem(row)">评阅</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!reviewList.length" :description="'暂无' + menuLabel" />
-      </template>
-    </div>
+        <el-card shadow="never" v-loading="loading">
+          <div v-if="stats" class="bf__stats-total">已提交合计：<b>{{ stats.total }}</b> 份</div>
+          <el-table v-if="stats" :data="stats.members" stripe class="bf__stats-tb">
+            <el-table-column label="成员">
+              <template #default="{ row }">{{ memberName(row.authorId) }}</template>
+            </el-table-column>
+            <el-table-column prop="submittedCount" label="已提交份数" width="160" />
+          </el-table>
+          <el-empty v-if="stats && !stats.members.length" description="暂无提交" :image-size="60" />
+        </el-card>
+      </el-tab-pane>
+    </el-tabs>
 
     <!-- 填报/查看 抽屉 -->
     <el-drawer v-model="drawerVisible" :title="drawerTitle" size="var(--mido-drawer-width)">
@@ -154,23 +203,12 @@
         <div class="mido-briefing__period">
           周期：{{ form.periodKey }}
           <StatusTag v-if="form.status === 'submitted'" status="submitted" />
-          <el-button
-            v-if="!readOnly && !reviewMode"
-            link
-            type="primary"
-            :loading="drafting"
-            @click="genDraft"
-          >一键生成草稿</el-button>
+          <el-button v-if="!readOnly && !reviewMode" link type="primary" :loading="drafting" @click="genDraft">一键生成草稿</el-button>
         </div>
         <el-form label-position="top">
           <el-form-item v-for="f in currentTemplate.fields" :key="f.key" :label="f.label">
-            <el-input
-              v-model="form.content[f.key]"
-              type="textarea"
-              :rows="3"
-              :disabled="readOnly"
-              :placeholder="readOnly ? '' : '请输入' + f.label"
-            />
+            <el-input v-model="form.content[f.key]" type="textarea" :rows="3" :disabled="readOnly"
+              :placeholder="readOnly ? '' : '请输入' + f.label" />
           </el-form-item>
         </el-form>
 
@@ -184,14 +222,7 @@
             </div>
             <div>{{ r.comment }}</div>
           </div>
-          <el-input
-            v-if="reviewMode"
-            v-model="reviewComment"
-            type="textarea"
-            :rows="2"
-            placeholder="填写批注"
-            class="mido-review__input"
-          />
+          <el-input v-if="reviewMode" v-model="reviewComment" type="textarea" :rows="2" placeholder="填写批注" class="mido-review__input" />
         </template>
 
         <!-- 提出跟进问题（已存在的简报可提） -->
@@ -199,7 +230,7 @@
           <el-divider>提出跟进问题</el-divider>
           <el-input v-model="issueContent" type="textarea" :rows="2" placeholder="待跟进的问题" />
           <div class="mido-issue__raise">
-            <el-select v-model="issueOwner" placeholder="负责人(默认自己)" clearable style="width: 200px">
+            <el-select v-model="issueOwner" placeholder="负责人(默认自己)" clearable class="bf__quick">
               <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
             </el-select>
             <el-button @click="raiseIssue">提出问题</el-button>
@@ -208,12 +239,7 @@
       </template>
       <template #footer>
         <el-button @click="drawerVisible = false">关闭</el-button>
-        <el-button
-          v-if="reviewMode"
-          type="primary"
-          :loading="saving"
-          @click="submitReview"
-        >提交批注</el-button>
+        <el-button v-if="reviewMode" type="primary" :loading="saving" @click="submitReview">提交批注</el-button>
         <template v-else-if="!readOnly">
           <el-button :loading="saving" @click="save(false)">保存草稿</el-button>
           <el-button type="primary" :loading="saving" @click="save(true)">提交</el-button>
@@ -224,9 +250,7 @@
     <!-- 添加自定义模板 -->
     <el-dialog v-model="templateDialogVisible" title="添加模板" width="480px">
       <el-form label-width="80px">
-        <el-form-item label="名称">
-          <el-input v-model="tplForm.name" placeholder="模板名称" />
-        </el-form-item>
+        <el-form-item label="名称"><el-input v-model="tplForm.name" placeholder="模板名称" /></el-form-item>
         <el-form-item label="类型">
           <el-select v-model="tplForm.type" style="width: 100%">
             <el-option label="日报" value="daily" />
@@ -258,48 +282,94 @@
         <el-button type="primary" @click="saveAssign">保存</el-button>
       </template>
     </el-dialog>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
+import ViewSwitcher from '@/components/ViewSwitcher.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, MoreFilled } from '@element-plus/icons-vue'
+import { Plus, MoreFilled, Search, ArrowDown } from '@element-plus/icons-vue'
 import { briefingApi } from '@/api/briefing'
 import { fetchMembers } from '@/api/org'
 import StatusTag from '@/components/StatusTag.vue'
 
-const menus = [
-  { key: 'submit', label: '提交简报' },
-  { key: 'daily', label: '我的日报' },
-  { key: 'weekly', label: '我的周报' },
-  { key: 'monthly', label: '我的月报' },
-  { key: 'review', label: '我评审的' },
-  { key: 'members', label: '成员简报' },
-  { key: 'issues', label: '跟进的问题' },
-  { key: 'stats', label: '简报统计' },
-]
 const ISSUE_STATUS = { open: '待处理', following: '跟进中', closed: '已关闭' }
-const MINE = ['daily', 'weekly', 'monthly']
+const TABS = ['all', 'submit', 'review', 'members', 'issues', 'stats']
+const TYPE_OPTIONS = [
+  { value: 'daily', label: '日报' },
+  { value: 'weekly', label: '周报' },
+  { value: 'monthly', label: '月报' },
+]
+const STATUS_OPTIONS = [
+  { value: 'draft', label: '草稿' },
+  { value: 'submitted', label: '已提交' },
+]
+const VIEWS = [
+  { value: 'list', label: '列表' },
+  { value: 'card', label: '卡片' },
+]
 
-const active = ref('submit')
+const route = useRoute()
+const activeTab = ref('all')
 const loading = ref(false)
 const templates = ref([])
-const myList = ref([])
 const members = ref([])
 const reviewees = ref([])
 const reviewList = ref([])
+const memberList = ref([])
 const issueList = ref([])
 const stats = ref(null)
 const statsType = ref('daily')
 const memberFilter = reactive({ authorId: null, type: null })
 
-const menuLabel = computed(() => menus.find((m) => m.key === active.value)?.label || '')
-const isMine = computed(() => MINE.includes(active.value))
 const revieweeMembers = computed(() => members.value.filter((m) => reviewees.value.includes(m.id)))
+
+// 全部（我的简报）：一次拉取全类型，类型/状态/关键字客户端筛选 + 视图/分页/排序
+const mineRows = ref([])
+const view = ref('list')
+const typeFilter = ref('')
+const statusFilter = ref('')
+const keyword = ref('')
+const page = ref(1)
+const size = ref(20)
+const sortProp = ref('periodKey')
+const sortOrder = ref('descending')
+const filteredMine = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  return mineRows.value.filter((r) => {
+    if (typeFilter.value && r.type !== typeFilter.value) return false
+    if (statusFilter.value && r.status !== statusFilter.value) return false
+    if (kw && !`${r.periodKey || ''}`.toLowerCase().includes(kw)) return false
+    return true
+  })
+})
+const total = computed(() => filteredMine.value.length)
+const sortedMine = computed(() => {
+  const arr = [...filteredMine.value]
+  if (!sortProp.value) return arr
+  const dir = sortOrder.value === 'ascending' ? 1 : -1
+  return arr.sort((a, b) => compareBy(a, b, sortProp.value) * dir)
+})
+const pagedMine = computed(() => sortedMine.value.slice((page.value - 1) * size.value, page.value * size.value))
+function compareBy(a, b, prop) {
+  const va = a[prop]
+  const vb = b[prop]
+  if (va == null && vb == null) return 0
+  if (va == null) return -1
+  if (vb == null) return 1
+  return String(va).localeCompare(String(vb)) // periodKey/submittedAt 字典序即可
+}
+function onSortChange({ prop, order }) {
+  sortProp.value = order ? prop : 'periodKey'
+  sortOrder.value = order || 'descending'
+  page.value = 1
+}
+watch([typeFilter, statusFilter, keyword], () => { page.value = 1 })
 
 function typeShort(type) {
   return { daily: '日', weekly: '周', monthly: '月' }[type] || '报'
@@ -315,25 +385,40 @@ function fmt(t) {
   return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : ''
 }
 
-async function selectMenu(key) {
-  active.value = key
-  if (isMine.value) {
-    await loadMine(key)
-  } else if (key === 'review') {
-    await loadReviewList()
-  } else if (key === 'members') {
-    reviewees.value = await briefingApi.reviewees()
-    memberFilter.authorId = null
-    memberFilter.type = null
-    await loadReviewList()
-  } else if (key === 'issues') {
-    await loadIssues()
-  } else if (key === 'stats') {
-    statsType.value = 'daily'
-    await loadStats()
+// ===== 各 tab 数据加载 =====
+async function loadAllMine() {
+  loading.value = true
+  try {
+    mineRows.value = await briefingApi.listMine(null) || []
+  } finally {
+    loading.value = false
   }
 }
-
+async function loadReview() {
+  loading.value = true
+  try {
+    reviewList.value = await briefingApi.review(null) || []
+  } finally {
+    loading.value = false
+  }
+}
+async function loadMembersTab() {
+  loading.value = true
+  try {
+    if (!reviewees.value.length) reviewees.value = await briefingApi.reviewees() || []
+    memberList.value = await briefingApi.members(memberFilter.type, memberFilter.authorId) || []
+  } finally {
+    loading.value = false
+  }
+}
+async function loadIssues() {
+  loading.value = true
+  try {
+    issueList.value = await briefingApi.listIssues(null) || []
+  } finally {
+    loading.value = false
+  }
+}
 async function loadStats() {
   loading.value = true
   try {
@@ -342,41 +427,26 @@ async function loadStats() {
     loading.value = false
   }
 }
-
-async function loadIssues() {
-  loading.value = true
-  try {
-    issueList.value = await briefingApi.listIssues(null)
-  } finally {
-    loading.value = false
-  }
-}
-
 async function changeIssueStatus(row, status) {
   await briefingApi.updateIssueStatus(row.id, status)
   ElMessage.success('已更新')
   await loadIssues()
 }
 
-async function loadReviewList() {
-  loading.value = true
-  try {
-    reviewList.value = active.value === 'members'
-      ? await briefingApi.members(memberFilter.type, memberFilter.authorId)
-      : await briefingApi.review(null)
-  } finally {
-    loading.value = false
-  }
+// tab → 数据加载（顶部导航 router.push(?tab=) 驱动 route.query.tab → activeTab）
+function onTab(t) {
+  if (t === 'all') loadAllMine()
+  else if (t === 'review') loadReview()
+  else if (t === 'members') loadMembersTab()
+  else if (t === 'issues') loadIssues()
+  else if (t === 'stats') loadStats()
 }
-
-async function loadMine(type) {
-  loading.value = true
-  try {
-    myList.value = await briefingApi.listMine(type)
-  } finally {
-    loading.value = false
-  }
-}
+const normalizeTab = (t) => (TABS.includes(t) ? t : 'all')
+watch(() => route.query.tab, (t) => {
+  const nt = normalizeTab(t)
+  activeTab.value = nt
+  onTab(nt)
+}, { immediate: true })
 
 // ===== 填报 =====
 const drawerVisible = ref(false)
@@ -415,6 +485,10 @@ function openNew(template) {
   reviews.value = []
   drawerVisible.value = true
 }
+function openNewById(id) {
+  const tpl = templates.value.find((t) => t.id === id)
+  if (tpl) openNew(tpl)
+}
 
 async function loadBriefingIntoForm(row, asReviewer) {
   const tpl = templates.value.find((t) => t.id === row.templateId)
@@ -438,11 +512,9 @@ async function loadBriefingIntoForm(row, asReviewer) {
   drawerVisible.value = true
   return true
 }
-
 function openExisting(row) {
   loadBriefingIntoForm(row, false)
 }
-
 function openReviewItem(row) {
   loadBriefingIntoForm(row, true)
 }
@@ -511,9 +583,7 @@ async function save(submit) {
       ElMessage.success('已保存草稿')
     }
     drawerVisible.value = false
-    if (active.value !== 'submit') {
-      await loadMine(active.value)
-    }
+    if (activeTab.value === 'all') await loadAllMine()
   } finally {
     saving.value = false
   }
@@ -575,69 +645,97 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.mido-briefing-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+/* 顶部导航(WorkspaceShell)已提供 tab 切换，隐藏 el-tabs 自带头避免双层 */
+.bf__tabs--headless :deep(.el-tabs__header) {
+  display: none;
 }
-.mido-briefing {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  /* 与全站一致的「白卡浮于灰底」外框（对齐 el-card 视觉）：此前缺外框，整块边到边显得扁平、与其他页对比突兀 */
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--mido-radius-md);
-  overflow: hidden;
-}
-.mido-briefing__side {
-  width: 200px;
-  border-right: 1px solid var(--el-border-color-lighter);
-  padding: 16px 8px;
-  flex-shrink: 0;
-}
-.mido-briefing__title {
-  font-size: 16px;
-  font-weight: 600;
-  padding: 0 12px 12px;
-}
-.mido-briefing__menu {
-  padding: 10px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--el-text-color-regular);
-}
-.mido-briefing__menu:hover {
-  background: var(--mido-hover-bg);
-}
-.mido-briefing__menu.is-active {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  font-weight: 600;
-}
-.mido-briefing__main {
-  flex: 1;
-  padding: 16px 24px;
-  overflow-y: auto;
-}
-.mido-briefing__head {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-.mido-briefing__cards {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.mido-card {
-  width: 220px;
+.bf__bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 16px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
+  justify-content: space-between;
+  gap: var(--mido-space-3);
+  margin-bottom: var(--mido-space-4);
+}
+.bf__bar-right {
+  display: flex;
+  gap: var(--mido-space-2);
+}
+.bf__quick {
+  width: calc(var(--mido-nav-width) * 0.7);
+}
+.bf__search {
+  width: var(--mido-nav-width);
+}
+.bf__pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mido-space-4);
+}
+.bf__stats-total {
+  margin-bottom: var(--mido-space-3);
+}
+/* 卡片视图：自适应网格 */
+.bf__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mido-space-4);
+}
+.bf__card {
+  width: calc(var(--mido-nav-width) * 1.1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-4);
+  border: var(--mido-border-width) solid var(--el-border-color-light);
+  border-radius: var(--mido-radius-md);
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.bf__card:hover {
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
+}
+.bf__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bf__card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--mido-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-color-white);
+  font-weight: var(--mido-font-weight-bold);
+}
+.bf__card-icon.is-daily {
+  background: var(--mido-brief-daily);
+}
+.bf__card-icon.is-weekly {
+  background: var(--mido-brief-weekly);
+}
+.bf__card-icon.is-monthly {
+  background: var(--mido-brief-monthly);
+}
+.bf__card-period {
+  font-weight: var(--mido-font-weight-bold);
+}
+.bf__card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* 模板卡（提交简报） */
+.mido-card {
+  width: calc(var(--mido-nav-width) * 1.1);
+  display: flex;
+  align-items: center;
+  gap: var(--mido-space-3);
+  padding: var(--mido-space-4);
+  border: var(--mido-border-width) solid var(--el-border-color-light);
+  border-radius: var(--mido-radius-md);
   cursor: pointer;
 }
 .mido-card:hover {
@@ -647,12 +745,12 @@ onMounted(async () => {
 .mido-card__icon {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--mido-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--el-color-white);
-  font-weight: 600;
+  font-weight: var(--mido-font-weight-bold);
 }
 .mido-card__icon.is-daily {
   background: var(--mido-brief-daily);
@@ -664,47 +762,39 @@ onMounted(async () => {
   background: var(--mido-brief-monthly);
 }
 .mido-card__name {
-  font-size: 15px;
   flex: 1;
 }
 .mido-card__more {
   color: var(--el-text-color-secondary);
 }
-.mido-briefing__headrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 .mido-tpl__field {
   display: flex;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: var(--mido-space-2);
+  margin-bottom: var(--mido-space-2);
   width: 100%;
 }
 .mido-briefing__period {
-  margin-bottom: 12px;
+  margin-bottom: var(--mido-space-3);
   color: var(--el-text-color-secondary);
-}
-.mido-briefing__filter {
   display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: var(--mido-space-2);
 }
 .mido-review {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: var(--mido-space-2) 0;
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-lighter);
 }
 .mido-review__meta {
-  font-size: 12px;
+  font-size: var(--mido-font-size-caption);
   color: var(--el-text-color-secondary);
-  margin-bottom: 4px;
+  margin-bottom: var(--mido-space-1);
 }
 .mido-review__input {
-  margin-top: 12px;
+  margin-top: var(--mido-space-3);
 }
 .mido-issue__raise {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--mido-space-2);
+  margin-top: var(--mido-space-2);
 }
 </style>

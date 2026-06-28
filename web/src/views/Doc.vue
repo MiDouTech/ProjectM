@@ -2,6 +2,10 @@
   <div class="mido-page doc">
     <WorkspaceShell module="doc" />
 
+    <div class="doc__back">
+      <el-link type="primary" :underline="false" :icon="ArrowLeft" @click="router.push('/doc')">全部文档</el-link>
+    </div>
+
     <div class="doc__body" v-loading="projLoading">
       <!-- 左：我参与的项目 -->
       <el-card shadow="never" class="doc__side">
@@ -226,9 +230,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Folder, Document, Plus, EditPen, Delete, Check, Clock, Upload, Paperclip,
-  Search, Star, StarFilled, Download, ArrowDown, Lock, Share, CopyDocument } from '@element-plus/icons-vue'
+  Search, Star, StarFilled, Download, ArrowDown, ArrowLeft, Lock, Share, CopyDocument } from '@element-plus/icons-vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import DocEditor from '@/components/DocEditor.vue'
@@ -240,6 +245,8 @@ import { roleApi } from '@/api/org'
 import { docApi } from '@/api/doc'
 import { toHtml, toMarkdown, downloadText } from '@/utils/tiptap'
 
+const route = useRoute()
+const router = useRouter()
 const treeProps = { label: 'title', children: 'children' }
 
 const projLoading = ref(false)
@@ -631,13 +638,42 @@ async function copyShare() {
   }
 }
 
+// 在已加载的树里按 id 递归查节点（下钻打开指定文档时定位其真实 type）
+function findNode(nodes, id) {
+  for (const n of nodes || []) {
+    if (n.id === id) return n
+    const hit = findNode(n.children, id)
+    if (hit) return hit
+  }
+  return null
+}
+
+// 选中项目并（可选）打开指定文档：从「全部文档」下钻 /doc/kb?projectId=&doc= 时使用
+async function openProjectDoc(projectId, docId) {
+  activeId.value = Number(projectId)
+  current.value = null
+  title.value = ''
+  content.value = null
+  kw.value = ''
+  results.value = []
+  loadMembers()
+  await loadTree()
+  if (docId) {
+    const node = findNode(tree.value, Number(docId))
+    if (node) openNode(node)
+  }
+}
+
 onMounted(async () => {
   projLoading.value = true
   try {
     docApi.templates().then((t) => { templates.value = t || [] }).catch(() => {})
     roleApi.list().then((r) => { roles.value = r || [] }).catch(() => {})
     projects.value = await projectApi.mine() || []
-    if (projects.value.length) selectProject(projects.value[0].id)
+    // 优先按下钻入参定位项目，否则回落首个项目
+    const qpid = route.query.projectId ? Number(route.query.projectId) : null
+    const target = (qpid && projects.value.some((p) => p.id === qpid)) ? qpid : projects.value[0]?.id
+    if (target) await openProjectDoc(target, route.query.doc)
   } finally {
     projLoading.value = false
   }
@@ -647,6 +683,9 @@ onMounted(async () => {
 <style scoped>
 .doc__sub {
   margin: calc(-1 * var(--mido-space-2)) 0 var(--mido-space-4);
+}
+.doc__back {
+  margin-bottom: var(--mido-space-3);
 }
 .doc__body {
   display: flex;
