@@ -8,6 +8,7 @@ import com.mido.pm.common.security.UserContext;
 import com.mido.pm.doc.dto.AttachmentVO;
 import com.mido.pm.doc.dto.DocCreateDTO;
 import com.mido.pm.doc.dto.DocDetailVO;
+import com.mido.pm.doc.dto.DocListVO;
 import com.mido.pm.doc.dto.DocMoveDTO;
 import com.mido.pm.doc.dto.DocNodeVO;
 import com.mido.pm.doc.dto.DocRenameDTO;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -400,6 +402,44 @@ public class DocService {
                         .eq(PmDoc::getProjectId, projectId).eq(PmDoc::getTrashed, 0)
                         .in(PmDoc::getId, docIds))
                 .stream().map(d -> new DocSearchVO(d.getId(), d.getType(), d.getTitle(), null)).toList();
+    }
+
+    /**
+     * 全局文档列表（文档中心首页「全部文档」）：跨入参 projectIds（前端传我参与的项目）扁平列出未回收文档。
+     * 默认仅文档/文件（不含目录 folder）；type 指定时按类型过滤；keyword 按标题包含过滤（轻量，全文留搜索接口）。
+     * 经 ACL 过滤仅返回当前用户可读节点；按更新时间倒序。tenant 由拦截器注入，不手写租户条件、不跨域查表。
+     */
+    public List<DocListVO> listAcrossProjects(List<Long> projectIds, String type, String keyword) {
+        if (projectIds == null || projectIds.isEmpty()) {
+            return List.of();
+        }
+        var query = Wrappers.<PmDoc>lambdaQuery()
+                .in(PmDoc::getProjectId, projectIds)
+                .eq(PmDoc::getTrashed, 0);
+        if (type != null && !type.isBlank()) {
+            query.eq(PmDoc::getType, type);
+        }
+        List<PmDoc> docs = docMapper.selectList(query.orderByDesc(PmDoc::getUpdateTime));
+        Set<Long> readable = aclService.readableDocIds(docs);
+        Set<Long> favIds = new HashSet<>(favoriteMapper.selectList(Wrappers.<PmDocFavorite>lambdaQuery()
+                        .eq(PmDocFavorite::getUserId, currentUserId()))
+                .stream().map(PmDocFavorite::getDocId).toList());
+        String kw = keyword == null ? "" : keyword.trim().toLowerCase();
+        List<DocListVO> result = new ArrayList<>();
+        for (PmDoc d : docs) {
+            if (!readable.contains(d.getId())) {
+                continue;
+            }
+            if ((type == null || type.isBlank()) && PmDoc.TYPE_FOLDER.equals(d.getType())) {
+                continue; // 列表默认不含目录节点
+            }
+            if (!kw.isEmpty() && !(d.getTitle() != null && d.getTitle().toLowerCase().contains(kw))) {
+                continue;
+            }
+            result.add(new DocListVO(d.getId(), d.getProjectId(), d.getType(), d.getTitle(),
+                    d.getUpdateBy(), d.getUpdateTime(), favIds.contains(d.getId())));
+        }
+        return result;
     }
 
     private boolean isFavorited(Long docId) {
