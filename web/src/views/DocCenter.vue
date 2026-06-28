@@ -12,6 +12,9 @@
         <el-select v-model="typeFilter" clearable placeholder="全部类型" class="dc__quick">
           <el-option v-for="t in TYPE_OPTIONS" :key="t.value" :label="t.label" :value="t.value" />
         </el-select>
+        <el-select v-model="sourceFilter" clearable placeholder="全部来源" class="dc__quick">
+          <el-option v-for="s in SOURCE_OPTIONS" :key="s.value" :label="s.label" :value="s.value" />
+        </el-select>
         <el-select v-model="favFilter" placeholder="收藏" class="dc__quick">
           <el-option label="全部" value="" />
           <el-option label="已收藏" value="fav" />
@@ -43,6 +46,9 @@
         <el-table-column label="类型" width="90">
           <template #default="{ row }">{{ typeLabel(row.type) }}</template>
         </el-table-column>
+        <el-table-column label="来源" width="100">
+          <template #default="{ row }">{{ sourceLabel(row) }}</template>
+        </el-table-column>
         <el-table-column label="更新人" width="110">
           <template #default="{ row }">{{ userName(members, row.updateBy) }}</template>
         </el-table-column>
@@ -56,7 +62,7 @@
 
       <!-- 卡片视图 -->
       <div v-else class="dc__cards">
-        <div v-for="row in pagedRows" :key="row.id" class="dc__card" @click="openDoc(row)">
+        <div v-for="row in pagedRows" :key="`${row.source}-${row.id}`" class="dc__card" @click="openDoc(row)">
           <div class="dc__card-top">
             <span class="dc__title">
               <el-icon class="dc__icon"><component :is="typeIcon(row.type)" /></el-icon>
@@ -94,6 +100,7 @@ import CategoryBadge from '@/components/CategoryBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { projectApi } from '@/api/project'
 import { docApi } from '@/api/doc'
+import { attachmentApi } from '@/api/attachment'
 import { fetchMembers } from '@/api/org'
 import { userName } from '@/utils/display'
 
@@ -107,6 +114,11 @@ const TYPE_OPTIONS = [
   { value: 'doc', label: '文档' },
   { value: 'file', label: '文件' },
 ]
+const SOURCE_OPTIONS = [
+  { value: 'doc', label: '知识库文档' },
+  { value: 'attachment', label: '项目文件' },
+]
+const ENTITY_LABEL = { project: '项目', task: '任务', cost: '费用' }
 
 const loading = ref(false)
 const projects = ref([])
@@ -116,6 +128,7 @@ const rows = ref([]) // 跨项目全部可读文档（一次拉取，客户端�
 const view = ref('list')
 const projectFilter = ref('')
 const typeFilter = ref('')
+const sourceFilter = ref('')
 const favFilter = ref('')
 const keyword = ref('')
 const page = ref(1)
@@ -127,6 +140,9 @@ const projectMap = computed(() => Object.fromEntries(projects.value.map((p) => [
 const projectName = (id) => projectMap.value[id]?.name || (id ? `项目#${id}` : '—')
 const typeLabel = (t) => (t === 'file' ? '文件' : t === 'folder' ? '目录' : '文档')
 const typeIcon = (t) => (t === 'file' ? Paperclip : t === 'folder' ? Folder : Document)
+const sourceLabel = (row) => (row.source === 'attachment'
+  ? (ENTITY_LABEL[row.entityType] ? `${ENTITY_LABEL[row.entityType]}附件` : '项目文件')
+  : '知识库')
 const fmtTime = (v) => (v ? String(v).replace('T', ' ').slice(0, 16) : '—')
 const emptyText = computed(() => (!projects.value.length
   ? '你尚未参与任何项目'
@@ -137,6 +153,7 @@ const filteredRows = computed(() => {
   return rows.value.filter((r) => {
     if (projectFilter.value && r.projectId !== projectFilter.value) return false
     if (typeFilter.value && r.type !== typeFilter.value) return false
+    if (sourceFilter.value && r.source !== sourceFilter.value) return false
     if (favFilter.value === 'fav' && !r.favorited) return false
     if (kw && !`${r.title || ''}`.toLowerCase().includes(kw)) return false
     return true
@@ -164,10 +181,15 @@ function onSortChange({ prop, order }) {
   sortOrder.value = order || 'descending'
   page.value = 1
 }
-watch([projectFilter, typeFilter, favFilter, keyword], () => { page.value = 1 })
+watch([projectFilter, typeFilter, sourceFilter, favFilter, keyword], () => { page.value = 1 })
 
-// 点行下钻：进入该项目知识库工作区并自动选中该文档
-function openDoc(row) {
+// 点行：知识库文档下钻进项目知识库并选中；项目文件（附件）取限时预签名 URL 后下载
+async function openDoc(row) {
+  if (row.source === 'attachment') {
+    const url = await attachmentApi.downloadUrl(row.id)
+    if (url) window.open(url, '_blank')
+    return
+  }
   router.push({ path: '/doc/kb', query: { projectId: row.projectId, doc: row.id } })
 }
 
