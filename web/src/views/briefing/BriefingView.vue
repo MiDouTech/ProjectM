@@ -68,7 +68,7 @@
                 <span>{{ row.submittedAt ? fmt(row.submittedAt) : '草稿' }}</span>
               </div>
             </div>
-            <EmptyState v-if="!pagedMine.length"
+            <EmptyState v-if="!pagedMine.length" class="bf__cards-empty"
               :description="mineRows.length ? '无符合筛选的简报' : '暂无简报，点右上「写简报」'" :image-size="60" />
           </div>
 
@@ -679,6 +679,10 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--mido-space-4);
+}
+/* 卡片视图空态：占满整行并居中，避免被 flex 挤在左侧小框（与列表视图一致） */
+.bf__cards-empty {
+  width: 100%;
 }
 .bf__card {
   width: calc(var(--mido-nav-width) * 1.1);

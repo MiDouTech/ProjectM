@@ -4,12 +4,12 @@
     <!-- 顶部工具条 -->
     <div class="mido-calendar__bar">
       <div class="mido-calendar__nav">
-        <el-radio-group v-model="viewMode" size="small">
+        <el-radio-group v-model="viewMode">
           <el-radio-button value="month">月</el-radio-button>
           <el-radio-button value="week">周</el-radio-button>
           <el-radio-button value="day">日</el-radio-button>
         </el-radio-group>
-        <el-button-group size="small">
+        <el-button-group>
           <el-button @click="shift(-1)">上一{{ unitLabel }}</el-button>
           <el-button @click="goToday">今天</el-button>
           <el-button @click="shift(1)">下一{{ unitLabel }}</el-button>
@@ -22,7 +22,6 @@
         collapse-tags
         clearable
         placeholder="成员忙闲"
-        size="small"
         style="width: 180px"
       >
         <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
@@ -148,7 +147,7 @@
     </div>
 
     <!-- 新建/编辑 抽屉 -->
-    <el-drawer v-model="formVisible" :title="form.id ? '编辑日程' : '新建日程'" size="480px">
+    <el-drawer v-model="formVisible" :title="form.id ? '编辑日程' : '新建日程'" size="var(--mido-drawer-width)">
       <el-form :model="form" label-position="top">
         <el-form-item label="标题" required>
           <el-input v-model="form.title" placeholder="请输入日程标题" />
@@ -705,25 +704,25 @@ onMounted(async () => {
 
 <style scoped>
 .mido-calendar {
-  padding: 16px;
+  padding: var(--mido-space-4);
 }
 .mido-calendar__bar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: var(--mido-space-4);
+  margin-bottom: var(--mido-space-3);
 }
 .mido-calendar__title {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 16px;
+  font-size: var(--mido-font-size-h2);
   font-weight: 600;
 }
 .mido-calendar__nav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--mido-space-3);
   flex: 1;
 }
 .mido-calendar__period {
@@ -732,20 +731,20 @@ onMounted(async () => {
 }
 .mido-calendar__body {
   background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: var(--mido-border-width) solid var(--el-border-color-lighter);
+  border-radius: var(--mido-radius-md);
   min-height: 60vh;
 }
 .mido-month__head {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-lighter);
 }
 .mido-month__head span {
-  padding: 8px;
+  padding: var(--mido-space-2);
   text-align: center;
   color: var(--el-text-color-secondary);
-  font-size: 13px;
+  font-size: var(--mido-font-size-secondary);
 }
 .mido-month__grid {
   display: grid;
@@ -753,8 +752,8 @@ onMounted(async () => {
 }
 .mido-month__cell {
   min-height: 100px;
-  border-right: 1px solid var(--el-border-color-lighter);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-right: var(--mido-border-width) solid var(--el-border-color-lighter);
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-lighter);
   padding: 4px 6px;
   cursor: pointer;
 }
@@ -765,7 +764,7 @@ onMounted(async () => {
   color: var(--el-text-color-disabled);
 }
 .mido-month__date {
-  font-size: 13px;
+  font-size: var(--mido-font-size-secondary);
   text-align: right;
 }
 .mido-month__cell.is-today .mido-month__date {
@@ -775,8 +774,8 @@ onMounted(async () => {
 .mido-event {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: var(--mido-space-1);
+  font-size: var(--mido-font-size-caption);
   padding: 1px 2px;
   border-radius: 3px;
   cursor: pointer;
@@ -812,22 +811,22 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 .mido-list__day {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: var(--mido-space-3) var(--mido-space-4);
+  border-bottom: var(--mido-border-width) solid var(--el-border-color-lighter);
 }
 .mido-list__date {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: var(--mido-space-2);
 }
 .mido-list__date.is-today {
   color: var(--el-color-primary);
 }
 .mido-list__empty {
   color: var(--el-text-color-secondary);
-  font-size: 13px;
+  font-size: var(--mido-font-size-secondary);
 }
 .mido-detail__title {
-  margin: 0 0 8px;
+  margin: 0 0 var(--mido-space-2);
 }
 .mido-detail__time {
   color: var(--el-text-color-secondary);
@@ -838,25 +837,25 @@ onMounted(async () => {
 .mido-detail__pt {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-1) 0;
 }
 .mido-detail__rsvp {
   display: flex;
-  gap: 8px;
+  gap: var(--mido-space-2);
 }
 .mido-slots {
-  margin-top: 12px;
+  margin-top: var(--mido-space-3);
   max-height: 240px;
   overflow-y: auto;
 }
 .mido-slot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
+  gap: var(--mido-space-2);
+  padding: var(--mido-space-2) var(--mido-space-3);
+  border: var(--mido-border-width) solid var(--el-border-color-lighter);
+  border-radius: var(--mido-radius-sm);
   margin-bottom: 6px;
   cursor: pointer;
 }

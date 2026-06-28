@@ -27,9 +27,7 @@
       </el-table-column>
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'active' ? 'success' : 'info'" effect="plain" disable-transitions>
-            {{ row.status === 'active' ? '启用' : '停用' }}
-          </el-tag>
+          <StatusTag :status="row.status" :label="row.status === 'active' ? '启用' : '停用'" />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="180">
@@ -104,6 +102,7 @@ import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { projectTypeApi, approvalFlowApi, PROJECT_TYPE_COLORS } from '@/api/project'
 import ColorDot from '@/components/ColorDot.vue'
+import StatusTag from '@/components/StatusTag.vue'
 
 // 内置种子类型标识（仅用于「内置」徽章展示；这些类型同样可改名/改色/停用）
 const BUILTIN_TYPE_CODES = new Set(['S', 'I', 'O', 'O_NORMAL', 'O_RECTIFY', 'O_SPECIAL'])

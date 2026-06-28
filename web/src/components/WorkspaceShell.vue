@@ -88,6 +88,9 @@ load()
 }
 .wsh__actions {
   flex: none;
+  /* 无 L2 子导航时 actions 是唯一子元素，space-between 会把它排到左侧；
+     margin-left:auto 确保操作按钮始终稳居右上（有/无 L2 均如此）。 */
+  margin-left: auto;
 }
 .wsh-sub {
   display: flex;

@@ -62,7 +62,10 @@ body {
 .el-input__inner:focus-visible,
 .el-textarea__inner:focus-visible,
 .el-input__wrapper:focus-visible,
-.el-select__wrapper:focus-visible {
+.el-select__wrapper:focus-visible,
+/* filterable 下拉内部输入框/选择区：单独可聚焦，漏豁免会在外层描边内再叠一层焦点环（内框） */
+.el-select__input:focus-visible,
+.el-select__selection:focus-visible {
   outline: none;
 }
 .el-input__wrapper.is-focus,
