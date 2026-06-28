@@ -15,8 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * NPSS 评价方式设置——项目级评价主体（成员即干系人）。未配置时 GET 返回按启用模板派生的草稿，供前端预填。
- * 整组提交（replace-all），保存即校验权重合计=100%、受益方≥50%、每个主体≥1 成员。
+ * NPSS 评价方式设置——项目级评价主体成员配置。主体名称/权重/受益方为租户级统一配置（项目内只读，
+ * 见管理后台模板），此处仅按主体配置各自成员（干系人）。GET 返回租户启用模板 + 项目已配成员；
+ * PUT 整组提交（replace-all），仅校验每个主体≥1 成员、干系人不跨主体。
  */
 @RestController
 @RequestMapping("/api/v1/npss/projects/{projectId}/subjects")
