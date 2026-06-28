@@ -82,6 +82,8 @@ export const approvalApi = {
   mine: () => request.get('/approvals/mine'),
   // 我发起的（审批中心）：我提交的审批实例，跨 bizType、任意状态
   mineInitiated: () => request.get('/approvals/mine-initiated'),
+  // 与我相关的全部审批（审批中心「全部」列表）：我发起 ∪ 待我处理 ∪ 我已处理，带角色标记
+  mineAll: () => request.get('/approvals/mine-all'),
   // bizType 字典（单一信息源）：[{ value, label }]，供筛选下拉与审批流设计器
   bizTypes: () => request.get('/approvals/biz-types'),
 }

@@ -23,8 +23,7 @@ public final class WorkspaceCatalog {
             "goal", List.of(
                     new ComponentDef("goals", "goal", "目标", "Aim", "/goal", "list")),
             "approval", List.of(
-                    new ComponentDef("approval-todo", "approval", "待我审批", "Stamp", "/approval", "list"),
-                    new ComponentDef("approval-initiated", "approval", "我发起的", "Promotion", "/approval?tab=initiated", "list"),
+                    new ComponentDef("approval-all", "approval", "全部", "Stamp", "/approval", "list"),
                     new ComponentDef("change-ledger", "approval", "变更台账", "Tickets", "/approval?tab=change", "list")),
             "report", List.of(
                     new ComponentDef("report", "report", "报表", "DataAnalysis", "/report", "custom")),
