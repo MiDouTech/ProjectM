@@ -4,12 +4,12 @@
     <!-- 顶部工具条 -->
     <div class="mido-calendar__bar">
       <div class="mido-calendar__nav">
-        <el-radio-group v-model="viewMode" size="small">
+        <el-radio-group v-model="viewMode">
           <el-radio-button value="month">月</el-radio-button>
           <el-radio-button value="week">周</el-radio-button>
           <el-radio-button value="day">日</el-radio-button>
         </el-radio-group>
-        <el-button-group size="small">
+        <el-button-group>
           <el-button @click="shift(-1)">上一{{ unitLabel }}</el-button>
           <el-button @click="goToday">今天</el-button>
           <el-button @click="shift(1)">下一{{ unitLabel }}</el-button>
@@ -22,7 +22,6 @@
         collapse-tags
         clearable
         placeholder="成员忙闲"
-        size="small"
         style="width: 180px"
       >
         <el-option v-for="m in members" :key="m.id" :label="m.name || m.username" :value="m.id" />
