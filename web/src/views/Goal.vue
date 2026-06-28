@@ -142,7 +142,7 @@
               <el-button link type="danger" @click="removeAlign(row)">解除</el-button>
             </template>
           </el-table-column>
-          <template #empty><el-empty description="暂无对齐" :image-size="50" /></template>
+          <template #empty><el-empty description="暂无对齐" :image-size="60" /></template>
         </el-table>
         <p class="goal__hint mido-text-secondary">
           权重用于多项目汇总到本 KR 时按贡献加权（默认 1=等权）；仅「自动汇总」开启的 KR 生效。
@@ -174,7 +174,7 @@
             </el-table-column>
           </el-table>
         </template>
-        <el-empty v-else description="本 KR 暂无对齐项目" :image-size="50" />
+        <el-empty v-else description="本 KR 暂无对齐项目" :image-size="60" />
       </div>
 
       <div class="goal__history">
@@ -187,7 +187,7 @@
           <el-table-column label="状态" width="90">
             <template #default="{ row }"><StatusTag :status="changeStatusLabel(row.status)" /></template>
           </el-table-column>
-          <template #empty><el-empty description="暂无变更" :image-size="50" /></template>
+          <template #empty><el-empty description="暂无变更" :image-size="60" /></template>
         </el-table>
       </div>
     </el-drawer>

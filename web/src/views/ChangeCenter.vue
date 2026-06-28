@@ -49,7 +49,7 @@
           <el-table-column label="字段" width="120" prop="label" />
           <el-table-column label="变更前"><template #default="{ row }"><span class="mido-mono">{{ row.before }}</span></template></el-table-column>
           <el-table-column label="变更后"><template #default="{ row }"><b class="mido-mono">{{ row.after }}</b></template></el-table-column>
-          <template #empty><el-empty description="无字段变更" :image-size="50" /></template>
+          <template #empty><el-empty description="无字段变更" :image-size="60" /></template>
         </el-table>
       </div>
 
