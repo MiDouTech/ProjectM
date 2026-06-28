@@ -184,15 +184,14 @@ function removeCard(id) {
 
 <style scoped>
 /* 品牌温度页头：浅色淡底 + 深色文字，弱化视觉权重（design-system §1.6 克制点睛、不抢注意力）*/
+/* 问候栏：纯标题行融入页面（不再用品牌色块，避免与「白卡浮于灰底」格格不入）；
+   去左右内边距使问候文字与下方卡片网格左对齐 */
 .wb__hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--mido-space-4);
-  padding: var(--mido-space-3) var(--mido-space-4);
   margin-bottom: var(--mido-space-4);
-  background: var(--mido-brand-surface);
-  border-radius: var(--mido-radius-lg);
 }
 .wb__greeting {
   display: flex;
