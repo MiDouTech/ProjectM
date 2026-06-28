@@ -88,6 +88,17 @@
 | 逾期 / 阻塞 / 失败 | danger | `danger` |
 | 已完成 / 已结案 / 成功 | success | `success` |
 
+### 1.6 品牌温度层（租户专属，全部派生，仅租户布局引用）
+
+租户端面向客户，在「专业克制」基线上叠加一薄层品牌温度，**全部由主色派生、零裸 hex、ops 不引用**。克制点睛：**仅用于页头/欢迎态/空态引导/主 CTA，不铺满工作区、不进数据密集区**。
+
+| Token | 取值来源（派生） | 用途 |
+|---|---|---|
+| `--mido-brand-gradient` | `linear-gradient(135°, --el-color-primary → --el-color-primary-light-3)` | 品牌渐变页头 / 欢迎态 / 空项目引导 |
+| `--mido-brand-surface` | = `--el-color-primary-light-9` | 引导卡 / 高亮区浅底 |
+
+> 温度边界：渐变上的文字需独立校验对比度（§9）；动效仅表达因果、尊重 `prefers-reduced-motion`；禁 emoji 当图标（§10-8）。
+
 ---
 
 ## 2. 排版 Typography
@@ -122,6 +133,19 @@
 | 层级 z-index | nav 1000 / 抽屉 2000 / 弹窗 2100 / 全局通知 3000 | 固定，禁随意取值 |
 
 > 交互元素（按钮/卡片/导航/行）状态切换统一走 `--mido-duration` + `--mido-ease`；可点击卡片加 `.mido-hoverable`（hover 抬升，自动尊重 `prefers-reduced-motion`）。
+
+### 3.1 密度档（全局基座，两端共享）
+
+界面密度分两档，由根节点 `data-density` 选择，组件按 `--mido-density-*` 取间距/行高，**页面不写死**。
+
+| 档位 | 适用 | Element 尺寸 | `--mido-density-line-height` | section / card / cell / control 间距 |
+|---|---|---|---|---|
+| `comfortable`（默认） | 租户端常规页（留白引导） | `default` | 1.6 | space-5 / 5 / 3 / 3 |
+| `compact` | 数据密集视图、运营后台 ops | `small` | 1.4 | space-4 / 3 / 2 / 2 |
+
+- **机制**：布局根节点注入 `data-density` + `<el-config-provider :size>`（联动 Element 组件尺寸）。租户端 `MainLayout` 默认 `comfortable`，顶栏提供切换并持久化（`localStorage: mido_density`）；ops `OpsLayout` 固定 `compact`。
+- **治理**：`compact` 档数值 = 原 `--mido-ops-*` 密度值，ops 零回归；密度 token 已由 ops 专属上移为全局 `--mido-density-*`，不再设 `--mido-ops-*` 密度 token。
+- **回归线**：`compact` 下控件点击热区 ≥32px；切换不引起布局抖动；金额/计数/ID 列 tabular 防跳列（§2）。
 
 ---
 
@@ -281,11 +305,11 @@
 - 深色侧导航（`--mido-ops-nav-bg`）＋ 浅色工作区（`--mido-ops-canvas`），operator console 经典范式。
 
 ### 11.2 ops token 叠加层（定义见 `tokens.css`）
-`--mido-ops-nav-bg/-nav-active/-canvas/-surface/-accent/-data/-neutral/-row-hover/-border`（颜色，均派生）；
-`--mido-ops-line-height-compact` 及 `--mido-ops-space-section/-card/-cell/-control`（密度，映射既有 `--mido-space-*`）。
+`--mido-ops-nav-bg/-nav-active/-canvas/-surface/-accent/-data/-neutral/-row-hover/-border`（颜色，均派生）。
+密度档已上移为全局 `--mido-density-*`（见 §3.1），ops 仅经根节点 `data-density="compact"` 选择 compact 档，不再单设 `--mido-ops-*` 密度 token。
 
 ### 11.3 密度档（compact）
-- 由 `OpsLayout` 注入：`<el-config-provider :size="small">`（全 Element 组件紧凑）＋ 根节点 `data-density="compact"`（CSS 钩子）。
+- 由 `OpsLayout` 注入：`<el-config-provider :size="small">`（全 Element 组件紧凑）＋ 根节点 `data-density="compact"`（CSS 钩子）；密度 token 取自全局 §3.1，ops 固定 compact 档。
 - 默认正文 13/14、表格行高 1.4、表格 small；金额/配额/用量/ID/IP 用 `.mido-mono` + tabular 右对齐。
 
 ### 11.4 ops 专属约定（继承上方全部硬约束，叠加）

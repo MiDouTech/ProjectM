@@ -105,9 +105,9 @@ body {
   white-space: nowrap;
 }
 
-/* ===== 运营后台 ops 层：compact 密度（design-system ops 层 P0）=====
-   密度档由 OpsLayout 的 data-density="compact" + el-config-provider size=small 注入。
-   此处仅补 CSS 钩子：数据表等宽数字，金额/计数/ID 列对齐不跳动；不动租户端。 */
+/* ===== 密度档 compact 的 CSS 钩子（全局基座，design-system §3）=====
+   compact 由 data-density="compact" + el-config-provider size=small 注入（ops 固定 compact，
+   租户端数据密集视图按需切换）。此处补表级钩子：数据表等宽数字，金额/计数/ID 列对齐不跳动。 */
 [data-density="compact"] .el-table {
   font-variant-numeric: tabular-nums;
 }
