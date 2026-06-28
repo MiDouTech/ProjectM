@@ -608,7 +608,7 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 .mido-briefing__menu:hover {
-  background: var(--el-fill-color-light);
+  background: var(--mido-hover-bg);
 }
 .mido-briefing__menu.is-active {
   background: var(--el-color-primary-light-9);

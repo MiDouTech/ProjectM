@@ -785,7 +785,7 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 .mido-event:hover {
-  background: var(--el-fill-color);
+  background: var(--mido-hover-bg);
 }
 .mido-event__dot {
   width: 6px;
@@ -861,6 +861,6 @@ onMounted(async () => {
   cursor: pointer;
 }
 .mido-slot:hover {
-  background: var(--el-fill-color-light);
+  background: var(--mido-hover-bg);
 }
 </style>

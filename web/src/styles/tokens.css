@@ -34,6 +34,9 @@
   --mido-nav-text: #C9D1E0;
   --mido-nav-text-active: #FFFFFF;
   --mido-nav-active-bg: #2A3B5C;
+  /* 中性 hover 唯一源：列表行/菜单项/可点项鼠标移过统一底色（= Element 列表行 hover）。
+     选中态品牌浅蓝、深色导航 hover 属不同语义，不收口于此。 */
+  --mido-hover-bg: var(--el-fill-color-light);
 
   /* ===== §1.4 项目类型色 S/I/O ===== */
   --mido-cat-s: #7C5CFF;

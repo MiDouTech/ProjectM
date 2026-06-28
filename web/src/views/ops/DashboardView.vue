@@ -180,7 +180,7 @@ onMounted(load)
   transition: background-color var(--mido-duration) var(--mido-ease);
 }
 .dist__row--click:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--mido-hover-bg);
 }
 .dist__head {
   display: flex;

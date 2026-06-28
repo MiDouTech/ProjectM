@@ -139,10 +139,10 @@ onMounted(() => {
   height: var(--mido-topbar-height);
   line-height: var(--mido-topbar-height);
 }
-/* hover 底色对齐下方列表行 hover（浅灰），不再用默认深灰块 */
+/* hover 底色收口到全局中性 hover token，与全站列表行 hover 一致 */
 .ash__menu :deep(.el-menu-item):not(.is-disabled):hover,
 .ash__menu :deep(.el-menu-item):not(.is-disabled):focus {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--mido-hover-bg);
 }
 /* 选中态：深底改为品牌浅蓝点睛，配合主色文字+底部主色描边，柔和不抢眼 */
 .ash__menu :deep(.el-menu-item.is-active),
