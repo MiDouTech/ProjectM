@@ -32,7 +32,12 @@ public final class WorkspaceCatalog {
             "calendar", List.of(
                     new ComponentDef("calendar", "calendar", "日历", "Calendar", "/calendar", "custom")),
             "briefing", List.of(
-                    new ComponentDef("briefing", "briefing", "简报", "Notebook", "/briefing", "list")));
+                    new ComponentDef("briefing-all", "briefing", "全部", "Notebook", "/briefing", "list"),
+                    new ComponentDef("briefing-submit", "briefing", "提交简报", "Document", "/briefing?tab=submit", "list"),
+                    new ComponentDef("briefing-review", "briefing", "我评审的", "Stamp", "/briefing?tab=review", "list"),
+                    new ComponentDef("briefing-members", "briefing", "成员简报", "Promotion", "/briefing?tab=members", "list"),
+                    new ComponentDef("briefing-issues", "briefing", "跟进的问题", "Tickets", "/briefing?tab=issues", "list"),
+                    new ComponentDef("briefing-stats", "briefing", "简报统计", "DataAnalysis", "/briefing?tab=stats", "list")));
 
     /** 默认导航顺序（=catalog 顺序，全部启用）。 */
     public static List<ComponentDef> catalog(String module) {
