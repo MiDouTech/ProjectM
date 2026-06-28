@@ -29,6 +29,11 @@
             <groupId>com.mido.pm</groupId>
             <artifactId>module-stakeholder</artifactId>
         </dependency>
+        <!-- 变更中心：租户级评价主体/权重修改走受控变更（默认免审直应用，可配审批） -->
+        <dependency>
+            <groupId>com.mido.pm</groupId>
+            <artifactId>module-change</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.mido.pm</groupId>
             <artifactId>provider</artifactId>
