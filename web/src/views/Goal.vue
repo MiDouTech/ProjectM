@@ -41,7 +41,9 @@
         </el-table-column>
         <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button link type="danger" @click.stop="remove(row)">删除</el-button>
+            <RowActions>
+              <el-button link type="danger" @click.stop="remove(row)">删除</el-button>
+            </RowActions>
           </template>
         </el-table-column>
         <template #empty>
@@ -224,6 +226,7 @@ import { Plus, EditPen } from '@element-plus/icons-vue'
 import GoalAlignTree from '@/components/GoalAlignTree.vue'
 import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import RowActions from '@/components/RowActions.vue'
 import G2Chart from '@/components/G2Chart.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserSelect from '@/components/UserSelect.vue'
