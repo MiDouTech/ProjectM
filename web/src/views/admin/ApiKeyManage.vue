@@ -24,8 +24,10 @@
       <el-table-column prop="createTime" label="创建时间" width="180" sortable />
       <el-table-column label="操作" width="160">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'active'" link type="primary" @click="revoke(row)">停用</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <RowActions>
+            <el-button v-if="row.status === 'active'" link type="primary" @click="revoke(row)">停用</el-button>
+            <el-button link type="danger" @click="remove(row)">删除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无 API Key，点击创建" /></template>
@@ -70,6 +72,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, CopyDocument } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import RowActions from '@/components/RowActions.vue'
 import { apiKeyApi } from '@/api/org'
 
 const loading = ref(false)

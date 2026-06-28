@@ -21,8 +21,10 @@
       </el-table-column>
       <el-table-column label="操作" width="160">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" :disabled="row.builtin === 1" @click="remove(row)">删除</el-button>
+          <RowActions>
+            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="danger" :disabled="row.builtin === 1" @click="remove(row)">删除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无项目角色，点击新建" /></template>
@@ -56,6 +58,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import RowActions from '@/components/RowActions.vue'
 import { projectRoleApi } from '@/api/project'
 
 const loading = ref(false)

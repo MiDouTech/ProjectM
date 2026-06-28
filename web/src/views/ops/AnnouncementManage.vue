@@ -28,8 +28,10 @@
       </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="remove(row)">删除</el-button>
+          <RowActions>
+            <el-button link type="primary" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="danger" :disabled="!ops.hasPerm('platform:announcement:manage')" @click="remove(row)">删除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无公告，点击新建" /></template>
@@ -80,6 +82,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import RowActions from '@/components/RowActions.vue'
 import { announcementApi, ANNOUNCEMENT_LEVEL_OPTIONS, ANNOUNCEMENT_STATUS_OPTIONS } from '@/api/ops'
 import { useOpsUserStore } from '@/store/opsUser'
 import { useClientTable } from '@/composables/useClientTable'

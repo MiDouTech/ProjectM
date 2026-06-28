@@ -156,8 +156,10 @@
         </el-table-column>
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button link type="primary" @click="restore(row)">恢复</el-button>
-            <el-button link type="danger" @click="purge(row)">彻底删除</el-button>
+            <RowActions>
+              <el-button link type="primary" @click="restore(row)">恢复</el-button>
+              <el-button link type="danger" @click="purge(row)">彻底删除</el-button>
+            </RowActions>
           </template>
         </el-table-column>
         <template #empty><el-empty description="回收站为空" :image-size="60" /></template>
@@ -193,7 +195,9 @@
         </el-table-column>
         <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button link type="danger" @click="revokeAcl(row)">撤销</el-button>
+            <RowActions>
+              <el-button link type="danger" @click="revokeAcl(row)">撤销</el-button>
+            </RowActions>
           </template>
         </el-table-column>
         <template #empty><el-empty description="未设置，默认项目成员可读写" :image-size="60" /></template>
@@ -230,6 +234,7 @@ import WorkspaceShell from '@/components/WorkspaceShell.vue'
 import DocEditor from '@/components/DocEditor.vue'
 import FilePreview from '@/components/FilePreview.vue'
 import CommentThread from '@/components/CommentThread.vue'
+import RowActions from '@/components/RowActions.vue'
 import { projectApi } from '@/api/project'
 import { roleApi } from '@/api/org'
 import { docApi } from '@/api/doc'

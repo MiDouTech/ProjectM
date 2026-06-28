@@ -27,9 +27,11 @@
       </el-table-column>
       <el-table-column label="操作" width="240">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openAssign(row)">分配角色</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <RowActions>
+            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="primary" @click="openAssign(row)">分配角色</el-button>
+            <el-button link type="danger" @click="remove(row)">删除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无成员，点击新建" /></template>
@@ -92,6 +94,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Connection } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import AvatarUpload from '@/components/AvatarUpload.vue'
+import RowActions from '@/components/RowActions.vue'
 import { userApi, roleApi, deptApi } from '@/api/org'
 import { attachmentApi } from '@/api/attachment'
 

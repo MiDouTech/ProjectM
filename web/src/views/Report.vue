@@ -116,6 +116,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import { reportApi } from '@/api/npss'
 import { projectApi } from '@/api/project'
 import { fetchMembers } from '@/api/org'
+import { chartColors, categoricalRange } from '@/utils/chartTheme'
 
 const CATEGORY_LABEL = { S: '战略级', I: '创新级', O: '运营级' }
 
@@ -145,19 +146,23 @@ const distData = computed(() =>
   })))
 const projectTotal = computed(() => distData.value.reduce((n, d) => n + d.count, 0))
 
+// 克制用色（design-system §7）：分类色板走 token 派生的有限色 + 柱顶直接数值标注（色 + 数双编码）
 const distOption = computed(() => ({
   type: 'interval',
   data: distData.value,
   encode: { x: 'type', y: 'count', color: 'type' },
+  scale: { color: { range: categoricalRange() } },
+  labels: [{ text: 'count', position: 'top', textBaseline: 'bottom' }],
   axis: { y: { title: '项目数' }, x: { title: null } },
   legend: false,
 }))
+// 单序列趋势 → 品牌主色（克制），描边 token 化
 const burndownOption = computed(() => ({
   type: 'line',
   data: burndownData.value,
   encode: { x: 'date', y: 'remaining' },
   axis: { y: { title: '剩余任务' }, x: { title: '截止日' } },
-  style: { lineWidth: 2 },
+  style: { lineWidth: 2, stroke: chartColors().primary || undefined },
 }))
 
 async function load() {

@@ -65,8 +65,10 @@
       </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="remove(row)">删除</el-button>
+          <RowActions>
+            <el-button link type="primary" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="danger" :disabled="!ops.hasPerm('platform:revenue:manage')" @click="remove(row)">删除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无收入记录" /></template>
@@ -126,6 +128,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
 import ErrorState from '@/components/ErrorState.vue'
+import RowActions from '@/components/RowActions.vue'
 import { revenueApi, tenantApi, REVENUE_TYPE_OPTIONS, REVENUE_TYPE } from '@/api/ops'
 import { useOpsUserStore } from '@/store/opsUser'
 import { exportCsv } from '@/utils/exportCsv'

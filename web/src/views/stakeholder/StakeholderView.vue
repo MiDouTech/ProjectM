@@ -43,13 +43,17 @@
                   :controls="false" size="small" class="sv__w" />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="110">
+            <el-table-column label="操作" width="120">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-                <el-button link type="danger" @click="remove(row)">删除</el-button>
+                <RowActions>
+                  <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+                  <el-button link type="danger" @click="remove(row)">删除</el-button>
+                </RowActions>
               </template>
             </el-table-column>
-            <template #empty><el-empty description="暂无干系人，点击右上角登记" /></template>
+            <template #empty>
+              <EmptyState description="暂无干系人" action-text="登记干系人" :action-icon="Plus" @action="openCreate" />
+            </template>
           </el-table>
 
           <!-- 权重硬校验提示（npss-rule §4：受益方≥50% 且 总和=100%） -->
@@ -135,6 +139,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import EmptyState from '@/components/EmptyState.vue'
+import RowActions from '@/components/RowActions.vue'
 import CategoryBadge from '@/components/CategoryBadge.vue'
 import PowerInterestMatrix from '@/components/PowerInterestMatrix.vue'
 import UserSelect from '@/components/UserSelect.vue'

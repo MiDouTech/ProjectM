@@ -1,5 +1,8 @@
 <template>
-  <div class="mido-layout">
+  <!-- 密度档（design-system §3）：根节点 data-density 供 CSS 钩子，el-config-provider 联动 Element 尺寸；
+       comfortable=租户默认（default 尺寸，零变化）/ compact=数据密集（small），用户可切并持久化。 -->
+  <el-config-provider :size="densityStore.elSize">
+  <div class="mido-layout" :data-density="densityStore.density">
     <!-- 顶栏 TopBar（design-system §4，高度走 --mido-topbar-height）-->
     <header class="mido-topbar">
       <div class="mido-topbar__brand">
@@ -14,6 +17,16 @@
       <!-- 二级导航并入顶栏中段（design-system §4）：各模块的 WorkspaceShell 经 Teleport 注入此处 -->
       <div id="mido-topbar-nav" class="mido-topbar__nav" />
       <div class="mido-topbar__actions">
+        <!-- 密度切换（design-system §3）：宽松/紧凑，持久化到本地，仅租户端 -->
+        <el-tooltip :content="densityStore.isCompact ? '当前紧凑，点击切换宽松' : '当前宽松，点击切换紧凑'"
+          placement="bottom">
+          <el-icon class="mido-topbar__icon" role="button" tabindex="0"
+            :aria-label="densityStore.isCompact ? '切换为宽松密度' : '切换为紧凑密度'"
+            @click="densityStore.toggle()" @keydown.enter="densityStore.toggle()"
+            @keydown.space.prevent="densityStore.toggle()">
+            <Operation />
+          </el-icon>
+        </el-tooltip>
         <!-- 统一消息入口：系统消息未读 + 未看平台公告，合并角标，点击进消息中心 -->
         <el-badge :value="totalUnread" :max="99" :hidden="!totalUnread" class="mido-topbar__bell">
           <el-icon class="mido-topbar__icon" role="button" tabindex="0"
@@ -88,15 +101,17 @@
       </template>
     </el-dialog>
   </div>
+  </el-config-provider>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Bell, Grid, Fold, Expand, Setting } from '@element-plus/icons-vue'
+import { Bell, Grid, Fold, Expand, Setting, Operation } from '@element-plus/icons-vue'
 import { navItems } from '@/router'
 import { useUserStore } from '@/store/user'
+import { useDensityStore } from '@/store/density'
 import { notificationApi } from '@/api/collab'
 import { userApi } from '@/api/org'
 import { attachmentApi } from '@/api/attachment'
@@ -106,6 +121,8 @@ import { unseenCount } from '@/utils/announcements'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+// 界面密度档（宽松/紧凑），持久化；驱动 data-density + Element 尺寸
+const densityStore = useDensityStore()
 // 高亮顶层导航（嵌套子路由如 /admin/members 也命中 /admin）
 const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'workbench'))
 

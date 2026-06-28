@@ -17,11 +17,13 @@
       </el-table-column>
       <el-table-column label="操作" width="400">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openPerms(row)">功能权限</el-button>
-          <el-button link type="primary" @click="openScopes(row)">数据范围</el-button>
-          <el-button link type="primary" @click="openFieldPerms(row)">字段权限</el-button>
-          <el-button link type="danger" :disabled="row.code === 'admin'" @click="remove(row)">删除</el-button>
+          <RowActions>
+            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="primary" @click="openPerms(row)">功能权限</el-button>
+            <el-button link type="primary" @click="openScopes(row)">数据范围</el-button>
+            <el-button link type="primary" @click="openFieldPerms(row)">字段权限</el-button>
+            <el-button link type="danger" :disabled="row.code === 'admin'" @click="remove(row)">删除</el-button>
+          </RowActions>
         </template>
       </el-table-column>
       <template #empty><el-empty description="暂无角色，点击新建" /></template>
@@ -112,6 +114,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import RowActions from '@/components/RowActions.vue'
 import { roleApi, deptApi, DATA_SCOPES, DATA_SCOPE_RESOURCES, FIELD_ACCESS, FIELD_PERM_RESOURCES } from '@/api/org'
 
 // 功能权限目录：中文分组呈现，屏蔽权限码技术细节。code 与后端 @PreAuthorize 对齐。
