@@ -98,6 +98,7 @@
   --mido-border-width: 1px;
   --mido-login-card-width: 360px;
   --mido-admin-nav-width: 180px;
+  --mido-add-card-width: 560px;
 
   /* ===== 密度档（全局基座，从 ops 上移；design-system §3）=====
      两档：comfortable（租户默认，留白，= 现有观感零变化）/ compact（数据密集视图、ops 默认）。
