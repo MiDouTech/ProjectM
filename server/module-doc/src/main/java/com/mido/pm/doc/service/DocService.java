@@ -405,9 +405,10 @@ public class DocService {
     }
 
     /**
-     * 全局文档列表（文档中心首页「全部文档」）：跨入参 projectIds（前端传我参与的项目）扁平列出未回收文档。
-     * 默认仅文档/文件（不含目录 folder）；type 指定时按类型过滤；keyword 按标题包含过滤（轻量，全文留搜索接口）。
-     * 经 ACL 过滤仅返回当前用户可读节点；按更新时间倒序。tenant 由拦截器注入，不手写租户条件、不跨域查表。
+     * 全局文档列表（文档中心首页「全部文档」）：跨入参 projectIds（前端传我参与的项目）扁平列出。
+     * 含两类来源：知识库文档（pm_doc，source=doc，可下钻编辑）+ 项目文件（pm_attachment 项目/任务/费用附件，
+     * source=attachment，点链接下载）。默认不含目录 folder；type 指定时按类型过滤（附件视为 file）；
+     * keyword 按标题/文件名包含过滤。文档经 ACL 过滤仅返回可读节点。tenant 由拦截器注入，不手写租户条件。
      */
     public List<DocListVO> listAcrossProjects(List<Long> projectIds, String type, String keyword) {
         if (projectIds == null || projectIds.isEmpty()) {
@@ -437,7 +438,19 @@ public class DocService {
                 continue;
             }
             result.add(new DocListVO(d.getId(), d.getProjectId(), d.getType(), d.getTitle(),
-                    d.getUpdateBy(), d.getUpdateTime(), favIds.contains(d.getId())));
+                    d.getUpdateBy(), d.getUpdateTime(), favIds.contains(d.getId()), "doc", null));
+        }
+        // 项目文件：聚合项目/任务/费用附件（pm_attachment），视为 file 类型；type 指定为非 file 时跳过
+        if (type == null || type.isBlank() || "file".equals(type)) {
+            for (Long pid : projectIds) {
+                for (AttachmentVO a : attachmentService.listByProject(pid)) {
+                    if (!kw.isEmpty() && !(a.name() != null && a.name().toLowerCase().contains(kw))) {
+                        continue;
+                    }
+                    result.add(new DocListVO(a.id(), pid, "file", a.name(),
+                            a.uploaderId(), a.createTime(), false, "attachment", a.entityType()));
+                }
+            }
         }
         return result;
     }

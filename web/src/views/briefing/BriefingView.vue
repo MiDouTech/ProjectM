@@ -1,19 +1,6 @@
 <template>
   <div class="mido-page">
-    <WorkspaceShell module="briefing">
-      <template #actions>
-        <!-- 全部：写简报（选模板新建）；提交简报：添加模板 -->
-        <el-dropdown v-if="activeTab === 'all'" trigger="click" @command="openNewById">
-          <el-button type="primary" :icon="Plus">写简报<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item v-for="t in templates" :key="t.id" :command="t.id">{{ t.name }}</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-        <el-button v-else-if="activeTab === 'submit'" type="primary" :icon="Plus" @click="openTemplateDialog">添加模板</el-button>
-      </template>
-    </WorkspaceShell>
+    <WorkspaceShell module="briefing" />
 
     <el-tabs v-model="activeTab" class="bf__tabs bf__tabs--headless">
       <!-- 全部：我的简报（日/周/月合一），类型/状态/关键字筛选 + 视图切换/分页/排序 -->
@@ -28,6 +15,14 @@
               <el-option v-for="s in STATUS_OPTIONS" :key="s.value" :label="s.label" :value="s.value" />
             </el-select>
             <el-input v-model="keyword" placeholder="搜索周期" clearable class="bf__search" :prefix-icon="Search" />
+            <el-dropdown trigger="click" @command="openNewById">
+              <el-button type="primary" :icon="Plus">写简报<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="t in templates" :key="t.id" :command="t.id">{{ t.name }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
 
@@ -81,6 +76,9 @@
 
       <!-- 提交简报：模板卡（写入口 + 模板管理） -->
       <el-tab-pane label="提交简报" name="submit" lazy>
+        <div class="bf__bar bf__bar--end">
+          <el-button type="primary" :icon="Plus" @click="openTemplateDialog">添加模板</el-button>
+        </div>
         <div class="bf__cards">
           <div v-for="t in templates" :key="t.id" class="mido-card" @click="openNew(t)">
             <div class="mido-card__icon" :class="'is-' + t.type">{{ typeShort(t.type) }}</div>
@@ -658,7 +656,12 @@ onMounted(async () => {
 }
 .bf__bar-right {
   display: flex;
+  align-items: center;
   gap: var(--mido-space-2);
+}
+/* 单按钮行（如提交简报 tab 的「添加模板」）右对齐 */
+.bf__bar--end {
+  justify-content: flex-end;
 }
 .bf__quick {
   width: calc(var(--mido-nav-width) * 0.7);

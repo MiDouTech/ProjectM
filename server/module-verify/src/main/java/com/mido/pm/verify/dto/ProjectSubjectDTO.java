@@ -1,17 +1,16 @@
 package com.mido.pm.verify.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.math.BigDecimal;
 import java.util.List;
 
-/** NPSS 项目级评价主体项（整组提交）。成员即干系人 id；每个主体须≥1 成员，权重合计=100%。 */
+/**
+ * NPSS 项目级评价主体成员配置项（整组提交）。
+ * 主体名称/权重/受益方为租户级统一配置（{@link SubjectTemplateDTO}），项目内只读、不在此提交；
+ * 此处仅按租户模板主体（templateId）配置各自的成员（干系人）。每个启用主体须≥1 成员，干系人不可跨主体。
+ */
 public record ProjectSubjectDTO(
-        Long id,
-        @NotBlank(message = "评价主体名称不能为空") String name,
-        @NotNull(message = "权重不能为空") BigDecimal weight,
-        Boolean beneficiary,
+        @NotNull(message = "评价主体(模板)不能为空") Long templateId,
         Integer sort,
         List<Long> memberStakeholderIds) {
 }

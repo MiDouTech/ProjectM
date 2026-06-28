@@ -56,8 +56,9 @@ public class DocController {
     }
 
     /**
-     * 全局文档列表（文档中心首页「全部文档」）：跨 projectIds（前端传我参与的项目）扁平列出未回收文档。
-     * type 选填（doc/file/folder）；keyword 选填（标题包含）。经 ACL 过滤、按更新时间倒序。
+     * 全局文档列表（文档中心首页「全部文档」）：跨 projectIds（前端传我参与的项目）扁平列出
+     * 知识库文档（source=doc）+ 项目文件（source=attachment，项目/任务/费用附件）。
+     * type 选填（doc/file/folder，附件视为 file）；keyword 选填（标题/文件名包含）。文档经 ACL 过滤。
      */
     @GetMapping("/list")
     public R<List<DocListVO>> list(@RequestParam(required = false) List<Long> projectIds,

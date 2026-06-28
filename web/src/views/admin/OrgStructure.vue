@@ -33,8 +33,8 @@
 
     <el-form label-width="120px" class="form" v-loading="loading">
       <el-divider content-position="left">基础</el-divider>
-      <el-form-item label="企业 ID（CorpID）">
-        <el-input v-model="form.corpId" placeholder="企业微信「我的企业」中的企业 ID（ww 开头）" clearable />
+      <el-form-item label="企业 ID">
+        <el-input v-model="form.corpId" placeholder="企业微信「我的企业」中的企业 ID / CorpID（ww 开头）" clearable />
       </el-form-item>
 
       <el-divider content-position="left">通讯录同步</el-divider>
